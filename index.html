@@ -14,6 +14,7 @@
   --ok:#30d158; --warn:#ff9f0a; --bad:#ff453a;
   --ui:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display","Helvetica Neue","Segoe UI",Roboto,Arial,sans-serif;
   --code:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  --bar:rgba(0,0,0,.82); --bar2:rgba(28,28,30,.92); --hover:#3a3a3c; --segon:#636366; --logo:linear-gradient(160deg,#0a84ff,#5e5ce6);
   color-scheme:dark;
 }
 *{box-sizing:border-box}
@@ -30,10 +31,10 @@ h3{font-size:13px;font-weight:400;color:var(--muted);text-transform:uppercase;le
 .ltitle{font-size:34px;font-weight:700;letter-spacing:-.03em;line-height:1.1;margin:8px 0 2px}
 
 /* Barra superior */
-header.top{position:sticky;top:0;z-index:20;background:rgba(0,0,0,.82);backdrop-filter:saturate(180%) blur(20px);-webkit-backdrop-filter:saturate(180%) blur(20px);border-bottom:.5px solid var(--sep)}
+header.top{position:sticky;top:0;z-index:20;background:var(--bar);backdrop-filter:saturate(180%) blur(20px);-webkit-backdrop-filter:saturate(180%) blur(20px);border-bottom:.5px solid var(--sep)}
 .top-inner{display:flex;flex-wrap:wrap;gap:10px 24px;align-items:center;justify-content:space-between;padding:12px 0 8px}
 .brand{display:flex;align-items:center;gap:10px}
-.logo{width:30px;height:30px;border-radius:7px;background:linear-gradient(160deg,#0a84ff,#5e5ce6);display:grid;place-items:center;color:#fff;font:700 11px var(--ui)}
+.logo{width:30px;height:30px;border-radius:7px;background:var(--logo);display:grid;place-items:center;color:#fff;font:700 11px var(--ui)}
 .brand b{font-size:17px;font-weight:600}
 .brand small{display:block;color:var(--muted);font-size:12px}
 .proj{display:flex;flex-wrap:wrap;gap:8px}
@@ -55,7 +56,7 @@ section.view.on{display:flex}
 .row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
 .spread{justify-content:space-between}
 .btn{font:500 15px var(--ui);border:0;background:var(--group2);color:var(--accent);border-radius:10px;padding:9px 14px;cursor:pointer}
-.btn:hover{background:#3a3a3c}
+.btn:hover{background:var(--hover)}
 .btn.primary{background:var(--accent);color:#fff}
 .btn.ghost{background:none;padding-left:4px;padding-right:4px}
 .btn.sm{padding:6px 11px;font-size:14px;border-radius:9px}
@@ -124,7 +125,7 @@ td input[type=number]{width:96px;padding:5px 8px;font-size:13px}
 .facts b{color:var(--ink);font-weight:500}
 .seg{display:flex;background:var(--group2);border-radius:9px;padding:2px;gap:2px}
 .seg button{flex:1;font:500 13px var(--ui);color:var(--ink);background:none;border:0;border-radius:7px;padding:6px 10px;cursor:pointer;position:relative}
-.seg button[aria-pressed="true"]{background:#636366}
+.seg button[aria-pressed="true"]{background:var(--segon);color:var(--segink,var(--ink))}
 .seg button.sug:not([aria-pressed="true"])::after{content:"";position:absolute;top:4px;right:5px;width:5px;height:5px;border-radius:50%;background:var(--warn)}
 .pcard select{width:100%}
 .price-row{display:flex;align-items:flex-end;justify-content:space-between;gap:10px;flex-wrap:wrap}
@@ -154,7 +155,7 @@ td input[type=number]{width:96px;padding:5px 8px;font-size:13px}
 
 /* Hoja de detalle */
 .sheet-bg{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:40;display:none}
-.sheet{position:fixed;left:0;right:0;bottom:0;z-index:41;background:#1c1c1e;border-radius:14px 14px 0 0;max-height:88%;overflow:auto;padding:8px 16px calc(24px + env(safe-area-inset-bottom));display:none;flex-direction:column;gap:14px}
+.sheet{position:fixed;left:0;right:0;bottom:0;z-index:41;background:var(--group);border-radius:14px 14px 0 0;max-height:88%;overflow:auto;padding:8px 16px calc(24px + env(safe-area-inset-bottom));display:none;flex-direction:column;gap:14px}
 .sheet.on,.sheet-bg.on{display:flex}
 .sheet .grab{width:36px;height:5px;border-radius:3px;background:var(--sep);margin:0 auto 4px}
 .sheet .bar-top{display:flex;justify-content:space-between;align-items:center}
@@ -199,20 +200,34 @@ ul.clean{margin:0;padding-left:18px;font-size:14px;display:flex;flex-direction:c
   .proj label{flex:1 1 140px}
   .proj input{width:100%}
   .brand small{display:none}
-  nav.tabs{position:fixed;bottom:0;left:0;right:0;z-index:30;background:rgba(18,18,18,.9);backdrop-filter:saturate(180%) blur(20px);-webkit-backdrop-filter:saturate(180%) blur(20px);border-top:.5px solid var(--sep);justify-content:space-around;padding:4px 4px calc(2px + env(safe-area-inset-bottom))}
+  nav.tabs{position:fixed;bottom:0;left:0;right:0;z-index:30;background:var(--bar);backdrop-filter:saturate(180%) blur(20px);-webkit-backdrop-filter:saturate(180%) blur(20px);border-top:.5px solid var(--sep);justify-content:space-around;padding:4px 4px calc(2px + env(safe-area-inset-bottom))}
   .tab{flex-direction:column;gap:2px;font-size:10px;padding:5px 4px;border-bottom:0;flex:1}
   .tab svg{width:24px;height:24px}
   .hero{grid-template-columns:1fr}
   .lines-d{display:none}
   .lines-m{display:block}
   .pres-card{background:none;padding:0}
-  .search.floating{position:sticky;bottom:calc(64px + env(safe-area-inset-bottom));z-index:15;box-shadow:0 6px 24px rgba(0,0,0,.6);border-radius:22px;background:rgba(44,44,46,.92);backdrop-filter:blur(20px)}
+  .search.floating{position:sticky;bottom:calc(64px + env(safe-area-inset-bottom));z-index:15;box-shadow:0 6px 24px rgba(0,0,0,.6);border-radius:22px;background:var(--bar2);backdrop-filter:blur(20px)}
   .cards{grid-template-columns:1fr}
   .lib{grid-template-columns:1fr}
   .list{display:none}
   .libsel{display:block;width:100%}
   .hide-m{display:none}
 }
+
+/* Temas */
+:root[data-skin="claro"]{--bg:#f2f2f7;--group:#ffffff;--group2:#e9e9ee;--sep:#d1d1d6;--ink:#000000;--muted:#6c6c70;--muted2:rgba(60,60,67,.3);--accent:#007aff;--accent-soft:rgba(0,122,255,.12);--ok:#34c759;--warn:#ff9500;--bad:#ff3b30;--bar:rgba(242,242,247,.85);--bar2:rgba(255,255,255,.92);--hover:#dcdce1;--segon:#ffffff;--logo:linear-gradient(160deg,#007aff,#5856d6);color-scheme:light}
+:root[data-skin="grafito"]{--bg:#121212;--group:#1e1e1e;--group2:#2a2a2a;--sep:#3a3a3a;--ink:#f2f2f2;--muted:#9a9a9a;--accent:#ff9f0a;--accent-ink:#1a1000;--accent-soft:rgba(255,159,10,.15);--bar:rgba(18,18,18,.85);--bar2:rgba(42,42,42,.92);--hover:#333333;--segon:#ff9f0a;--segink:#1a1000;--logo:linear-gradient(160deg,#ff9f0a,#ff453a)}
+:root[data-skin="plano"]{--bg:#0a1929;--group:#0f2438;--group2:#163249;--sep:#22445f;--ink:#e6f0fa;--muted:#8aa9c4;--muted2:rgba(138,169,196,.4);--accent:#4fc3f7;--accent-ink:#04121d;--accent-soft:rgba(79,195,247,.15);--bar:rgba(10,25,41,.85);--bar2:rgba(22,50,73,.92);--hover:#1d3d58;--segon:#4fc3f7;--segink:#04121d;--logo:linear-gradient(160deg,#4fc3f7,#1565c0)}
+:root[data-skin="obra"]{--bg:#f3efe7;--group:#fffcf6;--group2:#ebe4d6;--sep:#d6cdbb;--ink:#1f1a14;--muted:#6f6556;--muted2:rgba(111,101,86,.35);--accent:#e8590c;--accent-soft:rgba(232,89,12,.12);--ok:#2f9e44;--warn:#e67700;--bad:#c92a2a;--bar:rgba(243,239,231,.88);--bar2:rgba(255,252,246,.94);--hover:#e2d9c8;--segon:#ffffff;--logo:linear-gradient(160deg,#fd7e14,#e8590c);color-scheme:light}
+:root[data-skin="agua"]{--bg:#0b1114;--group:#121a1e;--group2:#18232a;--sep:#23323b;--ink:#e7eef0;--muted:#8ea1a8;--accent:#2dd4bf;--accent-ink:#04201c;--accent-soft:rgba(45,212,191,.13);--bar:rgba(11,17,20,.86);--bar2:rgba(24,35,42,.92);--hover:#1f2d35;--segon:#2dd4bf;--segink:#04201c;--logo:linear-gradient(160deg,#2dd4bf,#3b82f6)}
+:root[data-skin="vino"]{--bg:#140b10;--group:#1f1218;--group2:#2b1922;--sep:#3d2530;--ink:#f6e9ee;--muted:#b394a1;--accent:#ff6b9d;--accent-ink:#2a0712;--accent-soft:rgba(255,107,157,.14);--bar:rgba(20,11,16,.86);--bar2:rgba(43,25,34,.92);--hover:#38212c;--segon:#ff6b9d;--segink:#2a0712;--logo:linear-gradient(160deg,#ff6b9d,#c2255c)}
+.btn.primary{color:var(--accent-ink)}
+.swatches{display:flex;gap:4px}
+.swatches i{width:18px;height:18px;border-radius:50%;border:1px solid rgba(128,128,128,.35);display:block}
+.check{color:var(--accent);font-weight:700;width:18px;text-align:center}
+.themebtn svg{width:18px;height:18px}
+.themebtn{display:inline-flex;align-items:center;gap:6px}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
@@ -223,6 +238,7 @@ ul.clean{margin:0;padding-left:18px;font-size:14px;display:flex;flex-direction:c
       <div class="brand">
         <div class="logo" aria-hidden="true">APU</div>
         <div><b>Presupuesto APU</b><small>Tablas de planificación a presupuesto · El Salvador · USD</small></div>
+        <button class="btn sm themebtn" data-temas aria-label="Cambiar tema"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18c1.1 0 1.5-.9 1.5-1.6 0-.5-.2-.9-.5-1.2-.3-.3-.5-.7-.5-1.2 0-.9.7-1.5 1.6-1.5H16a5 5 0 0 0 5-5c0-4.1-4-7.5-9-7.5z"/><circle cx="7.5" cy="11" r="1"/><circle cx="10.5" cy="7.5" r="1"/><circle cx="15" cy="8" r="1"/></svg>Tema</button>
       </div>
       <div class="proj">
         <label for="pNombre">Proyecto<input id="pNombre" value="Vivienda prueba 1"></label>
@@ -575,6 +591,20 @@ const capDe = n => CAPS.find(c => c.nombre === n) || CAPS[CAPS.length-1];
 const ico = (n, sm) => { const k = capDe(n); return `<span class="ico${sm?" sm":""}" style="--c:${k.c}" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICONS[k.i]}</svg></span>`; };
 const CHEV = '<svg class="chev" viewBox="0 0 8 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 1l6 6-6 6"/></svg>';
 let OPEN = null, QUERY = "";
+const TEMAS = [
+  {id:"noche", nombre:"Noche", desc:"Negro con azul, como iOS", sw:["#000000","#1c1c1e","#0a84ff"], meta:"#000000"},
+  {id:"claro", nombre:"Claro", desc:"Gris claro con azul, como iOS de día", sw:["#f2f2f7","#ffffff","#007aff"], meta:"#f2f2f7"},
+  {id:"grafito", nombre:"Grafito", desc:"Gris oscuro con naranja", sw:["#121212","#1e1e1e","#ff9f0a"], meta:"#121212"},
+  {id:"plano", nombre:"Plano", desc:"Azul de plano con celeste", sw:["#0a1929","#0f2438","#4fc3f7"], meta:"#0a1929"},
+  {id:"obra", nombre:"Obra", desc:"Arena claro con naranja de obra", sw:["#f3efe7","#fffcf6","#e8590c"], meta:"#f3efe7"},
+  {id:"agua", nombre:"Verde agua", desc:"Azul petróleo con verde agua", sw:["#0b1114","#121a1e","#2dd4bf"], meta:"#0b1114"},
+  {id:"vino", nombre:"Vino", desc:"Vino oscuro con rosa", sw:["#140b10","#1f1218","#ff6b9d"], meta:"#140b10"}
+];
+function aplicarTema(){
+  const tm = TEMAS.find(x => x.id === (S && S.tema)) || TEMAS[0];
+  if(tm.id === "noche") delete document.documentElement.dataset.skin; else document.documentElement.dataset.skin = tm.id;
+  const m = document.querySelector('meta[name="theme-color"]'); if(m) m.setAttribute("content", tm.meta);
+}
 const capColor = n => (CAPS.find(c => c.nombre === n) || CAPS[CAPS.length-1]).c;
 const capIdx = n => { const i = CAPS.findIndex(c => c.nombre === n); return i < 0 ? CAPS.length-1 : i; };
 
@@ -837,6 +867,14 @@ function renderBiblioteca(){
 function renderSheet(){
   const sh = $("#sheet"), bg = $("#sheetBg");
   if(!OPEN){ sh.classList.remove("on"); bg.classList.remove("on"); sh.innerHTML = ""; return; }
+  if(OPEN === "temas"){
+    const actual = S.tema || "noche";
+    sh.innerHTML = `<div class="grab"></div>
+      <div class="bar-top"><div style="font-size:22px;font-weight:700;letter-spacing:-.02em">Tema</div><button class="btn ghost" data-close>Listo</button></div>
+      <div class="group">${TEMAS.map(tm => `<button class="irow" data-skin="${tm.id}" aria-pressed="${tm.id===actual}"><span class="swatches">${tm.sw.map(c => `<i style="background:${c}"></i>`).join("")}</span><span class="body"><span class="txt"><span class="t">${tm.nombre}</span><span class="s">${tm.desc}</span></span><span class="check">${tm.id===actual ? "✓" : ""}</span></span></button>`).join("")}</div>
+      <p class="muted small" style="margin:0">El tema se guarda en este dispositivo. Los colores de cada capítulo se mantienen en todos los temas.</p>`;
+    sh.classList.add("on"); bg.classList.add("on"); return;
+  }
   const {ls, c, k} = calcular();
   const l = ls.find(x => x.ref === OPEN);
   if(!l){ OPEN = null; return renderSheet(); }
@@ -892,6 +930,8 @@ $("#btnReset").addEventListener("click", () => { S.recursos = copiaRecursos(); S
 $("#libSel").addEventListener("change", e => { S.sel = e.target.value; guardar(); renderBiblioteca(); });
 
 document.addEventListener("click", e => {
+  if(e.target.closest("[data-temas]")){ OPEN = "temas"; renderSheet(); return; }
+  const sk = e.target.closest("[data-skin]"); if(sk){ S.tema = sk.dataset.skin; aplicarTema(); guardar(); renderSheet(); return; }
   const op = e.target.closest("[data-open]"); if(op){ OPEN = op.dataset.open; renderSheet(); return; }
   if(e.target.closest("[data-close]")){ OPEN = null; renderSheet(); return; }
   const va = e.target.closest("[data-verapu]"); if(va){ S.sel = va.dataset.verapu; OPEN = null; guardar(); render(); ir("biblioteca"); window.scrollTo(0,0); return; }
@@ -978,6 +1018,7 @@ document.querySelector("[data-excel]").addEventListener("click", async () => {
 
 /* ===== Inicio ===== */
 if(!cargar()){ S = estadoInicial(); cargarTexto(EJEMPLO, "CANTIDADES DE PAREDES prueba 1.txt"); S.partidas.forEach((p, i) => p.unidad = sugerirUnidad(S.tipos[i].nombre)); guardar(); }
+aplicarTema();
 render();
 ir(location.hash.slice(1) || "presupuesto");
 </script>
