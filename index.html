@@ -608,13 +608,13 @@ function lineas(){
     if(!p.unidad) problema = "Falta unidad";
     else if(!pu) problema = "Sin precio";
     else if(a && a.unidad !== p.unidad) problema = "Unidad distinta al APU";
-    out.push({ref:"p:"+i, origen:"Revit", titulo:t.nombre, sub: a ? `${a.id} ${a.nombre}` : (p.apu==="__manual" ? "Costo manual" : "Sin APU"),
+    out.push({ref:"p:"+i, origen:"Revit", titulo:t.nombre, info: a ? `${a.id} ${a.nombre}` : (p.apu==="__manual" ? "Costo manual" : "Sin APU"),
       cap: a ? a.cap : "Otras partidas", unidad: p.unidad || "-", cant: p.unidad ? R2(cantidadPorUnidad(t, p.unidad)) : 0,
       pu, problema, provisional: a && a.provisional, manual: p.apu === "__manual"});
   });
   S.manual.forEach((m, i) => {
     const a = apuById(m.apu); const pu = puEf(m);
-    out.push({ref:"m:"+i, origen:"Manual", titulo: a ? a.nombre : (m.desc || "Partida manual"), sub: a ? `APU ${a.id}` : "Costo manual",
+    out.push({ref:"m:"+i, origen:"Manual", titulo: a ? a.nombre : (m.desc || "Partida manual"), info: a ? `APU ${a.id}` : "Costo manual",
       cap: a ? a.cap : "Otras partidas", unidad: a ? a.unidad : m.unidad, cant: R2(+m.cant || 0),
       pu, problema: pu ? "" : "Sin precio", provisional: a && a.provisional, manual: m.apu === "__manual"});
   });
@@ -735,11 +735,11 @@ function renderPresupuesto(){
   const chips = l => (l.problema ? ` <span class="chip bad">${esc(l.problema)}</span>` : "") + (l.pu && l.pu.editado ? ' <span class="chip info">Editado</span>' : "") + (!l.problema && l.provisional ? ' <span class="chip warn">Provisional</span>' : "");
   $("#tblPres").innerHTML = `<thead><tr><th>No.</th><th>Partida</th><th class="u">Unidad</th><th class="n">Cantidad</th><th class="n">P.U. (C.D.)</th><th class="n">Parcial</th><th class="n">P.U. final</th><th class="n">Total</th></tr></thead><tbody>` +
     grupos.map(g => `<tr class="cap" style="--c:${g.c}"><td class="code">${g.num}</td><td colspan="4">${esc(g.nombre)}</td><td class="n">${money(g.sub)}</td><td></td><td class="n">${money(R2(g.sub*k))}</td></tr>` +
-      g.items.map(l => `<tr class="item" style="--c:${g.c}"><td class="code">${l.num}</td><td>${esc(l.titulo)}<div class="ref">${esc(l.sub)} · ${l.origen}</div>${chips(l)}</td><td class="u">${esc(l.unidad)}</td><td class="n">${num(l.cant)}</td><td class="n">${editorPU(l)}</td><td class="n">${l.ok ? money(l.sub) : "-"}</td><td class="n">${l.ok ? money(R2(l.pu.total*k)) : "-"}</td><td class="n">${l.ok ? money(R2(l.sub*k)) : "-"}</td></tr>`).join("")).join("") +
+      g.items.map(l => `<tr class="item" style="--c:${g.c}"><td class="code">${l.num}</td><td>${esc(l.titulo)}<div class="ref">${esc(l.info)} · ${l.origen}</div>${chips(l)}</td><td class="u">${esc(l.unidad)}</td><td class="n">${num(l.cant)}</td><td class="n">${editorPU(l)}</td><td class="n">${l.ok ? money(l.sub) : "-"}</td><td class="n">${l.ok ? money(R2(l.pu.total*k)) : "-"}</td><td class="n">${l.ok ? money(R2(l.sub*k)) : "-"}</td></tr>`).join("")).join("") +
     `<tr class="total"><td></td><td colspan="4">Total</td><td class="n">${money(c.cd)}</td><td></td><td class="n">${money(c.total)}</td></tr></tbody>`;
   $("#linesM").innerHTML = grupos.map(g => `<div class="capm"><span><span class="dot" style="background:${g.c}"></span> ${esc(g.nombre)}</span><span class="n">${money(g.sub)}</span></div>` +
     g.items.map(l => `<div class="lcard" style="--c:${g.c}">
-      <div class="top"><div class="t"><span class="ref">${l.num}</span> ${esc(l.titulo)}<div class="ref">${esc(l.sub)}</div>${chips(l)}</div><div class="sum">${l.ok ? money(l.sub) : "-"}</div></div>
+      <div class="top"><div class="t"><span class="ref">${l.num}</span> ${esc(l.titulo)}<div class="ref">${esc(l.info)}</div>${chips(l)}</div><div class="sum">${l.ok ? money(l.sub) : "-"}</div></div>
       <div class="price-row"><span class="mono small muted">${num(l.cant)} ${esc(l.unidad)} ×</span>${editorPU(l)}</div>
     </div>`).join("")).join("") + `<div class="capm" style="color:var(--accent)"><span>Costo directo</span><span class="n">${money(c.cd)}</span></div>`;
   const f = S.cfg;
@@ -852,7 +852,7 @@ function hojaPresupuesto(){
     ["No.","Partida","Referencia","Unidad","Cantidad","P.U. (C.D.)","Parcial","P.U. final","Total","Observación"]];
   grupos.forEach(g => {
     aoa.push([g.num, g.nombre.toUpperCase(), "", "", "", "", g.sub, "", R2(g.sub*k), ""]);
-    g.items.forEach(l => aoa.push([l.num, l.titulo, l.sub, l.unidad, l.cant, l.pu ? l.pu.total : null, l.ok ? l.sub : null, l.ok ? R2(l.pu.total*k) : null, l.ok ? R2(l.sub*k) : null, l.problema || (l.pu && l.pu.editado ? "Precio editado" : (l.provisional ? "APU provisional" : ""))]));
+    g.items.forEach(l => aoa.push([l.num, l.titulo, l.info, l.unidad, l.cant, l.pu ? l.pu.total : null, l.ok ? l.sub : null, l.ok ? R2(l.pu.total*k) : null, l.ok ? R2(l.sub*k) : null, l.problema || (l.pu && l.pu.editado ? "Precio editado" : (l.provisional ? "APU provisional" : ""))]));
   });
   aoa.push([], ["","Costo directo","","","","","","",c.cd]);
   if(S.cfg.modo === "factor") aoa.push(["",`Factor comercial ${S.cfg.factor}%`,"","","","","","",c.factor]);
