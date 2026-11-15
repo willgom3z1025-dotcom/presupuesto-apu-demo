@@ -3,186 +3,215 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="theme-color" content="#0b1114">
+<meta name="theme-color" content="#000000">
 <title>Presupuesto APU desde Revit</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
-/* Layout: tema oscuro único; barra superior con proyecto y pestañas en escritorio, barra inferior tipo app en el teléfono; color por capítulo como franja lateral en tarjetas y filas */
+/* Layout: estilo Configuración de iOS en modo oscuro; fuente del sistema (SF Pro en Apple), grupos redondeados, ícono de color por capítulo, barra inferior en el teléfono */
 :root{
-  --bg:#0b1114; --surface:#121a1e; --surface2:#18232a; --line:#23323b; --ink:#e7eef0; --muted:#8ea1a8;
-  --accent:#2dd4bf; --accent-ink:#04201c; --accent-soft:rgba(45,212,191,.12);
-  --ok:#4ade80; --warn:#fbbf24; --bad:#f87171;
-  --ui:"Inter",system-ui,-apple-system,"Segoe UI",sans-serif;
-  --num:"JetBrains Mono",ui-monospace,Consolas,monospace;
+  --bg:#000000; --group:#1c1c1e; --group2:#2c2c2e; --sep:#38383a; --ink:#ffffff; --muted:#8e8e93; --muted2:rgba(235,235,245,.3);
+  --accent:#0a84ff; --accent-ink:#ffffff; --accent-soft:rgba(10,132,255,.16);
+  --ok:#30d158; --warn:#ff9f0a; --bad:#ff453a;
+  --ui:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display","Helvetica Neue","Segoe UI",Roboto,Arial,sans-serif;
+  --code:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
   color-scheme:dark;
 }
 *{box-sizing:border-box}
 html,body{margin:0;height:100%}
-body{background:var(--bg);color:var(--ink);font:400 14px/1.45 var(--ui);-webkit-font-smoothing:antialiased}
+body{background:var(--bg);color:var(--ink);font:400 15px/1.4 var(--ui);-webkit-font-smoothing:antialiased;letter-spacing:-.01em}
 h1,h2,h3{margin:0;text-wrap:balance}
-h1{font-size:20px;font-weight:700;letter-spacing:-.01em}
-h2{font-size:17px;font-weight:600}
-h3{font-size:14px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
-.mono,.n{font-family:var(--num);font-variant-numeric:tabular-nums}
-.wrap{max-width:1240px;margin:0 auto;padding:0 18px}
+h2{font-size:20px;font-weight:600;letter-spacing:-.02em}
+h3{font-size:13px;font-weight:400;color:var(--muted);text-transform:uppercase;letter-spacing:.02em}
+.n,.num{font-variant-numeric:tabular-nums}
+.code{font-family:var(--code)}
+.wrap{max-width:1180px;margin:0 auto;padding:0 18px}
 .muted{color:var(--muted)}
 .small{font-size:13px}
+.ltitle{font-size:34px;font-weight:700;letter-spacing:-.03em;line-height:1.1;margin:8px 0 2px}
 
 /* Barra superior */
-header.top{position:sticky;top:0;z-index:20;background:rgba(11,17,20,.92);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
-.top-inner{display:flex;flex-wrap:wrap;gap:12px 24px;align-items:center;justify-content:space-between;padding:14px 0 10px}
-.brand{display:flex;align-items:center;gap:12px}
-.logo{width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,var(--accent),#3b82f6);display:grid;place-items:center;color:var(--accent-ink);font:700 13px var(--num)}
+header.top{position:sticky;top:0;z-index:20;background:rgba(0,0,0,.82);backdrop-filter:saturate(180%) blur(20px);-webkit-backdrop-filter:saturate(180%) blur(20px);border-bottom:.5px solid var(--sep)}
+.top-inner{display:flex;flex-wrap:wrap;gap:10px 24px;align-items:center;justify-content:space-between;padding:12px 0 8px}
+.brand{display:flex;align-items:center;gap:10px}
+.logo{width:30px;height:30px;border-radius:7px;background:linear-gradient(160deg,#0a84ff,#5e5ce6);display:grid;place-items:center;color:#fff;font:700 11px var(--ui)}
+.brand b{font-size:17px;font-weight:600}
 .brand small{display:block;color:var(--muted);font-size:12px}
 .proj{display:flex;flex-wrap:wrap;gap:8px}
-.proj label{display:flex;flex-direction:column;font-size:11px;color:var(--muted);gap:2px;text-transform:uppercase;letter-spacing:.05em}
-input,select{font:inherit;color:var(--ink);background:var(--surface2);border:1px solid var(--line);border-radius:8px;padding:7px 9px;min-width:0}
-input[type=number]{font-family:var(--num);font-variant-numeric:tabular-nums;text-align:right}
+.proj label{display:flex;flex-direction:column;font-size:11px;color:var(--muted);gap:2px}
+input,select{font:inherit;color:var(--ink);background:var(--group2);border:0;border-radius:10px;padding:8px 10px;min-width:0}
+input[type=number]{font-variant-numeric:tabular-nums;text-align:right}
 input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-.proj input{width:190px}
-nav.tabs{display:flex;gap:2px}
-.tab{font:600 14px var(--ui);background:none;border:0;border-bottom:2px solid transparent;color:var(--muted);padding:10px 14px;cursor:pointer;display:flex;align-items:center;gap:8px}
-.tab svg{width:18px;height:18px}
-.tab[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
-.tab[aria-selected="true"] svg{color:var(--accent)}
-main{padding:20px 0 90px}
-section.view{display:none;flex-direction:column;gap:16px}
+.proj input{width:190px;background:var(--group)}
+nav.tabs{display:flex;gap:4px}
+.tab{font:500 15px var(--ui);background:none;border:0;border-bottom:2px solid transparent;color:var(--muted);padding:10px 12px;cursor:pointer;display:flex;align-items:center;gap:7px}
+.tab svg{width:20px;height:20px}
+.tab[aria-selected="true"]{color:var(--accent);border-bottom-color:var(--accent)}
+main{padding:12px 0 110px}
+section.view{display:none;flex-direction:column;gap:18px}
 section.view.on{display:flex}
 
-/* Superficies */
-.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:12px}
+/* Grupos (como Configuración) */
+.card{background:var(--group);border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:12px}
 .row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
 .spread{justify-content:space-between}
-.btn{font:600 14px var(--ui);border:1px solid var(--line);background:var(--surface2);color:var(--ink);border-radius:10px;padding:9px 14px;cursor:pointer}
-.btn:hover{border-color:var(--accent)}
-.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
-.btn.ghost{background:none}
-.btn.sm{padding:5px 10px;font-size:13px;border-radius:8px}
-.chip{display:inline-flex;align-items:center;gap:5px;font:600 12px var(--ui);padding:3px 9px;border-radius:999px;white-space:nowrap;background:var(--surface2);color:var(--muted)}
-.chip.ok{color:var(--ok);background:rgba(74,222,128,.1)}
-.chip.warn{color:var(--warn);background:rgba(251,191,36,.12)}
-.chip.bad{color:var(--bad);background:rgba(248,113,113,.12)}
+.btn{font:500 15px var(--ui);border:0;background:var(--group2);color:var(--accent);border-radius:10px;padding:9px 14px;cursor:pointer}
+.btn:hover{background:#3a3a3c}
+.btn.primary{background:var(--accent);color:#fff}
+.btn.ghost{background:none;padding-left:4px;padding-right:4px}
+.btn.sm{padding:6px 11px;font-size:14px;border-radius:9px}
+.chip{display:inline-flex;align-items:center;gap:5px;font:500 12px var(--ui);padding:2px 8px;border-radius:6px;white-space:nowrap;background:var(--group2);color:var(--muted)}
+.chip.ok{color:var(--ok);background:rgba(48,209,88,.14)}
+.chip.warn{color:var(--warn);background:rgba(255,159,10,.15)}
+.chip.bad{color:var(--bad);background:rgba(255,69,58,.15)}
 .chip.info{color:var(--accent);background:var(--accent-soft)}
 .dot{width:8px;height:8px;border-radius:50%;display:inline-block;flex:none}
 .status{min-height:18px;font-size:13px}
+.ico{width:29px;height:29px;border-radius:7px;display:grid;place-items:center;flex:none;background:var(--c)}
+.ico svg{width:18px;height:18px;color:#fff}
+.ico.sm{width:22px;height:22px;border-radius:6px}
+.ico.sm svg{width:14px;height:14px}
 
 /* Carga de archivo */
-.drop{border:1.5px dashed var(--line);border-radius:14px;padding:26px 16px;text-align:center;display:flex;flex-direction:column;gap:10px;align-items:center;background:var(--surface2)}
+.drop{border:1.5px dashed var(--sep);border-radius:14px;padding:26px 16px;text-align:center;display:flex;flex-direction:column;gap:10px;align-items:center;background:var(--group2)}
 .drop.over{border-color:var(--accent);background:var(--accent-soft)}
 .drop svg{width:34px;height:34px;color:var(--accent)}
 
-/* Tablas: sistema tipográfico de presupuestos */
-.tbl{overflow-x:auto;border:1px solid var(--line);border-radius:12px}
+/* Tablas de presupuesto (escritorio) */
+.tbl{overflow-x:auto;border-radius:12px;background:var(--group)}
 table{border-collapse:collapse;width:100%}
-th,td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:middle}
-th{font:600 11px var(--ui);text-transform:uppercase;letter-spacing:.06em;color:var(--muted);background:var(--surface2);white-space:nowrap;position:sticky;top:0}
+th,td{padding:9px 10px;border-bottom:.5px solid var(--sep);text-align:left;vertical-align:middle}
+th{font:500 12px var(--ui);color:var(--muted);background:var(--group);white-space:nowrap;position:sticky;top:0}
 td{font-size:14px;line-height:1.4}
-td.n,th.n{text-align:right;font-family:var(--num);font-variant-numeric:tabular-nums;font-size:13px;white-space:nowrap}
-td.u,th.u{text-align:center;font-family:var(--num);font-size:13px;white-space:nowrap}
-td.code{font-family:var(--num);font-variant-numeric:tabular-nums;font-size:13px;color:var(--muted);white-space:nowrap}
+td.n,th.n{text-align:right;font-variant-numeric:tabular-nums;font-size:13px;white-space:nowrap}
+td.u,th.u{text-align:center;font-size:13px;white-space:nowrap}
+td.code{font-family:var(--code);font-size:12px;color:var(--muted);white-space:nowrap}
 tr:last-child td{border-bottom:0}
-tr.cap td{font:700 14px var(--ui);text-transform:uppercase;letter-spacing:.04em;background:var(--surface2)}
-tr.cap td.n{font:600 13px var(--num)}
-tr.cap td:first-child{box-shadow:inset 3px 0 0 var(--c)}
-tr.item td:first-child{box-shadow:inset 3px 0 0 var(--c)}
-tr.sub td{background:var(--surface2);font-weight:600}
-tr.total td{font:700 14px var(--ui);background:var(--accent-soft)}
-tr.total td.n{font:600 14px var(--num);color:var(--accent)}
-td input[type=number]{width:96px;padding:5px 7px;font-size:13px}
-.ref{font:500 12px var(--num);color:var(--muted)}
+tr.cap td{font:700 14px var(--ui);text-transform:uppercase;letter-spacing:.01em;background:var(--group2)}
+tr.cap td.n{font-weight:600}
+.capcell{display:flex;align-items:center;gap:10px}
+tr.sub td{background:var(--group2);font-weight:600}
+tr.total td{font:700 15px var(--ui);background:var(--accent-soft)}
+tr.total td.n{font-size:15px;color:var(--ink)}
+td input[type=number]{width:96px;padding:5px 8px;font-size:13px}
+.ref{font:400 12px var(--ui);color:var(--muted)}
 
-/* Resumen del presupuesto */
-.hero{display:grid;grid-template-columns:minmax(260px,1.1fr) 2fr;gap:16px}
-.total-card{background:linear-gradient(150deg,#0f2a2a,#122028 60%);border:1px solid rgba(45,212,191,.35);border-radius:16px;padding:18px;display:flex;flex-direction:column;gap:6px}
-.total-card .lbl{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
-.total-card .big{font:600 34px/1.1 var(--num);font-variant-numeric:tabular-nums;color:var(--ink)}
-.total-card .row{gap:6px}
-.mini{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:6px}
-.mini div{background:rgba(0,0,0,.18);border-radius:10px;padding:8px 10px}
-.mini span{display:block;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
-.mini b{font:600 15px var(--num);font-variant-numeric:tabular-nums}
+/* Resumen */
+.hero{display:grid;grid-template-columns:minmax(260px,1fr) 2fr;gap:18px}
+.total-card{background:var(--group);border-radius:14px;padding:18px;display:flex;flex-direction:column;gap:4px}
+.total-card .lbl{font-size:13px;color:var(--muted)}
+.total-card .big{font:700 40px/1.05 var(--ui);letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+.mini{display:grid;grid-template-columns:repeat(2,1fr);gap:0;margin-top:10px;border-top:.5px solid var(--sep)}
+.mini div{padding:10px 0;border-bottom:.5px solid var(--sep);display:flex;flex-direction:column}
+.mini div:nth-child(odd){padding-right:10px}
+.mini span{font-size:12px;color:var(--muted)}
+.mini b{font:600 16px var(--ui);font-variant-numeric:tabular-nums}
 .dist{display:flex;flex-direction:column;gap:12px}
-.bar{display:flex;height:14px;border-radius:7px;overflow:hidden;background:var(--surface2)}
+.bar{display:flex;height:10px;border-radius:5px;overflow:hidden;background:var(--group2);gap:2px}
 .bar i{display:block;height:100%}
-.legend{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:6px 16px}
-.legend div{display:flex;align-items:center;gap:8px;font-size:13px}
+.legend{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:8px 16px}
+.legend div{display:flex;align-items:center;gap:10px;font-size:14px}
 .legend .lname{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .legend .n{color:var(--muted)}
 
 /* Tarjetas de partidas */
-.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:12px}
-.pcard{background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--c);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:10px}
-.pcard .t{font-weight:600;font-size:15px;line-height:1.3}
-.pcard .cat{font-size:12px;color:var(--c);font-weight:600;text-transform:uppercase;letter-spacing:.05em}
-.facts{display:flex;flex-wrap:wrap;gap:6px 14px;font:400 13px var(--num);color:var(--muted)}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:14px}
+.pcard{background:var(--group);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:11px}
+.pcard .head{display:flex;align-items:center;gap:10px}
+.pcard .head .grow{flex:1;min-width:0}
+.pcard .t{font-weight:600;font-size:16px;line-height:1.3}
+.pcard .cat{font-size:12px;color:var(--muted)}
+.facts{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
 .facts b{color:var(--ink);font-weight:500}
-.seg{display:inline-flex;background:var(--surface2);border:1px solid var(--line);border-radius:10px;padding:3px;gap:2px}
-.seg button{font:600 13px var(--num);color:var(--muted);background:none;border:0;border-radius:7px;padding:6px 11px;cursor:pointer;position:relative}
-.seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
-.seg button.sug:not([aria-pressed="true"])::after{content:"";position:absolute;top:4px;right:4px;width:5px;height:5px;border-radius:50%;background:var(--warn)}
+.seg{display:flex;background:var(--group2);border-radius:9px;padding:2px;gap:2px}
+.seg button{flex:1;font:500 13px var(--ui);color:var(--ink);background:none;border:0;border-radius:7px;padding:6px 10px;cursor:pointer;position:relative}
+.seg button[aria-pressed="true"]{background:#636366}
+.seg button.sug:not([aria-pressed="true"])::after{content:"";position:absolute;top:4px;right:5px;width:5px;height:5px;border-radius:50%;background:var(--warn)}
 .pcard select{width:100%}
 .price-row{display:flex;align-items:flex-end;justify-content:space-between;gap:10px;flex-wrap:wrap}
-.price-row .val{font:600 20px var(--num);font-variant-numeric:tabular-nums}
-.price-row .lbl{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+.price-row .val{font:600 20px var(--ui);font-variant-numeric:tabular-nums}
+.price-row .lbl{font-size:12px;color:var(--muted)}
 .edit{display:flex;align-items:center;gap:6px}
-.edit input{width:110px;font-size:14px}
+.edit input{width:110px;font-size:15px}
+
+/* Lista estilo iOS (teléfono) */
 .lines-m{display:none}
-.lcard{background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--c);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:8px}
-.lcard .top{display:flex;justify-content:space-between;gap:8px}
-.lcard .t{font-size:14px;line-height:1.4}
-.lcard .sum{font:600 16px var(--num);font-variant-numeric:tabular-nums;white-space:nowrap}
-.capm{display:flex;justify-content:space-between;align-items:center;padding:10px 4px 2px;font:700 14px var(--ui);text-transform:uppercase;letter-spacing:.04em}
-.capm .n{font:600 13px var(--num)}
+.ghead{display:flex;justify-content:space-between;padding:18px 16px 6px;font-size:13px;color:var(--muted);text-transform:uppercase}
+.group{background:var(--group);border-radius:12px;overflow:hidden}
+.irow{all:unset;box-sizing:border-box;width:100%;display:flex;align-items:center;gap:12px;padding:0 0 0 14px;cursor:pointer;min-height:56px}
+.irow:active{background:var(--group2)}
+.irow:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.irow .body{flex:1;min-width:0;display:flex;align-items:center;gap:8px;padding:10px 14px 10px 0;border-bottom:.5px solid var(--sep)}
+.group .irow:last-child .body{border-bottom:0}
+.irow .txt{flex:1;min-width:0}
+.irow .t{font-size:16px;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.irow .s{font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.irow .amt{font-size:16px;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+.irow .chev{width:8px;height:14px;color:var(--muted2);flex:none}
+.irow .flag{width:8px;height:8px;border-radius:50%;flex:none}
+.search{display:flex;align-items:center;gap:8px;background:var(--group);border-radius:12px;padding:0 12px}
+.search svg{width:18px;height:18px;color:var(--muted);flex:none}
+.search input{flex:1;background:none;padding:10px 0;font-size:16px}
+
+/* Hoja de detalle */
+.sheet-bg{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:40;display:none}
+.sheet{position:fixed;left:0;right:0;bottom:0;z-index:41;background:#1c1c1e;border-radius:14px 14px 0 0;max-height:88%;overflow:auto;padding:8px 16px calc(24px + env(safe-area-inset-bottom));display:none;flex-direction:column;gap:14px}
+.sheet.on,.sheet-bg.on{display:flex}
+.sheet .grab{width:36px;height:5px;border-radius:3px;background:var(--sep);margin:0 auto 4px}
+.sheet .bar-top{display:flex;justify-content:space-between;align-items:center}
+.sheet .fld{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px 0;border-bottom:.5px solid var(--sep)}
+.sheet .fld:last-child{border-bottom:0}
+.sheet .fld span:first-child{color:var(--muted)}
+.sheet .fld .v{font-variant-numeric:tabular-nums}
+.sheet .group{padding:0 14px}
+@media (min-width:761px){.sheet{left:50%;right:auto;bottom:auto;top:50%;transform:translate(-50%,-50%);width:440px;border-radius:14px}}
 
 /* Cierre */
-.cierre{display:grid;grid-template-columns:1fr auto;gap:8px 24px;font-size:14px}
-.cierre .v{text-align:right;font-family:var(--num);font-variant-numeric:tabular-nums}
-.cierre .big{font:700 18px var(--ui)}
-.cierre .v.big{font:600 20px var(--num);color:var(--accent)}
-.switch{display:inline-flex;align-items:center;gap:8px;cursor:pointer;font-weight:500}
-.switch input{appearance:none;width:40px;height:22px;border-radius:11px;background:var(--line);position:relative;cursor:pointer;padding:0;border:0}
-.switch input::after{content:"";position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:var(--ink);transition:left .15s}
-.switch input:checked{background:var(--accent)}
-.switch input:checked::after{left:21px;background:var(--accent-ink)}
+.cierre{display:grid;grid-template-columns:1fr auto;gap:10px 24px;font-size:15px}
+.cierre .v{text-align:right;font-variant-numeric:tabular-nums}
+.cierre .big{font:700 20px var(--ui)}
+.cierre .v.big{font:700 22px var(--ui)}
+.switch{display:inline-flex;align-items:center;gap:10px;cursor:pointer;font-weight:500}
+.switch input{appearance:none;-webkit-appearance:none;width:51px;height:31px;border-radius:16px;background:var(--group2);position:relative;cursor:pointer;padding:0;border:0}
+.switch input::after{content:"";position:absolute;top:2px;left:2px;width:27px;height:27px;border-radius:50%;background:#fff;transition:left .2s;box-shadow:0 2px 6px rgba(0,0,0,.3)}
+.switch input:checked{background:var(--ok)}
+.switch input:checked::after{left:22px}
 
 /* Biblioteca */
-.lib{display:grid;grid-template-columns:300px 1fr;gap:16px;align-items:start}
-.list{display:flex;flex-direction:column;max-height:680px;overflow:auto;border:1px solid var(--line);border-radius:14px;background:var(--surface)}
-.list button{all:unset;cursor:pointer;padding:10px 12px 10px 14px;border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:2px;box-shadow:inset 3px 0 0 var(--c)}
-.list button:hover{background:var(--surface2)}
+.lib{display:grid;grid-template-columns:320px 1fr;gap:18px;align-items:start}
+.list{display:flex;flex-direction:column;max-height:700px;overflow:auto;border-radius:12px;background:var(--group)}
+.list button{all:unset;box-sizing:border-box;cursor:pointer;padding:0 0 0 12px;display:flex;align-items:center;gap:10px}
+.list button .body{flex:1;min-width:0;padding:9px 12px 9px 0;border-bottom:.5px solid var(--sep);display:flex;flex-direction:column}
+.list button:hover{background:var(--group2)}
 .list button[aria-current="true"]{background:var(--accent-soft)}
 .list button:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
-.list .code{font:500 12px var(--num);color:var(--c)}
-.list .p{font:500 13px var(--num);color:var(--muted)}
+.list .code{font:400 12px var(--code);color:var(--muted)}
+.list .p{font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
 .libsel{display:none}
-.note{border-left:3px solid var(--warn);background:rgba(251,191,36,.08);padding:10px 12px;border-radius:0 10px 10px 0;font-size:13px}
-.note.info{border-left-color:var(--accent);background:var(--accent-soft)}
-ul.clean{margin:0;padding-left:18px;font-size:13px;display:flex;flex-direction:column;gap:4px}
+.note{border-radius:12px;background:rgba(255,159,10,.12);padding:12px 14px;font-size:14px}
+.note.info{background:var(--accent-soft)}
+ul.clean{margin:0;padding-left:18px;font-size:14px;display:flex;flex-direction:column;gap:4px}
 
 /* Teléfono */
 @media (max-width:760px){
   .wrap{padding:0 14px}
-  .top-inner{padding:10px 0}
+  .top-inner{padding:8px 0}
   .proj{width:100%}
   .proj label{flex:1 1 140px}
   .proj input{width:100%}
   .brand small{display:none}
-  nav.tabs{position:fixed;bottom:0;left:0;right:0;z-index:30;background:rgba(18,26,30,.97);backdrop-filter:blur(10px);border-top:1px solid var(--line);justify-content:space-around;padding:4px 4px calc(4px + env(safe-area-inset-bottom))}
-  .tab{flex-direction:column;gap:2px;font-size:11px;padding:6px 4px;border-bottom:0;flex:1}
-  .tab svg{width:22px;height:22px}
+  nav.tabs{position:fixed;bottom:0;left:0;right:0;z-index:30;background:rgba(18,18,18,.9);backdrop-filter:saturate(180%) blur(20px);-webkit-backdrop-filter:saturate(180%) blur(20px);border-top:.5px solid var(--sep);justify-content:space-around;padding:4px 4px calc(2px + env(safe-area-inset-bottom))}
+  .tab{flex-direction:column;gap:2px;font-size:10px;padding:5px 4px;border-bottom:0;flex:1}
+  .tab svg{width:24px;height:24px}
   .hero{grid-template-columns:1fr}
-  .total-card .big{font-size:30px}
   .lines-d{display:none}
-  .lines-m{display:flex;flex-direction:column;gap:8px}
+  .lines-m{display:block}
+  .pres-card{background:none;padding:0}
+  .search.floating{position:sticky;bottom:calc(64px + env(safe-area-inset-bottom));z-index:15;box-shadow:0 6px 24px rgba(0,0,0,.6);border-radius:22px;background:rgba(44,44,46,.92);backdrop-filter:blur(20px)}
   .cards{grid-template-columns:1fr}
   .lib{grid-template-columns:1fr}
   .list{display:none}
   .libsel{display:block;width:100%}
   .hide-m{display:none}
-  .cierre{font-size:14px}
 }
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
@@ -193,7 +222,7 @@ ul.clean{margin:0;padding-left:18px;font-size:13px;display:flex;flex-direction:c
     <div class="top-inner">
       <div class="brand">
         <div class="logo" aria-hidden="true">APU</div>
-        <div><h1>Presupuesto APU desde Revit</h1><small>Tablas de planificación a presupuesto · El Salvador · USD</small></div>
+        <div><b>Presupuesto APU</b><small>Tablas de planificación a presupuesto · El Salvador · USD</small></div>
       </div>
       <div class="proj">
         <label for="pNombre">Proyecto<input id="pNombre" value="Vivienda prueba 1"></label>
@@ -212,6 +241,7 @@ ul.clean{margin:0;padding-left:18px;font-size:13px;display:flex;flex-direction:c
 <main class="wrap">
   <!-- REVIT -->
   <section class="view" id="v-revit">
+    <h1 class="ltitle">Revit</h1>
     <div class="card">
       <h2>Export de Revit</h2>
       <p class="muted small" style="margin:0">En Revit: tabla de planificación &gt; Exportar &gt; Informes &gt; Tabla de planificación (.txt). El archivo se lee en tu dispositivo, no se sube a ningún servidor.</p>
@@ -236,6 +266,7 @@ ul.clean{margin:0;padding-left:18px;font-size:13px;display:flex;flex-direction:c
 
   <!-- PARTIDAS -->
   <section class="view" id="v-partidas">
+    <h1 class="ltitle">Partidas</h1>
     <div class="card">
       <div class="row spread">
         <div><h2>Partidas desde Revit</h2><p class="muted small" style="margin:4px 0 0">Confirma la unidad de cada tipo; el punto amarillo marca la sugerida. La cantidad sale del área (m²), la longitud (ml), el volumen (m³) o la cuenta (u).</p></div>
@@ -255,23 +286,23 @@ ul.clean{margin:0;padding-left:18px;font-size:13px;display:flex;flex-direction:c
 
   <!-- PRESUPUESTO -->
   <section class="view" id="v-presupuesto">
+    <h1 class="ltitle">Presupuesto</h1>
     <div class="hero">
       <div class="total-card" id="totalCard"></div>
       <div class="card dist" id="dist"></div>
     </div>
     <div id="avisos"></div>
-    <div class="card">
-      <div class="row spread">
+    <div class="card pres-card">
+      <div class="row spread hide-m">
         <h2>Presupuesto por capítulos</h2>
-        <div class="row">
-          <button class="btn sm" id="btnCopiar">Copiar para Excel</button>
-          <button class="btn sm primary" id="btnExcel">Descargar Excel</button>
-        </div>
       </div>
       <p class="muted small" style="margin:0">El precio unitario es costo directo y se puede editar aquí mismo. Una partida editada se marca y se puede restaurar a su APU.</p>
+      <div class="row" style="justify-content:flex-end"><button class="btn sm" data-copiar>Copiar para Excel</button><button class="btn sm primary" data-excel>Descargar Excel</button></div>
       <div class="status" id="expStatus"></div>
+      <label class="search hide-m" for="qD"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input id="qD" data-q type="search" placeholder="Buscar partida" autocomplete="off"></label>
       <div class="lines-d tbl"><table id="tblPres"></table></div>
       <div class="lines-m" id="linesM"></div>
+      <label class="search floating" for="qM"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input id="qM" data-q type="search" placeholder="Buscar partida" autocomplete="off"></label>
     </div>
     <div class="card">
       <h2>Cierre</h2>
@@ -291,6 +322,7 @@ ul.clean{margin:0;padding-left:18px;font-size:13px;display:flex;flex-direction:c
 
   <!-- BIBLIOTECA -->
   <section class="view" id="v-biblioteca">
+    <h1 class="ltitle">APU</h1>
     <div class="note info"><b>Fuente:</b> presupuesto "Ampliación de vivienda en Santa Elena, Usulután", marzo 2025. Precios base sin IVA. Edita precios, prestaciones o consumos: todo el presupuesto se recalcula.</div>
     <select class="libsel" id="libSel" aria-label="Elegir APU"></select>
     <div class="lib">
@@ -313,6 +345,8 @@ ul.clean{margin:0;padding-left:18px;font-size:13px;display:flex;flex-direction:c
     </div>
   </section>
 </main>
+<div class="sheet-bg" id="sheetBg" data-close></div>
+<div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-label="Detalle de partida"></div>
 
 <script id="core">
 /* ===== Núcleo de cálculo: funciones puras ===== */
@@ -517,16 +551,30 @@ const EJEMPLO = [
 ].join("\n");
 
 /* ===== Categorías (capítulos) y colores ===== */
+const ICONS = {
+  pre:'<path d="M5 21V4M5 4h11l-2 4 2 4H5"/>',
+  fun:'<path d="M3 17h18M3 21h18M6 17V9h12v8M9 9V6h6v3"/>',
+  par:'<path d="M3 5h18v14H3zM3 10h18M3 14.5h18M9 5v5M15 5v5M6 10v4.5M12 10v4.5M18 10v4.5M9 14.5V19M15 14.5V19"/>',
+  pis:'<path d="M4 4h16v16H4zM4 12h16M12 4v16"/>',
+  tec:'<path d="M3 11l9-7 9 7M6 9.5V20h12V9.5"/>',
+  aca:'<path d="M4 20l5-5M14 4l6 6-8 8-6-6z"/>',
+  int:'<path d="M14 6l4 4M5 19l9-9M12 4l8 8-2 2-8-8z"/>',
+  otr:'<circle cx="6" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="18" cy="12" r="1.6"/>'
+};
 const CAPS = [
-  {nombre:"Actividades preliminares", c:"#a5b4fc"},
-  {nombre:"Fundación", c:"#fbbf24"},
-  {nombre:"Paredes, columnas y vigas", c:"#fb7185"},
-  {nombre:"Pisos", c:"#34d399"},
-  {nombre:"Techos", c:"#60a5fa"},
-  {nombre:"Acabados", c:"#e879f9"},
-  {nombre:"Intervención de cuartos existentes", c:"#bef264"},
-  {nombre:"Otras partidas", c:"#94a3b8"}
+  {nombre:"Actividades preliminares", c:"#5e5ce6", i:"pre"},
+  {nombre:"Fundación", c:"#ff9f0a", i:"fun"},
+  {nombre:"Paredes, columnas y vigas", c:"#ff453a", i:"par"},
+  {nombre:"Pisos", c:"#30d158", i:"pis"},
+  {nombre:"Techos", c:"#0a84ff", i:"tec"},
+  {nombre:"Acabados", c:"#bf5af2", i:"aca"},
+  {nombre:"Intervención de cuartos existentes", c:"#64d2ff", i:"int"},
+  {nombre:"Otras partidas", c:"#8e8e93", i:"otr"}
 ];
+const capDe = n => CAPS.find(c => c.nombre === n) || CAPS[CAPS.length-1];
+const ico = (n, sm) => { const k = capDe(n); return `<span class="ico${sm?" sm":""}" style="--c:${k.c}" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICONS[k.i]}</svg></span>`; };
+const CHEV = '<svg class="chev" viewBox="0 0 8 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 1l6 6-6 6"/></svg>';
+let OPEN = null, QUERY = "";
 const capColor = n => (CAPS.find(c => c.nombre === n) || CAPS[CAPS.length-1]).c;
 const capIdx = n => { const i = CAPS.findIndex(c => c.nombre === n); return i < 0 ? CAPS.length-1 : i; };
 
@@ -685,8 +733,7 @@ function renderPartidas(){
     const cant = p.unidad ? cantidadPorUnidad(t, p.unidad) : null;
     const l = {ref:"p:"+i, pu, manual: p.apu === "__manual", titulo:t.nombre};
     return `<article class="pcard" style="--c:${c}">
-      <div class="row spread"><span class="cat">${esc(cap)}</span>${estadoChip(p, a, pu)}</div>
-      <div class="t">${esc(t.nombre)}</div>
+      <div class="head">${ico(cap)}<div class="grow"><div class="t">${esc(t.nombre)}</div><div class="cat">${esc(cap)}</div></div>${estadoChip(p, a, pu)}</div>
       <div class="facts"><span>Área <b>${num(t.area)}</b> m²</span><span>Long. <b>${num(t.longitud,3)}</b> m</span><span>Cuenta <b>${t.cuenta}</b></span>${t.anchura!=null?`<span>e <b>${num(t.anchura,3)}</b> m</span>`:""}</div>
       <div class="seg" role="group" aria-label="Unidad de ${esc(t.nombre)}">${UNIDADES.map(u => `<button data-unit="${u}" data-p="${i}" aria-pressed="${u===p.unidad}" class="${u===sug?"sug":""}">${u}</button>`).join("")}</div>
       <select data-ref="p:${i}" data-k="apu" aria-label="APU de ${esc(t.nombre)}">${opcionesAPU(p.apu)}</select>
@@ -701,7 +748,7 @@ function renderPartidas(){
     const cap = a ? a.cap : "Otras partidas"; const c = capColor(cap);
     const l = {ref:"m:"+i, pu, manual: m.apu === "__manual", titulo: a ? a.nombre : m.desc};
     return `<article class="pcard" style="--c:${c}">
-      <div class="row spread"><span class="cat">${esc(cap)}</span><button class="btn sm ghost" data-del="${i}">Quitar</button></div>
+      <div class="head">${ico(cap)}<div class="grow"><div class="t">${esc(a ? a.nombre : (m.desc || "Partida manual"))}</div><div class="cat">${esc(cap)}</div></div><button class="btn sm ghost" data-del="${i}">Quitar</button></div>
       <select data-ref="m:${i}" data-k="apu" aria-label="APU de la partida manual ${i+1}">${opcionesAPU(m.apu)}</select>
       ${m.apu==="__manual" ? `<input data-ref="m:${i}" data-k="desc" value="${esc(m.desc)}" placeholder="Descripción de la partida" aria-label="Descripción">
         <div class="seg" role="group" aria-label="Unidad">${UNIDADES.map(u => `<button data-unit="${u}" data-m="${i}" aria-pressed="${u===m.unidad}">${u}</button>`).join("")}</div>` : ""}
@@ -715,7 +762,9 @@ function renderPartidas(){
 
 /* ===== Render: Presupuesto ===== */
 function renderPresupuesto(){
-  const {ls, grupos, c, k, mat, mo, sc, otro} = calcular();
+  const {ls, grupos: todos, c, k, mat, mo, sc, otro} = calcular();
+  const q = norm(QUERY);
+  const grupos = q ? todos.map(g => ({...g, items: g.items.filter(l => norm(l.titulo + " " + l.info).includes(q))})).filter(g => g.items.length) : todos;
   $("#totalCard").innerHTML = `
     <span class="lbl">Total ${S.cfg.iva ? "con IVA" : "sin IVA"}</span>
     <span class="big">${money(c.total)}</span>
@@ -728,20 +777,19 @@ function renderPresupuesto(){
     </div>`;
   const tot = c.cd || 1;
   $("#dist").innerHTML = `<div class="row spread"><h3>Costo directo por capítulo</h3><span class="chip">${ls.filter(l=>l.ok).length} de ${ls.length} partidas en el total</span></div>
-    <div class="bar" role="img" aria-label="Distribución del costo directo por capítulo">${grupos.filter(g=>g.sub>0).map(g => `<i style="width:${(g.sub/tot*100).toFixed(2)}%;background:${g.c}" title="${esc(g.nombre)}"></i>`).join("")}</div>
-    <div class="legend">${grupos.map(g => `<div><span class="dot" style="background:${g.c}"></span><span class="lname">${esc(g.nombre)}</span><span class="n">${money(g.sub)}</span><span class="n">${c.cd ? num(g.sub/tot*100,1) : "0.0"}%</span></div>`).join("")}</div>`;
+    <div class="bar" role="img" aria-label="Distribución del costo directo por capítulo">${todos.filter(g=>g.sub>0).map(g => `<i style="width:${(g.sub/tot*100).toFixed(2)}%;background:${g.c}" title="${esc(g.nombre)}"></i>`).join("")}</div>
+    <div class="legend">${todos.map(g => `<div><span class="dot" style="background:${g.c}"></span><span class="lname">${esc(g.nombre)}</span><span class="n">${money(g.sub)}</span><span class="n">${c.cd ? num(g.sub/tot*100,1) : "0.0"}%</span></div>`).join("")}</div>`;
   const prob = ls.filter(l => l.problema);
   $("#avisos").innerHTML = prob.length ? `<div class="note"><b>${prob.length} partida(s) fuera del total:</b> ${prob.map(l => esc(l.titulo) + " (" + l.problema.toLowerCase() + ")").join("; ")}. Complétalas en Partidas o escribe aquí su precio unitario.</div>` : "";
   const chips = l => (l.problema ? ` <span class="chip bad">${esc(l.problema)}</span>` : "") + (l.pu && l.pu.editado ? ' <span class="chip info">Editado</span>' : "") + (!l.problema && l.provisional ? ' <span class="chip warn">Provisional</span>' : "");
   $("#tblPres").innerHTML = `<thead><tr><th>No.</th><th>Partida</th><th class="u">Unidad</th><th class="n">Cantidad</th><th class="n">P.U. (C.D.)</th><th class="n">Parcial</th><th class="n">P.U. final</th><th class="n">Total</th></tr></thead><tbody>` +
-    grupos.map(g => `<tr class="cap" style="--c:${g.c}"><td class="code">${g.num}</td><td colspan="4">${esc(g.nombre)}</td><td class="n">${money(g.sub)}</td><td></td><td class="n">${money(R2(g.sub*k))}</td></tr>` +
+    grupos.map(g => `<tr class="cap" style="--c:${g.c}"><td class="code">${g.num}</td><td colspan="4"><span class="capcell">${ico(g.nombre,true)}${esc(g.nombre)}</span></td><td class="n">${money(g.sub)}</td><td></td><td class="n">${money(R2(g.sub*k))}</td></tr>` +
       g.items.map(l => `<tr class="item" style="--c:${g.c}"><td class="code">${l.num}</td><td>${esc(l.titulo)}<div class="ref">${esc(l.info)} · ${l.origen}</div>${chips(l)}</td><td class="u">${esc(l.unidad)}</td><td class="n">${num(l.cant)}</td><td class="n">${editorPU(l)}</td><td class="n">${l.ok ? money(l.sub) : "-"}</td><td class="n">${l.ok ? money(R2(l.pu.total*k)) : "-"}</td><td class="n">${l.ok ? money(R2(l.sub*k)) : "-"}</td></tr>`).join("")).join("") +
     `<tr class="total"><td></td><td colspan="4">Total</td><td class="n">${money(c.cd)}</td><td></td><td class="n">${money(c.total)}</td></tr></tbody>`;
-  $("#linesM").innerHTML = grupos.map(g => `<div class="capm"><span><span class="dot" style="background:${g.c}"></span> ${esc(g.nombre)}</span><span class="n">${money(g.sub)}</span></div>` +
-    g.items.map(l => `<div class="lcard" style="--c:${g.c}">
-      <div class="top"><div class="t"><span class="ref">${l.num}</span> ${esc(l.titulo)}<div class="ref">${esc(l.info)}</div>${chips(l)}</div><div class="sum">${l.ok ? money(l.sub) : "-"}</div></div>
-      <div class="price-row"><span class="mono small muted">${num(l.cant)} ${esc(l.unidad)} ×</span>${editorPU(l)}</div>
-    </div>`).join("")).join("") + `<div class="capm" style="color:var(--accent)"><span>Costo directo</span><span class="n">${money(c.cd)}</span></div>`;
+  $("#linesM").innerHTML = (grupos.length ? grupos.map(g => `<div class="ghead"><span>${esc(g.nombre)}</span><span class="n">${money(g.sub)}</span></div><div class="group">` +
+    g.items.map(l => `<button class="irow" data-open="${l.ref}">${ico(g.nombre)}<span class="body"><span class="txt"><span class="t">${esc(l.titulo)}</span><span class="s">${l.ok ? `${num(l.cant)} ${esc(l.unidad)} × ${money(l.pu.total)}` : esc(l.problema)}${l.pu && l.pu.editado ? " · editado" : ""}</span></span>${l.problema ? '<span class="flag" style="background:var(--bad)"></span>' : (l.pu && l.pu.editado ? '<span class="flag" style="background:var(--accent)"></span>' : "")}<span class="amt">${l.ok ? money(l.sub) : ""}</span>${CHEV}</span></button>`).join("") + "</div>").join("")
+    : '<div class="ghead"><span>Sin resultados</span></div>') +
+    `<div class="ghead"><span>Costo directo</span><span class="n" style="color:var(--ink)">${money(c.cd)}</span></div>`;
   const f = S.cfg;
   document.querySelectorAll("[data-modo]").forEach(b => b.setAttribute("aria-pressed", b.dataset.modo === f.modo));
   $("#cierre").innerHTML = `
@@ -757,7 +805,7 @@ function renderPresupuesto(){
 function renderBiblioteca(){
   $("#libList").innerHTML = S.apus.map(a => {
     const c = costoAPU(a, S.recursos);
-    return `<button data-apu="${a.id}" aria-current="${a.id===S.sel}" style="--c:${capColor(a.cap)}"><span class="code">${a.id} · ${esc(a.cap)}</span><span>${esc(a.nombre)}</span><span class="p">${money(c.total)} / ${a.unidad}${a.provisional?" · provisional":""}</span></button>`;
+    return `<button data-apu="${a.id}" aria-current="${a.id===S.sel}">${ico(a.cap,true)}<span class="body"><span class="code">${a.id}</span><span>${esc(a.nombre)}</span><span class="p">${money(c.total)} / ${a.unidad}${a.provisional?" · provisional":""}</span></span></button>`;
   }).join("");
   $("#libSel").innerHTML = S.apus.map(a => `<option value="${a.id}"${a.id===S.sel?" selected":""}>${a.id} ${esc(a.nombre)}</option>`).join("");
   const a = apuById(S.sel) || S.apus[0];
@@ -786,8 +834,34 @@ function renderBiblioteca(){
     Object.values(S.recursos).map(r => `<tr><td>${esc(r.nombre)}${r.nota?` <span class="chip warn">${esc(r.nota)}</span>`:""}</td><td class="muted hide-m">${tipoTxt[r.tipo]}</td><td class="u">${r.unidad}</td><td class="n">${inP(r)}</td><td class="n hide-m">${S.apus.filter(a => a.lineas.some(l => l.r === r.id)).length} APU</td></tr>`).join("") + "</tbody>";
 }
 
+function renderSheet(){
+  const sh = $("#sheet"), bg = $("#sheetBg");
+  if(!OPEN){ sh.classList.remove("on"); bg.classList.remove("on"); sh.innerHTML = ""; return; }
+  const {ls, c, k} = calcular();
+  const l = ls.find(x => x.ref === OPEN);
+  if(!l){ OPEN = null; return renderSheet(); }
+  const [tipo, i] = OPEN.split(":"); const it = getItem(OPEN); const a = apuById(it.apu);
+  let unidadUI = "";
+  if(tipo === "p"){ const sug = sugerirUnidad(S.tipos[+i].nombre); unidadUI = `<div class="seg" role="group" aria-label="Unidad">${UNIDADES.map(u => `<button data-unit="${u}" data-p="${i}" aria-pressed="${u===it.unidad}" class="${u===sug?"sug":""}">${u}</button>`).join("")}</div>`; }
+  else if(it.apu === "__manual") unidadUI = `<div class="seg" role="group" aria-label="Unidad">${UNIDADES.map(u => `<button data-unit="${u}" data-m="${i}" aria-pressed="${u===it.unidad}">${u}</button>`).join("")}</div>`;
+  const cantUI = tipo === "m" ? `<input type="number" step="0.01" min="0" data-ref="${OPEN}" data-k="cant" value="${it.cant}" aria-label="Cantidad" style="width:120px">` : `<span class="v">${num(l.cant)} ${esc(l.unidad)}</span>`;
+  sh.innerHTML = `<div class="grab"></div>
+    <div class="bar-top">${ico(l.cap)}<button class="btn ghost" data-close>Listo</button></div>
+    <div><div style="font-size:22px;font-weight:700;letter-spacing:-.02em">${esc(l.titulo)}</div><div class="muted small">${esc(l.cap)} · ${esc(l.info)} · ${l.origen}</div></div>
+    ${unidadUI}
+    <select data-ref="${OPEN}" data-k="apu" aria-label="APU">${opcionesAPU(it.apu)}</select>
+    <div class="group">
+      <div class="fld"><span>Cantidad</span>${cantUI}</div>
+      <div class="fld"><span>P.U. costo directo</span>${editorPU(l)}</div>
+      <div class="fld"><span>Parcial</span><span class="v">${l.ok ? money(l.sub) : "-"}</span></div>
+      <div class="fld"><span>Total con cierre</span><span class="v" style="font-weight:600">${l.ok ? money(R2(l.sub*k)) : "-"}</span></div>
+    </div>
+    ${l.problema ? `<div class="note">${esc(l.problema)}: complétalo arriba para que entre al total.</div>` : ""}
+    ${a ? `<button class="btn" data-verapu="${a.id}">Ver análisis del APU ${a.id}</button>` : ""}`;
+  sh.classList.add("on"); bg.classList.add("on");
+}
 function render(){
-  renderRevit(); renderPartidas(); renderPresupuesto(); renderBiblioteca();
+  renderRevit(); renderPartidas(); renderPresupuesto(); renderBiblioteca(); renderSheet();
   $("#factor").value = S.cfg.factor; $("#ind").value = S.cfg.ind; $("#util").value = S.cfg.util; $("#iva").checked = S.cfg.iva;
   $("#cfgFactor").hidden = S.cfg.modo !== "factor"; $("#cfgInd").hidden = S.cfg.modo === "factor";
 }
@@ -802,6 +876,8 @@ function ir(v){
 }
 document.querySelectorAll(".tab").forEach(t => t.addEventListener("click", () => { ir(t.dataset.v); window.scrollTo(0,0); }));
 window.addEventListener("hashchange", () => ir(location.hash.slice(1)));
+document.addEventListener("keydown", e => { if(e.key === "Escape" && OPEN){ OPEN = null; renderSheet(); } });
+document.addEventListener("input", e => { if(e.target.hasAttribute("data-q")){ QUERY = e.target.value; document.querySelectorAll("[data-q]").forEach(x => { if(x !== e.target) x.value = QUERY; }); renderPresupuesto(); } });
 
 /* ===== Eventos ===== */
 $("#btnEjemplo").addEventListener("click", () => cargarTexto(EJEMPLO, "CANTIDADES DE PAREDES prueba 1.txt"));
@@ -816,6 +892,9 @@ $("#btnReset").addEventListener("click", () => { S.recursos = copiaRecursos(); S
 $("#libSel").addEventListener("change", e => { S.sel = e.target.value; guardar(); renderBiblioteca(); });
 
 document.addEventListener("click", e => {
+  const op = e.target.closest("[data-open]"); if(op){ OPEN = op.dataset.open; renderSheet(); return; }
+  if(e.target.closest("[data-close]")){ OPEN = null; renderSheet(); return; }
+  const va = e.target.closest("[data-verapu]"); if(va){ S.sel = va.dataset.verapu; OPEN = null; guardar(); render(); ir("biblioteca"); window.scrollTo(0,0); return; }
   const go = e.target.closest("[data-go]"); if(go){ ir(go.dataset.go); window.scrollTo(0,0); return; }
   const u = e.target.closest("[data-unit]");
   if(u){
@@ -873,11 +952,11 @@ function hojaAPU(){
   return aoa;
 }
 const aTSV = aoa => aoa.map(r => r.map(v => v == null ? "" : String(v)).join("\t")).join("\n");
-$("#btnCopiar").addEventListener("click", async () => {
+document.querySelector("[data-copiar]").addEventListener("click", async () => {
   try{ await navigator.clipboard.writeText(aTSV(hojaPresupuesto())); $("#expStatus").innerHTML = '<span class="chip ok">Copiado</span> Pega en Excel con Ctrl+V.'; }
   catch(e){ $("#expStatus").innerHTML = '<span class="chip bad">No se pudo copiar</span> El navegador bloqueó el portapapeles.'; }
 });
-$("#btnExcel").addEventListener("click", async () => {
+document.querySelector("[data-excel]").addEventListener("click", async () => {
   if(typeof XLSX === "undefined"){ $("#expStatus").innerHTML = '<span class="chip bad">No cargó la librería de Excel</span> Usa "Copiar para Excel".'; return; }
   const wb = XLSX.utils.book_new();
   const h1 = XLSX.utils.aoa_to_sheet(hojaPresupuesto()); h1["!cols"] = [{wch:7},{wch:48},{wch:40},{wch:8},{wch:11},{wch:12},{wch:13},{wch:12},{wch:14},{wch:18}];
