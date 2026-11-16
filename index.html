@@ -808,7 +808,7 @@ function lineas(){
     const t = imp.tipos[i], a = apuById(p.apu), pu = p.unidad ? puEf(p) : null;
     let problema = "";
     const cantR = p.unidad ? R2(cantidadPorUnidad(t, p.unidad)) : 0, rv = p.unidad ? revisarTipo(t, p.unidad) : "", validada = !!(p.val && p.val.unidad === p.unidad);
-    if(p.sgPend) problema = "SG por confirmar"; else if(!p.unidad) problema = "Falta unidad"; else if(!pu) problema = "Sin precio"; else if(a && a.unidad !== p.unidad) problema = "Unidad distinta al APU"; else if(!(cantR > 0)) problema = "Sin cantidad";
+    if(p.sgPend) problema = "SG por confirmar"; else if(!p.unidad) problema = "Falta unidad"; else if(!pu) problema = "Sin precio"; else if(!(pu.total > 0)) problema = "APU sin precio: agrega sus recursos"; else if(a && a.unidad !== p.unidad) problema = "Unidad distinta al APU"; else if(!(cantR > 0)) problema = "Sin cantidad";
     out.push({pendiente: !!rv && !validada, sinConfirmar: !!(p.apu && p.origen !== undefined && !estaConfirmada(p) && !p.sgPend), validada, obs: validada ? (p.val.obs || "") : "", ref:`r:${k}:${i}`, origen:"Revit", titulo:t.nombre, code: a ? a.id : "S/C", info: a ? a.nombre : (p.apu === "__manual" ? "Costo manual" : "Sin APU"), apu: a,
       cc: a ? a.cc : "99", unidad: p.unidad || "-", cant: cantR, pu, problema, manual: p.apu === "__manual",
       revisar: rv, memoria: p.unidad ? `Revit (${p.unidad === "m²" ? "área" : p.unidad === "ml" ? "longitud" : p.unidad === "m³" ? "volumen" : p.unidad === "u" ? "cuenta" : "global"}, ${imp.archivo.split(" · ")[0]})` : ""});
@@ -816,7 +816,7 @@ function lineas(){
   pr.manual.forEach((m, i) => {
     const a = apuById(m.apu), pu = puEf(m);
     out.push({ref:`m:${i}`, origen:"Catálogo", titulo: a ? a.nombre : (m.desc || "Partida con costo manual"), code: a ? a.id : "S/C", info: a ? "APU " + a.id : "Costo manual", apu: a,
-      cc: a ? a.cc : "99", unidad: a ? a.unidad : m.unidad, cant: R2(+m.cant || 0), pu, problema: !pu ? "Sin precio" : (!(+m.cant > 0) ? "Sin cantidad" : ""), manual: m.apu === "__manual", revisar:"", pendiente:false, validada:false, obs:"", memoria: m.formula || ""});
+      cc: a ? a.cc : "99", unidad: a ? a.unidad : m.unidad, cant: R2(+m.cant || 0), pu, problema: !pu ? "Sin precio" : !(pu.total > 0) ? "APU sin precio: agrega sus recursos" : (!(+m.cant > 0) ? "Sin cantidad" : ""), manual: m.apu === "__manual", revisar:"", pendiente:false, validada:false, obs:"", memoria: m.formula || ""});
   });
   // Parcial = R2(cantidad × P.U.). Componentes = cantidad × componente del APU, sin redondear;
   // "ajuste" = parcial − cantidad × costo sin redondear (redondeo del P.U. y P.U. editados)
