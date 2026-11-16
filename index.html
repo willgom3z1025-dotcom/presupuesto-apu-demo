@@ -736,7 +736,7 @@ function renderSheet(){
   const top = (titulo) => `<div class="grab"></div><div class="bar-top"><div style="font-size:22px;font-weight:700;letter-spacing:-.02em">${titulo}</div><button class="btn ghost" data-close>Listo</button></div>`;
   if(OPEN === "temas"){
     const actual = S.tema || "noche";
-    sh.innerHTML = top("Tema") + `<div class="group">${TEMAS.map(tm => `<button class="irow" data-skin="${tm.id}"><span class="swatches">${tm.sw.map(c => `<i style="background:${c}"></i>`).join("")}</span><span class="body"><span class="txt"><span class="t">${tm.nombre}</span><span class="s">${tm.desc}</span></span><span class="check">${tm.id===actual ? "✓" : ""}</span></span></button>`).join("")}</div>`;
+    sh.innerHTML = top("Tema") + `<div class="group">${TEMAS.map(tm => `<button class="irow" data-tema-id="${tm.id}"><span class="swatches">${tm.sw.map(c => `<i style="background:${c}"></i>`).join("")}</span><span class="body"><span class="txt"><span class="t">${tm.nombre}</span><span class="s">${tm.desc}</span></span><span class="check">${tm.id===actual ? "✓" : ""}</span></span></button>`).join("")}</div>`;
   } else if(OPEN.startsWith("pick:") || OPEN === "pickcat"){
     const keep = document.activeElement && document.activeElement.id === "pickQ";
     sh.innerHTML = top(OPEN === "pickcat" ? "Catálogo" : "Elegir APU") + `<div class="chips">${['<button data-pcap="" aria-pressed="'+(!PICKCAP)+'">Todos</button>'].concat(DATA.caps.map(c => `<button data-pcap="${c.cc}" aria-pressed="${PICKCAP===c.cc}">${c.cc} ${esc(c.nombre)}</button>`)).join("")}</div>
@@ -816,7 +816,7 @@ document.addEventListener("click", e => {
   const T = s => e.target.closest(s);
   let x;
   if(T("[data-temas]")){ OPEN = "temas"; renderSheet(); return; }
-  if((x = T("[data-skin]"))){ S.tema = x.dataset.skin; aplicarTema(); guardar(); renderSheet(); return; }
+  if((x = T("button[data-tema-id]"))){ S.tema = x.dataset.temaId; aplicarTema(); guardar(); renderSheet(); return; }
   if((x = T("[data-pick]"))){ OPEN = "pick:" + x.dataset.pick; PICKQ = ""; const it = getItem(x.dataset.pick); const a = apuById(it.apu); PICKCAP = a ? a.cc : ""; renderSheet(); return; }
   if((x = T("[data-pcap]"))){ PICKCAP = x.dataset.pcap; renderSheet(); return; }
   if((x = T("[data-choose]"))){
