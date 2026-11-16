@@ -272,6 +272,8 @@ textarea{font:inherit;color:var(--ink);background:var(--group2);border:0;border-
 .projbtn b{font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .projbtn svg{width:12px;height:12px;color:var(--muted);flex:none}
 .totbar{display:none}
+.chev{width:8px;height:14px;color:var(--muted2);flex:none}
+.dupnote{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
 .tile{background:var(--group);border-radius:14px;padding:14px 16px;display:flex;flex-direction:column;gap:4px}
 .tile span{font-size:12px;color:var(--muted)}
 .tile b{font:600 20px var(--ui);font-variant-numeric:tabular-nums}
@@ -408,6 +410,7 @@ textarea{font:inherit;color:var(--ink);background:var(--group2);border:0;border-
     <div class="card pres-card">
       <div class="row spread hide-m"><h2>Presupuesto por capítulos</h2></div>
       <p class="muted small tip" style="margin:0">Precio unitario en costo directo, editable aquí mismo.</p>
+      <label class="switch" for="agrupar"><input type="checkbox" id="agrupar"> Unir partidas con el mismo APU</label>
       <label class="search hide-m" for="qD"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input id="qD" data-q type="search" placeholder="Buscar partida" autocomplete="off"></label>
       <div class="lines-d tbl"><table id="tblPres"></table></div>
       <div class="lines-m" id="linesM"></div>
@@ -699,9 +702,26 @@ function lineas(){
     const mat = ok ? R2(l.cant*l.pu.mat) : 0, mo = ok ? R2(l.cant*l.pu.mo) : 0, sc = ok ? R2(l.cant*l.pu.sc) : 0;
     return {...l, ok, sub, mat, mo, sc, otro: ok ? R2(l.cant*l.pu.pd) : 0}; });
 }
+function agrupar(ls){
+  const out = [], map = new Map();
+  for(const l of ls){
+    if(!l.ok || !l.apu || l.manual){ out.push(l); continue; }
+    const key = `${l.code}|${l.unidad}|${l.pu.total}`, g = map.get(key);
+    if(!g){ const n = {...l, refs:[l.ref], partes:[l]}; map.set(key, n); out.push(n); continue; }
+    g.refs.push(l.ref); g.partes.push(l);
+    g.cant = R2(g.cant + l.cant); g.sub = R2(g.sub + l.sub); g.mat = R2(g.mat + l.mat); g.mo = R2(g.mo + l.mo); g.sc = R2(g.sc + l.sc); g.otro = R2(g.otro + l.otro);
+  }
+  for(const g of out) if(g.partes && g.partes.length > 1){
+    const a = g.apu; g.titulo = a.nombre; g.origen = [...new Set(g.partes.map(p => p.origen))].join(" + ");
+    g.info = `${g.partes.length} partidas unidas`; g.memoria = g.partes.map(p => `${p.titulo}: ${num(p.cant)}${p.memoria && p.origen !== "Revit" ? " (" + p.memoria + ")" : ""}`).join(" + ");
+    g.revisar = g.partes.map(p => p.revisar).filter(Boolean).join(" ");
+  }
+  return out;
+}
+const unirActivo = () => P().cfg.agrupar !== false;
 function calcular(){
-  const ls = lineas(), cd = R2(ls.reduce((s, l) => s + l.sub, 0)), c = cierre(cd, P().cfg), k = cd > 0 ? c.sub / cd : 0;
-  const grupos = CAPS.map(cap => { const items = ls.filter(l => l.cc === cap.cc).sort((a, b) => a.code.localeCompare(b.code, "es", {numeric:true}));
+  const ls = lineas(), cd = R2(ls.reduce((s, l) => s + l.sub, 0)), c = cierre(cd, P().cfg), k = cd > 0 ? c.sub / cd : 0, vis = unirActivo() ? agrupar(ls) : ls;
+  const grupos = CAPS.map(cap => { const items = vis.filter(l => l.cc === cap.cc).sort((a, b) => a.code.localeCompare(b.code, "es", {numeric:true}));
     return {...cap, items, sub: R2(items.reduce((s, l) => s + l.sub, 0))}; }).filter(g => g.items.length);
   const sum = f => R2(ls.reduce((s, l) => s + l[f], 0));
   return {ls, grupos, c, k, mat:sum("mat"), mo:sum("mo"), sc:sum("sc"), otro:sum("otro")};
@@ -743,8 +763,9 @@ function renderProyecto(){
 function editorPU(l){
   if(!l.pu && !l.manual) return '<span class="muted">-</span>';
   const it = getItem(l.ref), val = l.manual ? (it.pu ?? "") : l.pu.total;
-  const reset = l.pu && l.pu.editado ? ` <button class="btn sm ghost" data-reset="${l.ref}" title="Volver a ${money(l.pu.base)}">Restaurar</button>` : "";
-  return `<span class="edit"><input ${NUM} data-ref="${l.ref}" data-k="${l.manual ? "pu" : "ov"}" value="${val}" aria-label="Precio unitario">${reset}</span>`;
+  const refs = (l.refs || [l.ref]).join(",");
+  const reset = l.pu && l.pu.editado ? ` <button class="btn sm ghost" data-reset="${refs}" title="Volver a ${money(l.pu.base)}">Restaurar</button>` : "";
+  return `<span class="edit"><input ${NUM} data-ref="${l.ref}" data-refs="${refs}" data-k="${l.manual ? "pu" : "ov"}" value="${val}" aria-label="Precio unitario">${reset}</span>`;
 }
 function cantInput(ref, it){
   return `<input type="text" inputmode="decimal" data-ref="${ref}" data-k="cant" value="${esc(it.formula || (it.cant ?? ""))}" placeholder="Ej. 2*6.6*0.4" aria-label="Cantidad o fórmula" style="width:150px">`;
@@ -777,7 +798,8 @@ function renderPartidas(){
       <div class="price-row"><div><div class="lbl">Cantidad</div><div class="val">${cant != null ? num(cant) : "-"} <span class="small muted">${p.unidad || ""}</span></div></div>
         <div><div class="lbl">P.U. costo directo</div>${p.unidad || p.apu === "__manual" ? editorPU({ref, pu, manual:p.apu==="__manual"}) : '<span class="muted">-</span>'}</div></div>
     </article>`; }).join("") + `</div>`).join("");
-  $("#cardsManual").innerHTML = !pr.manual.length ? '<div class="card muted">Sin partidas del catálogo. Usa "Agregar del catálogo".</div>' : pr.manual.map((m, i) => {
+  const nd = duplicadas();
+  $("#cardsManual").innerHTML = (nd ? `<div class="note dupnote"><span><b>${nd} partida(s) repetida(s).</b> Se pueden unir en una sola sumando las cantidades.</span><button class="btn primary" data-unificar>Unificar</button></div>` : "") + (!pr.manual.length ? '<div class="card muted">Sin partidas del catálogo. Usa "Agregar del catálogo".</div>' : pr.manual.map((m, i) => {
     const a = apuById(m.apu), pu = puEf(m), cc = a ? a.cc : "99", ref = `m:${i}`, sub = pu && +m.cant > 0 ? R2(m.cant * pu.total) : 0;
     return `<article class="pcard">
       <div class="head">${ico(cc)}<div class="grow"><div class="t">${esc(a ? a.nombre : (m.desc || "Partida con costo manual"))}</div><div class="cat">${a ? a.id + " · " : ""}${esc(capDe(cc).nombre)}</div></div><button class="del" data-del="${i}" aria-label="Quitar partida">×</button></div>
@@ -788,7 +810,7 @@ function renderPartidas(){
         <div><div class="lbl">P.U. costo directo</div>${editorPU({ref, pu, manual:m.apu==="__manual"})}</div></div>
       <div class="price-row"><span class="lbl">Parcial</span><span class="val">${money(sub)}</span></div>
     </article>`;
-  }).join("");
+  }).join(""));
 }
 
 /* ================= Render: presupuesto ================= */
@@ -808,7 +830,7 @@ function renderPresupuesto(){
   const chips = l => (l.problema ? ` <span class="chip bad">${esc(l.problema)}</span>` : "") + (l.pu && l.pu.editado ? ' <span class="chip info">Editado</span>' : "") + (l.revisar ? ' <span class="chip warn">Revisar</span>' : "");
   $("#tblPres").innerHTML = `<thead><tr><th>Código</th><th>Partida</th><th class="u">Unidad</th><th class="n">Cantidad</th><th class="n">P.U. (C.D.)</th><th class="n">Parcial</th><th class="n">P.U. venta</th><th class="n">Total</th></tr></thead><tbody>` +
     grupos.map(g => `<tr class="cap"><td class="code">${g.cc}</td><td colspan="4"><span class="capcell">${ico(g.cc,true)}${esc(g.nombre)}</span></td><td class="n">${money(g.sub)}</td><td></td><td class="n">${money(R2(g.sub*k))}</td></tr>` +
-      g.items.map(l => `<tr><td class="code">${esc(l.code)}</td><td>${esc(l.titulo)}<div class="ref">${esc(l.info)} · ${l.origen}</div>${l.memoria && l.origen !== "Revit" ? `<div class="formula">${esc(l.memoria)}</div>` : ""}${chips(l)}</td><td class="u">${esc(l.unidad)}</td><td class="n">${num(l.cant)}</td><td class="n">${editorPU(l)}</td><td class="n">${l.ok ? money(l.sub) : "-"}</td><td class="n">${l.ok ? money(R2(l.pu.total*k)) : "-"}</td><td class="n">${l.ok ? money(R2(l.sub*k)) : "-"}</td></tr>`).join("")).join("") +
+      g.items.map(l => `<tr><td class="code">${esc(l.code)}</td><td>${esc(l.titulo)}<div class="ref">${esc(l.info)} · ${l.origen}</div>${l.memoria && (l.origen !== "Revit" || (l.partes && l.partes.length > 1)) ? `<div class="formula">${esc(l.memoria)}</div>` : ""}${chips(l)}</td><td class="u">${esc(l.unidad)}</td><td class="n">${num(l.cant)}</td><td class="n">${editorPU(l)}</td><td class="n">${l.ok ? money(l.sub) : "-"}</td><td class="n">${l.ok ? money(R2(l.pu.total*k)) : "-"}</td><td class="n">${l.ok ? money(R2(l.sub*k)) : "-"}</td></tr>`).join("")).join("") +
     `<tr class="total"><td></td><td colspan="4">Subtotal ${cfg.iva ? "(antes de IVA)" : ""}</td><td class="n">${money(c.cd)}</td><td></td><td class="n">${money(c.sub)}</td></tr></tbody>`;
   $("#linesM").innerHTML = (grupos.length ? grupos.map(g => `<div class="ghead"><span>${g.cc} ${esc(g.nombre)}</span><span class="n">${money(g.sub)}</span></div><div class="group">` +
     g.items.map(l => `<button class="irow" data-open="${l.ref}">${ico(g.cc)}<span class="body"><span class="txt"><span class="t">${esc(l.titulo)}</span><span class="s">${l.ok ? `${esc(l.code)} · ${num(l.cant)} ${esc(l.unidad)} × ${money(l.pu.total)}` : esc(l.problema)}</span></span>${l.problema ? '<span class="flag" style="background:var(--bad)"></span>' : (l.revisar ? '<span class="flag" style="background:var(--warn)"></span>' : (l.pu && l.pu.editado ? '<span class="flag" style="background:var(--accent)"></span>' : ""))}<span class="amt">${l.ok ? money(l.sub) : ""}</span>${CHEV}</span></button>`).join("") + "</div>").join("")
@@ -819,7 +841,7 @@ function renderPresupuesto(){
     <span>Subtotal</span><span class="v">${money(c.sub)}</span><span>IVA 13%</span><span class="v">${cfg.iva ? money(c.iva) : "No aplicado"}</span>
     <span class="big">Total</span><span class="v big">${money(c.total)}</span>`;
   $("#letras").textContent = "SON: " + montoLetras(c.total);
-  $("#factor").value = cfg.factor; $("#ind").value = cfg.ind; $("#util").value = cfg.util; $("#iva").checked = cfg.iva;
+  $("#agrupar").checked = unirActivo(); $("#factor").value = cfg.factor; $("#ind").value = cfg.ind; $("#util").value = cfg.util; $("#iva").checked = cfg.iva;
   $("#cfgFactor").hidden = cfg.modo !== "factor"; $("#cfgInd").hidden = cfg.modo === "factor";
   $("#totLbl").textContent = `Total ${cfg.iva ? "con IVA" : "sin IVA"}`; $("#totVal").textContent = money(c.total);
 }
@@ -905,11 +927,26 @@ function nextCode(cc, ss){
 }
 function renderPickList(){
   const el = $("#pickList"); if(!el) return;
-  const {out, total} = buscarAPU(PICKQ, PICKCAP, 60), multi = OPEN === "addcat";
-  el.innerHTML = `<div class="count" style="padding:6px 2px">${total.toLocaleString("en-US")} resultados${total > out.length ? `, mostrando ${out.length}` : ""}</div><div class="group">` +
-    (multi ? out.map(a => `<div class="addrow">${ico(a.cc, true)}<span class="txt"><span class="t">${esc(a.nombre)}</span><span class="s">${a.id} · ${money(costoAPU(a).total)} / ${esc(a.unidad)}</span></span><input type="text" inputmode="decimal" data-qadd="${esc(a.id)}" placeholder="${esc(a.unidad)}" aria-label="Cantidad"><button class="plus${ADDED[a.id] ? " done" : ""}" data-plus="${esc(a.id)}" aria-label="Agregar">${ADDED[a.id] ? "✓" : "+"}</button></div>`).join("")
-    : `<button class="irow" data-choose="__manual">${ico("99")}<span class="body"><span class="txt"><span class="t">Costo unitario manual</span><span class="s">Escribes el precio directo, sin APU</span></span>${CHEV}</span></button>` +
-      out.map(a => `<button class="irow" data-choose="${esc(a.id)}">${ico(a.cc)}<span class="body"><span class="txt"><span class="t">${esc(a.nombre)}</span><span class="s">${a.id} · ${esc(a.unidad)}</span></span><span class="amt">${money(costoAPU(a).total)}</span>${CHEV}</span></button>`).join("")) + "</div>";
+  const multi = OPEN === "addcat";
+  const manualRow = multi ? "" : `<div class="group"><button class="irow" data-choose="__manual">${ico("99")}<span class="body"><span class="txt"><span class="t">Costo unitario manual</span><span class="s">Escribes el precio directo, sin APU</span></span>${CHEV}</span></button></div>`;
+  if(!PICKQ.trim() && !PICKCAP){
+    const cnt = {}; for(const a of allAPU()) cnt[a.cc] = (cnt[a.cc] || 0) + 1;
+    el.innerHTML = manualRow + `<div class="ghead"><span>Capítulos</span></div><div class="group">` + DATA.caps.map(c => `<button class="irow" data-pcap="${c.cc}">${ico(c.cc)}<span class="body"><span class="txt"><span class="t">${c.cc} ${esc(c.nombre)}</span><span class="s">${Object.keys(c.subs).length} subcapítulos</span></span><span class="amt">${(cnt[c.cc] || 0).toLocaleString("en-US")}</span>${CHEV}</span></button>`).join("") + "</div>";
+    return;
+  }
+  const {out, total} = buscarAPU(PICKQ, PICKCAP, PICKQ.trim() ? 80 : 250);
+  out.sort((a, b) => a.id.localeCompare(b.id, "es", {numeric:true}));
+  const fila = a => { if(multi){ const ya = P().manual.find(m => m.apu === a.id);
+      return `<div class="addrow">${ico(a.cc, true)}<span class="txt"><span class="t">${esc(a.nombre)}</span><span class="s">${a.id} · ${money(costoAPU(a).total)} / ${esc(a.unidad)}${ya ? ` · <b style="color:var(--ok)">ya tienes ${num(ya.cant)}</b>` : ""}</span></span><input type="text" inputmode="decimal" data-qadd="${esc(a.id)}" placeholder="${esc(a.unidad)}" aria-label="Cantidad"><button class="plus${ya ? " done" : ""}" data-plus="${esc(a.id)}" aria-label="${ya ? "Sumar a la partida" : "Agregar"}">+</button></div>`; }
+    return `<button class="irow" data-choose="${esc(a.id)}">${ico(a.cc)}<span class="body"><span class="txt"><span class="t">${esc(a.nombre)}</span><span class="s">${a.id} · ${esc(a.unidad)}</span></span><span class="amt">${money(costoAPU(a).total)}</span>${CHEV}</span></button>`; };
+  let h = manualRow + `<div class="count" style="padding:6px 2px">${total.toLocaleString("en-US")} resultados${total > out.length ? `, mostrando ${out.length}. Escribe para afinar.` : ""}</div>`, key = "";
+  for(const a of out){
+    const k = a.cc + "." + a.ss;
+    if(k !== key){ if(key) h += "</div>"; const cap = DATA.caps.find(c => c.cc === a.cc); const sub = cap && cap.subs[a.ss];
+      h += `<div class="ghead"><span>${!PICKCAP ? esc(cap ? cap.nombre : "") + " · " : ""}${k} ${esc(sub || "")}</span></div><div class="group">`; key = k; }
+    h += fila(a);
+  }
+  el.innerHTML = h + (key ? "</div>" : '<div class="ghead"><span>Sin resultados</span></div>');
 }
 function renderLineList(){
   const el = $("#lineList"); if(!el) return;
@@ -1044,11 +1081,29 @@ const drop = $("#drop");
 drop.addEventListener("drop", e => { const f = e.dataTransfer.files[0]; if(f){ const fr = new FileReader(); fr.onload = () => cargarTexto(decodificar(fr.result), f.name); fr.readAsArrayBuffer(f); } });
 
 /* ================= Eventos ================= */
+const esFormula = s => /[*/+\-()x×]/i.test(String(s || "").trim().replace(/^-/, ""));
+function sumarA(m, txt){
+  const prev = m.formula || (m.cant ? String(m.cant) : "");
+  const f = prev ? `${prev} + ${String(txt).trim()}` : String(txt).trim(), v = evalFormula(f);
+  if(v == null) return false; m.cant = R2(v); m.formula = esFormula(f) ? f : ""; return true;
+}
 function agregarCatalogo(id, txt){
   const a = apuById(id); if(!a) return;
-  const v = evalFormula(txt), formula = txt && /[*/+\-()x×]/i.test(String(txt).replace(/^-/, "")) ? String(txt).trim() : "";
-  P().manual.push({apu:id, unidad:a.unidad, cant: v != null ? R2(v) : 0, formula, desc:"", pu:null, ov:null});
-  guardar(); toast(`Agregado: ${a.nombre.slice(0, 40)}`);
+  txt = String(txt ?? "").trim(); const v = evalFormula(txt);
+  if(txt && v == null){ toast("Revisa la fórmula: solo números y + - * / ( )"); return false; }
+  const ya = P().manual.find(m => m.apu === id);
+  if(ya){ if(txt) sumarA(ya, txt); guardar(); toast(`Ya estaba: se sumó. Total ${num(ya.cant)} ${a.unidad}`); return true; }
+  P().manual.push({apu:id, unidad:a.unidad, cant: v != null ? R2(v) : 0, formula: esFormula(txt) ? txt : "", desc:"", pu:null, ov:null});
+  guardar(); toast(`Agregado: ${a.nombre.slice(0, 40)}`); return true;
+}
+function duplicadas(){ const c = {}; P().manual.forEach(m => { if(m.apu !== "__manual") c[m.apu] = (c[m.apu] || 0) + 1; }); return Object.values(c).filter(n => n > 1).reduce((s, n) => s + n - 1, 0); }
+function unificar(){
+  const out = [], idx = {};
+  for(const m of P().manual){
+    if(m.apu === "__manual" || idx[m.apu] == null){ if(m.apu !== "__manual") idx[m.apu] = out.length; out.push(m); continue; }
+    const base = out[idx[m.apu]]; sumarA(base, m.formula || String(m.cant || 0)); if(base.ov == null && m.ov != null) base.ov = m.ov;
+  }
+  const n = P().manual.length - out.length; P().manual = out; return n;
 }
 $("#btnAddManual").addEventListener("click", () => { P().manual.push({apu:"__manual", unidad:"SG", cant:1, formula:"", desc:"", pu:null, ov:null}); guardar(); render(); });
 $("#btnReset").addEventListener("click", () => { DB.rec = {}; guardar(); render(); toast("Precios originales restaurados"); });
@@ -1096,7 +1151,8 @@ document.addEventListener("click", e => {
     bajar(`Respaldo presupuestos ${hoy()}.json`, new Blob([JSON.stringify(d)], {type:"application/json"})); return; }
   if((x = T("[data-quitarimp]"))){ P().revit.splice(+x.dataset.quitarimp, 1); guardar(); render(); return; }
   if(T("[data-addcat]")){ OPEN = "addcat"; PICKQ = ""; PICKCAP = ""; ADDED = {}; renderSheet(); return; }
-  if((x = T("[data-plus]"))){ const id = x.dataset.plus, inp = x.closest(".addrow").querySelector("[data-qadd]"); agregarCatalogo(id, inp ? inp.value : ""); ADDED[id] = 1; x.classList.add("done"); x.textContent = "✓"; if(inp) inp.value = ""; renderPartidas(); renderPresupuesto(); renderMateriales(); return; }
+  if((x = T("[data-plus]"))){ const id = x.dataset.plus, inp = x.closest(".addrow").querySelector("[data-qadd]"); if(agregarCatalogo(id, inp ? inp.value : "") === false) return; ADDED[id] = 1; if(inp) inp.value = ""; renderPartidas(); renderPresupuesto(); renderMateriales(); renderPickList(); return; }
+  if(T("[data-unificar]")){ const n = unificar(); guardar(); render(); toast(`${n} partida(s) repetida(s) unificadas`); return; }
   if((x = T("[data-addapu]"))){ agregarCatalogo(x.dataset.addapu, "1"); render(); return; }
   if((x = T("[data-pick]"))){ OPEN = "pick:" + x.dataset.pick; PICKQ = ""; const a = apuById(getItem(x.dataset.pick).apu); PICKCAP = a ? a.cc : ""; renderSheet(); return; }
   if((x = T("[data-pcap]"))){ PICKCAP = x.dataset.pcap; renderSheet(); return; }
@@ -1108,7 +1164,7 @@ document.addEventListener("click", e => {
   if((x = T("[data-verapu]"))){ SEL = x.dataset.verapu; OPEN = null; render(); ir("biblioteca"); window.scrollTo(0,0); return; }
   if((x = T("[data-unit]"))){ getItem(x.dataset.ref).unidad = x.dataset.unit; guardar(); render(); return; }
   if((x = T("[data-modo]"))){ P().cfg.modo = x.dataset.modo; guardar(); render(); return; }
-  if((x = T("[data-reset]"))){ getItem(x.dataset.reset).ov = null; guardar(); render(); return; }
+  if((x = T("[data-reset]"))){ x.dataset.reset.split(",").forEach(r => getItem(r).ov = null); guardar(); render(); return; }
   if((x = T("[data-del]"))){ P().manual.splice(+x.dataset.del, 1); OPEN = null; guardar(); render(); return; }
   if((x = T("[data-apu]"))){ SEL = x.dataset.apu; renderLibList(); renderLibDetalle(); if(innerWidth <= 760) $("#libDetalle").scrollIntoView({behavior:"smooth"}); return; }
   if((x = T("[data-delline]"))){ const [id, j] = x.dataset.delline.split("|"); editableAPU(id).lineas.splice(+j, 1); guardar(); render(); return; }
@@ -1134,12 +1190,13 @@ document.addEventListener("change", e => {
     if(el.id === "naCap"){ const subs = DATA.caps.find(c => c.cc === el.value).subs; $("#naSub").innerHTML = Object.entries(subs).map(([s, n]) => `<option value="${s}">${s} ${esc(n)}</option>`).join(""); }
     $("#naCode").value = nextCode($("#naCap").value, $("#naSub").value); return;
   }
+  if(el.id === "agrupar"){ P().cfg.agrupar = el.checked; guardar(); render(); toast(el.checked ? "Partidas iguales unidas" : "Partidas separadas"); return; }
   if(el.dataset.expo){ DB.expo[el.dataset.expo] = el.checked; guardar(); return; }
   if(el.dataset.desp){ DB.desp[el.dataset.desp] = +el.value || 0; guardar(); renderMateriales(); return; }
   if(el.dataset.ref){
     const it = getItem(el.dataset.ref), k = el.dataset.k;
     if(k === "pu") it.pu = el.value === "" ? null : +el.value;
-    else if(k === "ov"){ const b = puBase(it); it.ov = (el.value === "" || (b && +el.value === b.total)) ? null : +el.value; }
+    else if(k === "ov"){ (el.dataset.refs || el.dataset.ref).split(",").forEach(r => { const i2 = getItem(r), b = puBase(i2); i2.ov = (el.value === "" || (b && +el.value === b.total)) ? null : +el.value; }); }
     else if(k === "cant"){ const v = evalFormula(el.value); if(v == null && el.value.trim()){ toast("Revisa la fórmula: solo números y + - * / ( )"); return; }
       it.cant = v != null ? R2(v) : 0; it.formula = /[*/+\-()x×]/i.test(el.value.trim().replace(/^-/, "")) ? el.value.trim() : ""; }
     else it[k] = el.value;
