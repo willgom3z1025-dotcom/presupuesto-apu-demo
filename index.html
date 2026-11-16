@@ -1126,7 +1126,7 @@ function renderAcero(){
   const foco = document.activeElement && el.contains(document.activeElement) ? document.activeElement.id : "";
   el.innerHTML = `<h2>Acero de refuerzo</h2>
     <p class="muted small tip" style="margin:0">Conversión entre varillas, metros, kilogramos y quintales (1 qq = 100 lb = ${QQ_KG} kg) a partir de la masa nominal por metro de cada varilla (ASTM A615). Las tablas de varillas por quintal son aproximadas; aquí se calculan con el peso nominal.</p>
-    <div class="filters"><label class="small muted" style="display:flex;flex-direction:column;gap:4px;flex:0 1 220px">Longitud comercial de la varilla<select id="acLong">${LONG_VARILLA.map(l => `<option value="${l}"${l === L ? " selected" : ""}>${l} m</option>`).join("")}</select></label></div>
+    <div class="form"><label>Longitud comercial de la varilla<select id="acLong">${LONG_VARILLA.map(l => `<option value="${l}"${l === L ? " selected" : ""}>${l} m</option>`).join("")}</select></label></div>
     <div class="tbl"><table><thead><tr><th>Varilla</th><th>Diámetro</th><th class="n">Diámetro (mm)</th><th class="n">Peso nominal (kg/m)</th><th class="n">Peso por varilla de ${L} m (kg)</th><th class="n">Varillas por quintal</th><th class="n">Precio (USD/qq)</th></tr></thead><tbody>
     ${VARILLAS.map(v => { const r = rec(v.rid); return `<tr><td><b>#${v.n}</b></td><td>${esc(v.d)}</td><td class="n">${num(v.mm, 2)}</td><td class="n">${num(v.kg, 3)}</td><td class="n">${num(v.kg * L, 2)}</td><td class="n">${num(QQ_KG / (v.kg * L), 2)}</td><td class="n">${r ? money(r.precio) : "-"}${r && r.val && r.val.estado === "pendiente" ? ' <span class="chip warn">Por validar</span>' : ""}</td></tr>`; }).join("")}
     </tbody></table></div>
