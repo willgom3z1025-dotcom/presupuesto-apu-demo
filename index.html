@@ -240,7 +240,7 @@ ul.clean{margin:0;padding-left:18px;font-size:14px;display:flex;flex-direction:c
 .pickbtn .t{display:block;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .pickbtn .s{display:block;font-size:12px;color:var(--muted)}
 .code{font-family:var(--code);font-size:12px;color:var(--muted)}
-.chips{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px}
+.chips{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px;flex:none;min-height:36px}
 .chips button{flex:none;font:500 13px var(--ui);background:var(--group2);color:var(--ink);border:0;border-radius:16px;padding:7px 12px;cursor:pointer}
 .chips button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
 .form{display:grid;grid-template-columns:1fr 1fr;gap:10px}
@@ -939,7 +939,8 @@ function renderPickList(){
   const fila = a => { if(multi){ const ya = P().manual.find(m => m.apu === a.id);
       return `<div class="addrow">${ico(a.cc, true)}<span class="txt"><span class="t">${esc(a.nombre)}</span><span class="s">${a.id} · ${money(costoAPU(a).total)} / ${esc(a.unidad)}${ya ? ` · <b style="color:var(--ok)">ya tienes ${num(ya.cant)}</b>` : ""}</span></span><input type="text" inputmode="decimal" data-qadd="${esc(a.id)}" placeholder="${esc(a.unidad)}" aria-label="Cantidad"><button class="plus${ya ? " done" : ""}" data-plus="${esc(a.id)}" aria-label="${ya ? "Sumar a la partida" : "Agregar"}">+</button></div>`; }
     return `<button class="irow" data-choose="${esc(a.id)}">${ico(a.cc)}<span class="body"><span class="txt"><span class="t">${esc(a.nombre)}</span><span class="s">${a.id} · ${esc(a.unidad)}</span></span><span class="amt">${money(costoAPU(a).total)}</span>${CHEV}</span></button>`; };
-  let h = manualRow + `<div class="count" style="padding:6px 2px">${total.toLocaleString("en-US")} resultados${total > out.length ? `, mostrando ${out.length}. Escribe para afinar.` : ""}</div>`, key = "";
+  const capSel = DATA.caps.find(c => c.cc === PICKCAP);
+  let h = manualRow + (capSel ? `<button class="btn ghost" data-pcap="" style="padding-left:0">‹ Todos los capítulos</button><div style="display:flex;align-items:center;gap:10px;padding:4px 2px">${ico(capSel.cc)}<b style="font-size:17px">${capSel.cc} ${esc(capSel.nombre)}</b></div>` : "") + `<div class="count" style="padding:6px 2px">${total.toLocaleString("en-US")} resultados${total > out.length ? `, mostrando ${out.length}. Escribe para afinar.` : ""}</div>`, key = "";
   for(const a of out){
     const k = a.cc + "." + a.ss;
     if(k !== key){ if(key) h += "</div>"; const cap = DATA.caps.find(c => c.cc === a.cc); const sub = cap && cap.subs[a.ss];
