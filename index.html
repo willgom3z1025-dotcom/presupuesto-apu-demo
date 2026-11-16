@@ -916,38 +916,38 @@ function renderLineList(){
   const nq = norm(LINEQ), tipoTxt = {MAT:"Material", MO:"Mano de obra", SC:"Subcontrato"};
   el.innerHTML = `<div class="group">${allRec().filter(r => !nq || norm(r.nombre).includes(nq)).slice(0, 50).map(r => `<button class="irow" data-addrec="${esc(r.id)}"><span class="body"><span class="txt"><span class="t">${esc(r.nombre)}</span><span class="s">${tipoTxt[r.tipo]} · ${esc(r.unidad)}</span></span><span class="amt">${money(r.precio)}</span>${CHEV}</span></button>`).join("") || '<div class="ghead"><span>Sin resultados</span></div>'}</div>`;
 }
-const top = titulo => `<div class="grab"></div><div class="bar-top"><div style="font-size:22px;font-weight:700;letter-spacing:-.02em">${titulo}</div><button class="btn ghost" data-close>Listo</button></div>`;
+const hojaTop = titulo => `<div class="grab"></div><div class="bar-top"><div style="font-size:22px;font-weight:700;letter-spacing:-.02em">${titulo}</div><button class="btn ghost" data-close>Listo</button></div>`;
 function renderSheet(){
   const sh = $("#sheet"), bg = $("#sheetBg");
   if(!OPEN){ sh.classList.remove("on"); bg.classList.remove("on"); sh.innerHTML = ""; return; }
   if(OPEN === "temas"){
-    sh.innerHTML = top("Tema") + `<div class="group">${TEMAS.map(tm => `<button class="irow" data-tema-id="${tm.id}"><span class="swatches">${tm.sw.map(c => `<i style="background:${c}"></i>`).join("")}</span><span class="body"><span class="txt"><span class="t">${tm.nombre}</span><span class="s">${tm.desc}</span></span><span class="check">${tm.id === DB.tema ? "✓" : ""}</span></span></button>`).join("")}</div>`;
+    sh.innerHTML = hojaTop("Tema") + `<div class="group">${TEMAS.map(tm => `<button class="irow" data-tema-id="${tm.id}"><span class="swatches">${tm.sw.map(c => `<i style="background:${c}"></i>`).join("")}</span><span class="body"><span class="txt"><span class="t">${tm.nombre}</span><span class="s">${tm.desc}</span></span><span class="check">${tm.id === DB.tema ? "✓" : ""}</span></span></button>`).join("")}</div>`;
   } else if(OPEN === "proyectos"){
     const list = Object.values(DB.proyectos).sort((a, b) => b.mod - a.mod);
-    sh.innerHTML = top("Mis proyectos") + `<div class="row"><button class="btn primary" data-nuevoproy="blanco">Nuevo en blanco</button><button class="btn" data-nuevoproy="ejemplo">Nuevo con ejemplo</button><button class="btn" data-duplicar>Duplicar el actual</button></div>
+    sh.innerHTML = hojaTop("Mis proyectos") + `<div class="row"><button class="btn primary" data-nuevoproy="blanco">Nuevo en blanco</button><button class="btn" data-nuevoproy="ejemplo">Nuevo con ejemplo</button><button class="btn" data-duplicar>Duplicar el actual</button></div>
       <div class="group">${list.map(p => { const cur = DB.actual; DB.actual = p.id; const t = calcular().c.total; DB.actual = cur;
         return `<div class="addrow"><span class="txt"><span class="t">${esc(p.nombre)}${p.id === DB.actual ? " ✓" : ""}</span><span class="s">${esc([p.cliente, p.numero, fechaTxt(p.fecha)].filter(Boolean).join(" · "))} · ${money(t)}</span></span>
           ${p.id === DB.actual ? "" : `<button class="btn sm" data-abrir="${p.id}">Abrir</button>`}<button class="del" data-borrarproy="${p.id}" aria-label="Borrar proyecto">×</button></div>`; }).join("")}</div>`;
   } else if(OPEN.startsWith("borrar:")){
     const p = DB.proyectos[OPEN.slice(7)];
-    sh.innerHTML = top("Borrar proyecto") + `<p>¿Borrar <b>${esc(p.nombre)}</b>? Esta acción no se puede deshacer. Si quieres conservarlo, exporta antes un respaldo.</p><div class="row"><button class="btn" data-proyectos>Cancelar</button><button class="btn primary" style="background:var(--bad);color:#fff" data-confirmborrar="${p.id}">Borrar</button></div>`;
+    sh.innerHTML = hojaTop("Borrar proyecto") + `<p>¿Borrar <b>${esc(p.nombre)}</b>? Esta acción no se puede deshacer. Si quieres conservarlo, exporta antes un respaldo.</p><div class="row"><button class="btn" data-proyectos>Cancelar</button><button class="btn primary" style="background:var(--bad);color:#fff" data-confirmborrar="${p.id}">Borrar</button></div>`;
   } else if(OPEN === "firma"){
-    sh.innerHTML = top("Firma") + `<p class="muted small" style="margin:0">Firma con el dedo o el mouse dentro del recuadro.</p><canvas class="pad" id="pad" width="900" height="300"></canvas><div class="row"><button class="btn" data-limpiarfirma>Limpiar</button><button class="btn primary" data-guardarfirma>Guardar firma</button></div>`;
+    sh.innerHTML = hojaTop("Firma") + `<p class="muted small" style="margin:0">Firma con el dedo o el mouse dentro del recuadro.</p><canvas class="pad" id="pad" width="900" height="300"></canvas><div class="row"><button class="btn" data-limpiarfirma>Limpiar</button><button class="btn primary" data-guardarfirma>Guardar firma</button></div>`;
     sh.classList.add("on"); bg.classList.add("on"); iniciarPad(); return;
   } else if(OPEN === "expopts"){
     const o = DB.expo || (DB.expo = {version:"cliente", detalle:true, materiales:false, apu:false, memoria:true});
     const sw = (k, t, s) => `<label class="opt" for="o_${k}"><span>${t}<small>${s}</small></span><span class="switch"><input type="checkbox" id="o_${k}" data-expo="${k}"${o[k] ? " checked" : ""}></span></label>`;
-    sh.innerHTML = top("Opciones de exportación") + `<div class="seg" role="group" aria-label="Versión"><button data-version="cliente" aria-pressed="${o.version==="cliente"}">Para el cliente</button><button data-version="interna" aria-pressed="${o.version==="interna"}">Interna</button></div>
+    sh.innerHTML = hojaTop("Opciones de exportación") + `<div class="seg" role="group" aria-label="Versión"><button data-version="cliente" aria-pressed="${o.version==="cliente"}">Para el cliente</button><button data-version="interna" aria-pressed="${o.version==="interna"}">Interna</button></div>
       <p class="muted small" style="margin:0">${o.version === "cliente" ? "Muestra el precio unitario de venta y el total. No muestra el costo directo ni el factor." : "Muestra costo directo, factor o indirectos, precio de venta y total."}</p>
       <div class="group opts" style="padding:0 14px">${sw("detalle", "Presupuesto detallado", "Todas las partidas por capítulo")}${sw("memoria", "Memoria de cálculo", "Fórmulas y origen de cada cantidad")}${sw("materiales", "Explosión de materiales", "Lista de compras y jornales")}${sw("apu", "Anexo de APU", "Análisis de cada partida usada")}</div>`;
   } else if(OPEN.startsWith("pick:") || OPEN === "addcat"){
     const keep = document.activeElement && document.activeElement.id === "pickQ";
-    sh.innerHTML = top(OPEN === "addcat" ? "Agregar del catálogo" : "Elegir APU") + `<div class="chips">${['<button data-pcap="" aria-pressed="'+(!PICKCAP)+'">Todos</button>'].concat(DATA.caps.map(c => `<button data-pcap="${c.cc}" aria-pressed="${PICKCAP===c.cc}">${c.cc} ${esc(c.nombre)}</button>`)).join("")}</div>
+    sh.innerHTML = hojaTop(OPEN === "addcat" ? "Agregar del catálogo" : "Elegir APU") + `<div class="chips">${['<button data-pcap="" aria-pressed="'+(!PICKCAP)+'">Todos</button>'].concat(DATA.caps.map(c => `<button data-pcap="${c.cc}" aria-pressed="${PICKCAP===c.cc}">${c.cc} ${esc(c.nombre)}</button>`)).join("")}</div>
       <label class="search" for="pickQ">${SEARCH_ICON}<input id="pickQ" type="search" placeholder="Buscar por nombre o código" value="${esc(PICKQ)}" autocomplete="off"></label>
       ${OPEN === "addcat" ? '<p class="muted small" style="margin:0">Escribe la cantidad (o una fórmula como 2*6.6*0.4) y toca +.</p>' : ""}<div id="pickList"></div>`;
     renderPickList(); if(keep) $("#pickQ").focus();
   } else if(OPEN.startsWith("addline:")){
-    sh.innerHTML = top("Agregar recurso") + `<label class="search" for="lineQ">${SEARCH_ICON}<input id="lineQ" type="search" placeholder="Buscar material, jornal o subcontrato" value="${esc(LINEQ)}" autocomplete="off"></label><div id="lineList"></div>
+    sh.innerHTML = hojaTop("Agregar recurso") + `<label class="search" for="lineQ">${SEARCH_ICON}<input id="lineQ" type="search" placeholder="Buscar material, jornal o subcontrato" value="${esc(LINEQ)}" autocomplete="off"></label><div id="lineList"></div>
       <h3>O crea uno nuevo</h3><div class="form"><label class="full">Nombre<input id="nrNombre" placeholder="Ej. Malla electrosoldada 6x6"></label>
       <label>Tipo<select id="nrTipo"><option value="MAT">Material</option><option value="MO">Mano de obra</option><option value="SC">Subcontrato</option></select></label>
       <label>Unidad<input id="nrUnidad" placeholder="bolsa, m³, jornal, u"></label><label>Precio<input id="nrPrecio" ${NUM}></label>
@@ -955,7 +955,7 @@ function renderSheet(){
     renderLineList();
   } else if(OPEN === "nuevoapu"){
     const cc = LIBCAP || "05", subs = DATA.caps.find(c => c.cc === cc).subs;
-    sh.innerHTML = top("Nuevo APU") + `<div class="form"><label class="full">Nombre de la partida<input id="naNombre" placeholder="Ej. Pared de bloque de 20 cm"></label>
+    sh.innerHTML = hojaTop("Nuevo APU") + `<div class="form"><label class="full">Nombre de la partida<input id="naNombre" placeholder="Ej. Pared de bloque de 20 cm"></label>
       <label>Capítulo<select id="naCap">${capOptions(cc)}</select></label><label>Subcapítulo<select id="naSub">${Object.entries(subs).map(([s, n]) => `<option value="${s}">${s} ${esc(n)}</option>`).join("")}</select></label>
       <label>Unidad<select id="naUnidad">${UNIDADES.map(u => `<option>${u}</option>`).join("")}</select></label><label>Código asignado<input id="naCode" value="${nextCode(cc, Object.keys(subs)[0])}" readonly></label></div>
       <p class="muted small" style="margin:0">Código CC.SS.PP: toma el siguiente número libre del subcapítulo.</p><button class="btn primary" data-crearapu>Crear APU</button>`;
