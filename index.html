@@ -273,6 +273,11 @@ textarea{font:inherit;color:var(--ink);background:var(--group2);border:0;border-
 .projbtn svg{width:12px;height:12px;color:var(--muted);flex:none}
 [hidden]{display:none !important}
 .lib > *{min-width:0}
+.cards > *{min-width:0}
+.files .chip{white-space:normal;max-width:100%;overflow-wrap:anywhere}
+.pcard .head{flex-wrap:wrap}
+.pcard .head .grow{min-width:0}
+.pcard .note,.note{overflow-wrap:anywhere}
 .show-m{display:none}
 .masbtn{all:unset;box-sizing:border-box;cursor:pointer;padding:12px;text-align:center;color:var(--accent);font-weight:600;font-size:14px}
 .masbtn:focus-visible{outline:2px solid var(--accent)}
@@ -293,6 +298,7 @@ textarea{font:inherit;color:var(--ink);background:var(--group2);border:0;border-
   .list{display:flex;max-height:46vh}
   .show-m{display:inline-flex}
   #libDetalle .row.spread{flex-wrap:wrap}
+  #libDetalle .row.spread > .row{flex:1 1 100%}
   #libDetalle h3{margin:12px 0 6px}
   input,select,.btn{min-height:44px}
   .seg button{min-height:38px}
