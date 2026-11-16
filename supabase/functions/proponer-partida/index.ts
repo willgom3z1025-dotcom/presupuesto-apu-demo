@@ -2,11 +2,11 @@
 // Recibe {prompt} desde la aplicación (GitHub Pages) y lo envía a Gemini (API de Google, plan gratuito).
 // La llave vive solo aquí, como secreto del proyecto (GEMINI_API_KEY); nunca en el HTML.
 // Secretos: GEMINI_API_KEY (obligatorio), GEMINI_MODEL (opcional: modelos separados por coma, en orden de preferencia).
-// Si un modelo está saturado o no existe, se prueba el siguiente.
+// Primero los modelos "lite" (más rápidos). Si un modelo está saturado, no existe o tarda más de 15 s, se prueba el siguiente.
 // En la aplicación: Proyecto > Inteligencia artificial > URL = https://<ref>.supabase.co/functions/v1/proponer-partida
 
 const ORIGENES = ["https://willgom3z1025-dotcom.github.io"];
-const MODELOS = (Deno.env.get("GEMINI_MODEL") ?? "gemini-3.8-flash,gemini-3.6-flash,gemini-3.5-flash-lite,gemini-3.1-flash-lite").split(",").map((m) => m.trim()).filter(Boolean);
+const MODELOS = (Deno.env.get("GEMINI_MODEL") ?? "gemini-3.5-flash-lite,gemini-3.1-flash-lite,gemini-3.6-flash,gemini-3.8-flash").split(",").map((m) => m.trim()).filter(Boolean);
 const MAX_PROMPT = 60000; // caracteres; el catálogo estándar ocupa unos 20,000
 
 function cors(origin: string | null) {
@@ -31,14 +31,18 @@ Deno.serve(async (req) => {
     if (typeof prompt !== "string" || !prompt || prompt.length > MAX_PROMPT) return json(h, { error: "prompt inválido" }, 400);
     let ultimo = "sin respuesta";
     for (const modelo of MODELOS) {
-      const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent`, {
+      let r: Response;
+      try {
+        r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent`, {
+        signal: AbortSignal.timeout(15000),
         method: "POST",
         headers: { "x-goog-api-key": Deno.env.get("GEMINI_API_KEY") ?? "", "Content-Type": "application/json" },
         body: JSON.stringify({
           contents: [{ role: "user", parts: [{ text: prompt }] }],
-          generationConfig: { temperature: 0, responseMimeType: "application/json" },
+          generationConfig: { temperature: 0, responseMimeType: "application/json", maxOutputTokens: 4000 },
         }),
       });
+      } catch (e) { ultimo = `${modelo}: ${String(e)}`; continue; } // tiempo agotado o red: siguiente modelo
       const j = await r.json().catch(() => ({}));
       if (r.ok) {
         const text = (j.candidates?.[0]?.content?.parts ?? []).map((p: { text?: string }) => p.text ?? "").join("");
