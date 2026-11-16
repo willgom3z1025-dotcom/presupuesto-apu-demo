@@ -936,7 +936,7 @@ function renderPartidas(){
   $("#files").innerHTML = pr.revit.map((imp, k) => `<span class="chip info">${esc(imp.archivo)} · ${imp.tipos.length} tipos<button data-quitarimp="${k}" aria-label="Quitar tabla">×</button></span>`).join("");
   $("#revitGroups").innerHTML = pr.revit.map((imp, k) => { const st = statsTabla(imp), porConf = imp.partidas.filter(p => p.apu && !estaConfirmada(p) && !p.sgPend).length, paraIA = imp.partidas.filter(p => !p.apu && !p.codNoCat && !(p.ia && p.ia.codigo !== "SIN COINCIDENCIA")).length;
     return `<div class="card" style="gap:8px"><div class="row spread"><div><b>${esc(imp.archivo)}</b><div class="small muted">${imp.partidas.length} partidas · ${st.cod} por COD_PARTIDA · ${st.regla} por reglas · ${st.ia} por IA · ${st.manual} a mano · ${st.sinAsociar} sin asociar · ${st.confirmadas} confirmadas</div></div>
-      <div class="row">${paraIA ? `<button class="btn" data-ia="${k}">Proponer con IA (${paraIA})</button>` : ""}${porConf ? `<button class="btn primary" data-confirmartodas="${k}">Confirmar asociaciones (${porConf})</button>` : ""}</div></div><div class="status" id="iaStatus${k}"></div></div>
+      <div class="row">${paraIA || iaOcupada(imp) ? `<button class="btn" data-ia="${k}"${iaOcupada(imp) ? " disabled" : ""}>${iaOcupada(imp) ? "Consultando IA…" : `Proponer con IA (${paraIA})`}</button>` : ""}${porConf ? `<button class="btn primary" data-confirmartodas="${k}">Confirmar asociaciones (${porConf})</button>` : ""}</div></div><div class="status" id="iaStatus${k}">${iaEstadoHTML(imp)}</div></div>
     <div class="cards">` + imp.partidas.map((p, i) => {
     const t = imp.tipos[i], a = apuById(p.apu), sug = sugerirUnidad(t.nombre, t), pu = p.unidad ? puEf(p) : null, cc = a ? a.cc : "99";
     const cant = p.unidad ? cantidadPorUnidad(t, p.unidad) : null, rv = p.unidad ? revisarTipo(t, p.unidad) : "", ref = `r:${k}:${i}`;
@@ -1367,18 +1367,30 @@ function leerJSONIA(txt){
   const m = String(txt || "").match(/\[[\s\S]*\]/); if(!m) throw new Error("La IA no devolvió JSON");
   const arr = JSON.parse(m[0]); if(!Array.isArray(arr)) throw new Error("Respuesta inválida"); return arr;
 }
+// Estado de la consulta por tabla: se conserva aunque la página se redibuje
+const IA_EST = {}, IA_LIMITE_S = 60;
+const iaOcupada = imp => !!(IA_EST[imp.id] && IA_EST[imp.id].consultando);
+function iaEstadoHTML(imp){
+  const e = IA_EST[imp.id]; if(!e) return "";
+  if(e.consultando) return `<span class="chip info">Consultando IA… <span data-iaseg="${imp.id}">${Math.round((Date.now() - e.inicio) / 1000)}</span> s</span> ${e.n} partida(s). Suele tardar entre 5 y 30 segundos; si pasa de ${IA_LIMITE_S} s se cancela.`;
+  return e.html || "";
+}
+function iaEstado(imp, est){ IA_EST[imp.id] = est; render(); }
+setInterval(() => document.querySelectorAll("[data-iaseg]").forEach(s => { const e = IA_EST[s.dataset.iaseg]; if(e && e.consultando) s.textContent = Math.round((Date.now() - e.inicio) / 1000); }), 1000);
+const conLimite = (prom, s) => Promise.race([prom, new Promise((_, mal) => setTimeout(() => mal(Object.assign(new Error("tiempo"), {code: "timeout"})), s * 1000))]);
 async function proponerIA(k){
-  const imp = P().revit[k], st = $("#iaStatus" + k), reg = (P().registro || []).find(r => r.id === imp.reg);
+  const imp = P().revit[k], reg = (P().registro || []).find(r => r.id === imp.reg);
+  if(iaOcupada(imp)) return;
   const idx = imp.partidas.map((p, i) => i).filter(i => { const p = imp.partidas[i]; return !p.apu && !p.codNoCat && !(p.ia && p.ia.codigo !== "SIN COINCIDENCIA"); });
-  if(!idx.length){ st.innerHTML = '<span class="chip ok">No hay partidas sin asociar</span>'; return; }
+  if(!idx.length){ iaEstado(imp, {html: '<span class="chip ok">No hay partidas sin asociar</span>'}); return; }
   const prov = await proveedorIA();
-  if(!prov){ st.innerHTML = '<span class="chip warn">IA no disponible por el momento</span> Elige el APU a mano.'; return; }
-  st.innerHTML = `<span class="chip info">Consultando IA…</span> ${idx.length} partida(s). Puede tardar unos segundos.`;
+  if(!prov){ iaEstado(imp, {html: '<span class="chip warn">IA no disponible por el momento</span> Elige el APU a mano.'}); return; }
+  iaEstado(imp, {consultando: true, inicio: Date.now(), n: idx.length});
   const items = idx.map(i => { const t = imp.tipos[i]; return {i, nombre: t.nombre + (t.material ? " (" + t.material + ")" : ""),
     cols: [t.area ? `área ${num(t.area)} m²` : "", t.longitud ? `longitud ${num(t.longitud)} m` : "", t.volumen ? `volumen ${num(t.volumen)} m³` : "", `cuenta ${num(t.cuenta, 0)}`, t.diam ? `diámetro ${t.diam}` : ""].filter(Boolean).join(", ")}; });
   const t0 = performance.now();
   try{
-    const arr = leerJSONIA(await prov.llamar(promptIA(imp.archivo, items, catalogoIA())));
+    const arr = leerJSONIA(await conLimite(prov.llamar(promptIA(imp.archivo, items, catalogoIA())), IA_LIMITE_S));
     let ok = 0, sin = 0;
     idx.forEach(i => { const r = arr.find(x => +x.i === i) || {codigo: "SIN COINCIDENCIA", razon: "Sin respuesta para este tipo"}, p = imp.partidas[i];
       const cod = String(r.codigo || "").trim(), a = apuEstandar(cod) || (DB.apuOv[cod] && DB.apuOv[cod].nuevo ? apuById(cod) : null);
@@ -1388,13 +1400,17 @@ async function proponerIA(k){
       p.apu = a.id; p.ov = null; p.origen = "ia"; p.conf = false;
       if(a.unidad === "SG"){ p.unidad = null; p.sgPend = true; } else p.unidad = a.unidad;
       ok++; });
-    if(reg){ reg.tIA = R2((reg.tIA || 0) + (performance.now() - t0) / 1000); reg.proveedorIA = prov.nombre; }
-    st.innerHTML = `<span class="chip ok">IA: ${ok} propuesta(s), ${sin} sin coincidencia</span> Revisa cada una y confirma o corrige.`;
-    guardar(); render();
+    const seg = R2((performance.now() - t0) / 1000);
+    if(reg){ reg.tIA = R2((reg.tIA || 0) + seg); reg.proveedorIA = prov.nombre; }
+    guardar();
+    iaEstado(imp, {html: `<span class="chip ok">IA respondió en ${num(seg, 0)} s</span> ${ok} propuesta(s) y ${sin} sin coincidencia. Las propuestas quedan "Por confirmar": revisa cada una y confirma o corrige.`});
   }catch(e){
-    if(e && e.code === "not_granted") st.innerHTML = '<span class="chip warn">Permiso de IA no concedido</span> Elige el APU a mano.';
-    else if(e && e.code === "rate_limited") st.innerHTML = '<span class="chip warn">Límite de uso de IA alcanzado</span> Intenta en unos minutos.';
-    else { st.innerHTML = '<span class="chip warn">La IA no respondió</span> Puede estar saturada. Intenta de nuevo en un momento o elige el APU a mano.'; console.warn("IA:", e); }
+    let html;
+    if(e && e.code === "timeout") html = `<span class="chip warn">La IA tardó más de ${IA_LIMITE_S} s</span> Se canceló la consulta. Intenta de nuevo o elige el APU a mano.`;
+    else if(e && e.code === "not_granted") html = '<span class="chip warn">Permiso de IA no concedido</span> Elige el APU a mano.';
+    else if(e && e.code === "rate_limited") html = '<span class="chip warn">Límite de uso de IA alcanzado</span> Intenta en unos minutos.';
+    else html = '<span class="chip warn">La IA no respondió</span> Puede estar saturada. Intenta de nuevo en un momento o elige el APU a mano.';
+    console.warn("IA:", e); iaEstado(imp, {html});
   }
 }
 // Registro del procesamiento: filas para pantalla y exportación
