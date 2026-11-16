@@ -2,10 +2,10 @@
 <html lang="es">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#000000">
+<meta name="apple-mobile-web-app-capable" content="yes">
 <title>Presupuesto APU desde Revit</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
 /* Layout: estilo Configuración de iOS en modo oscuro; fuente del sistema (SF Pro en Apple), grupos redondeados, ícono de color por capítulo, barra inferior en el teléfono */
 :root{
@@ -234,19 +234,69 @@ ul.clean{margin:0;padding-left:18px;font-size:14px;display:flex;flex-direction:c
 .filters select{flex:1 1 220px}
 .filters .search{flex:2 1 260px}
 .count{font-size:13px;color:var(--muted)}
-.pickbtn{all:unset;box-sizing:border-box;width:100%;display:flex;align-items:center;gap:10px;background:var(--group2);border-radius:10px;padding:9px 12px;cursor:pointer}
+.pickbtn{all:unset;box-sizing:border-box;width:100%;display:flex;align-items:center;gap:10px;background:var(--group2);border-radius:10px;padding:9px 12px;cursor:pointer;min-height:48px}
 .pickbtn:focus-visible{outline:2px solid var(--accent)}
 .pickbtn .txt{flex:1;min-width:0}
 .pickbtn .t{display:block;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .pickbtn .s{display:block;font-size:12px;color:var(--muted)}
 .code{font-family:var(--code);font-size:12px;color:var(--muted)}
 .chips{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px}
-.chips button{flex:none;font:500 13px var(--ui);background:var(--group2);color:var(--ink);border:0;border-radius:16px;padding:6px 12px;cursor:pointer}
+.chips button{flex:none;font:500 13px var(--ui);background:var(--group2);color:var(--ink);border:0;border-radius:16px;padding:7px 12px;cursor:pointer}
 .chips button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
 .form{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .form label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted)}
 .form .full{grid-column:1/-1}
-.del{background:none;border:0;color:var(--bad);cursor:pointer;font-size:18px;line-height:1;padding:2px 6px}
+textarea{font:inherit;color:var(--ink);background:var(--group2);border:0;border-radius:10px;padding:10px;min-height:120px;resize:vertical;width:100%;box-sizing:border-box}
+.del{background:none;border:0;color:var(--bad);cursor:pointer;font-size:20px;line-height:1;padding:4px 8px}
+.files{display:flex;flex-wrap:wrap;gap:8px}
+.files .chip{font-size:13px;padding:6px 10px;gap:8px}
+.files .chip button{background:none;border:0;color:var(--bad);cursor:pointer;font-size:16px;padding:0 2px}
+.imgbox{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.imgbox .prev{width:140px;height:70px;border-radius:10px;background:#fff;display:grid;place-items:center;overflow:hidden;border:1px solid var(--sep)}
+.imgbox .prev img{max-width:100%;max-height:100%}
+.imgbox .prev span{color:#8e8e93;font-size:12px}
+.pad{width:100%;height:200px;background:#fff;border-radius:12px;touch-action:none;display:block}
+.addrow{display:flex;align-items:center;gap:10px;padding:8px 12px;border-bottom:.5px solid var(--sep)}
+.addrow:last-child{border-bottom:0}
+.addrow .txt{flex:1;min-width:0}
+.addrow .t{display:block;font-size:15px;line-height:1.3}
+.addrow .s{display:block;font-size:12px;color:var(--muted)}
+.addrow input{width:84px}
+.addrow .plus{width:40px;height:40px;border-radius:20px;border:0;background:var(--accent);color:var(--accent-ink);font-size:22px;line-height:1;cursor:pointer;flex:none}
+.addrow .plus.done{background:var(--ok)}
+.formula{font-family:var(--code);font-size:12px;color:var(--muted);word-break:break-all}
+.warnline{font-size:12px;color:var(--warn)}
+.toast{position:fixed;left:50%;bottom:calc(150px + env(safe-area-inset-bottom));transform:translateX(-50%);background:var(--group2);color:var(--ink);padding:10px 16px;border-radius:12px;font-size:14px;z-index:60;box-shadow:0 8px 24px rgba(0,0,0,.35);opacity:0;pointer-events:none;transition:opacity .2s}
+.toast.on{opacity:1}
+.projbtn{all:unset;cursor:pointer;display:flex;align-items:center;gap:6px;background:var(--group);border-radius:10px;padding:7px 12px;max-width:260px}
+.projbtn b{font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.projbtn svg{width:12px;height:12px;color:var(--muted);flex:none}
+.totbar{display:none}
+.tile{background:var(--group);border-radius:14px;padding:14px 16px;display:flex;flex-direction:column;gap:4px}
+.tile span{font-size:12px;color:var(--muted)}
+.tile b{font:600 20px var(--ui);font-variant-numeric:tabular-nums}
+.brand{min-width:0}
+.opts{display:flex;flex-direction:column;gap:2px}
+.opt{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:.5px solid var(--sep)}
+.opt:last-child{border-bottom:0}
+.opt small{display:block;color:var(--muted);font-size:12px}
+.expbtns{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.expbtns .btn{padding:14px;font-size:16px}
+@media (max-width:760px){
+  input,select,.btn{min-height:44px}
+  .seg button{min-height:38px}
+  .tip{display:none}
+  .projbtn{max-width:170px}
+  .proj{display:none}
+  .totbar{display:flex;position:fixed;left:10px;right:10px;bottom:calc(66px + env(safe-area-inset-bottom));z-index:25;align-items:center;justify-content:space-between;gap:10px;background:var(--bar2);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-radius:16px;padding:8px 8px 8px 16px;box-shadow:0 6px 24px rgba(0,0,0,.45)}
+  .totbar.hide{display:none}
+  .totbar span{font-size:12px;color:var(--muted);display:block}
+  .totbar b{font-size:19px;font-variant-numeric:tabular-nums}
+  main{padding-bottom:170px}
+  .search.floating{bottom:calc(130px + env(safe-area-inset-bottom))}
+  .form{grid-template-columns:1fr}
+  .expbtns{grid-template-columns:1fr}
+}
 </style>
 </head>
 <body>
@@ -255,66 +305,93 @@ ul.clean{margin:0;padding-left:18px;font-size:14px;display:flex;flex-direction:c
     <div class="top-inner">
       <div class="brand">
         <div class="logo" aria-hidden="true">APU</div>
-        <div><b>Presupuesto APU</b><small>Tablas de planificación a presupuesto · El Salvador · USD</small></div>
+        <button class="projbtn" data-proyectos aria-label="Cambiar de proyecto"><b id="projName">Proyecto</b><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M3 4.5l3 3 3-3"/></svg></button>
         <button class="btn sm themebtn" data-temas aria-label="Cambiar tema"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18c1.1 0 1.5-.9 1.5-1.6 0-.5-.2-.9-.5-1.2-.3-.3-.5-.7-.5-1.2 0-.9.7-1.5 1.6-1.5H16a5 5 0 0 0 5-5c0-4.1-4-7.5-9-7.5z"/><circle cx="7.5" cy="11" r="1"/><circle cx="10.5" cy="7.5" r="1"/><circle cx="15" cy="8" r="1"/></svg>Tema</button>
       </div>
-      <div class="proj">
-        <label for="pNombre">Proyecto<input id="pNombre" value="Vivienda prueba 1"></label>
-        <label for="pLugar">Ubicación<input id="pLugar" value="San Miguel, El Salvador"></label>
-      </div>
+      <div class="proj"><span class="small muted" id="projSub"></span></div>
     </div>
     <nav class="tabs" role="tablist" aria-label="Secciones">
-      <button class="tab" role="tab" data-v="revit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 16V4M7 9l5-5 5 5M4 20h16"/></svg>Revit</button>
+      <button class="tab" role="tab" data-v="proyecto"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 21h18M5 21V8l7-5 7 5v13M9 21v-6h6v6"/></svg>Proyecto</button>
       <button class="tab" role="tab" data-v="partidas"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M9 10v10"/></svg>Partidas</button>
       <button class="tab" role="tab" data-v="presupuesto"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2zM9 8h6M9 12h6M9 16h3"/></svg>Presupuesto</button>
+      <button class="tab" role="tab" data-v="materiales"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7l9-4 9 4-9 4zM3 12l9 4 9-4M3 17l9 4 9-4"/></svg>Materiales</button>
       <button class="tab" role="tab" data-v="biblioteca"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19V5a2 2 0 0 1 2-2h12v16H6a2 2 0 0 0-2 2zm0 0a2 2 0 0 0 2 2h12"/></svg>APU</button>
     </nav>
   </div>
 </header>
 
 <main class="wrap">
-  <section class="view" id="v-revit">
-    <h1 class="ltitle">Revit</h1>
+  <!-- PROYECTO -->
+  <section class="view" id="v-proyecto">
+    <h1 class="ltitle">Proyecto</h1>
     <div class="card">
-      <h2>Export de Revit</h2>
-      <p class="muted small" style="margin:0">En Revit: tabla de planificación &gt; Exportar &gt; Informes &gt; Tabla de planificación (.txt). El archivo se lee en tu dispositivo.</p>
-      <div class="drop" id="drop">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6M12 18v-6M9 15l3-3 3 3"/></svg>
-        <strong>Arrastra el archivo .txt aquí</strong>
-        <div class="row" style="justify-content:center">
-          <label class="btn primary" for="file" style="cursor:pointer">Elegir archivo</label>
-          <input type="file" id="file" accept=".txt,.csv,.tsv" hidden>
-          <button class="btn" id="btnEjemplo">Usar ejemplo</button>
-        </div>
+      <div class="row spread"><h2>Datos del presupuesto</h2><button class="btn sm" data-proyectos>Mis proyectos</button></div>
+      <div class="form">
+        <label class="full">Nombre del proyecto<input data-pf="nombre"></label>
+        <label>Cliente o propietario<input data-pf="cliente"></label>
+        <label>Dirección<input data-pf="direccion"></label>
+        <label>Número de presupuesto<input data-pf="numero"></label>
+        <label>Fecha<input data-pf="fecha" type="date"></label>
+        <label>Plazo de ejecución<input data-pf="plazo" placeholder="Ej. 90 días calendario"></label>
+        <label>Validez de la oferta<input data-pf="validez" placeholder="Ej. 30 días"></label>
       </div>
-      <div class="status" id="revitStatus"></div>
     </div>
     <div class="card">
-      <div class="row spread"><h2>Datos leídos</h2><span id="revitArchivo" class="chip info"></span></div>
-      <div class="tbl"><table id="tblRevit"></table></div>
-      <div class="row"><button class="btn primary" data-go="partidas">Siguiente: asignar partidas</button></div>
+      <h2>Elaborado por</h2>
+      <p class="muted small tip" style="margin:0">Se guarda para todos tus proyectos y sale en el pie de cada exportación.</p>
+      <div class="form">
+        <label class="full">Nombre<input data-ef="nombre" placeholder="Ej. René Wilfredo Gómez González"></label>
+        <label>Profesión o cargo<input data-ef="profesion" placeholder="Ej. Ingeniero civil"></label>
+        <label>Registro profesional<input data-ef="registro" placeholder="Ej. ICO-0000"></label>
+        <label>Teléfono<input data-ef="tel" inputmode="tel"></label>
+        <label>Correo<input data-ef="correo" inputmode="email"></label>
+        <label class="full">Empresa (opcional)<input data-ef="empresa"></label>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Logo y firma</h2>
+      <div class="imgbox"><div class="prev" id="logoPrev"></div>
+        <div class="row"><label class="btn" for="logoFile" style="cursor:pointer">Subir logo</label><input type="file" id="logoFile" accept="image/*" hidden><button class="btn ghost" data-quitar="logo">Quitar</button></div></div>
+      <div class="imgbox"><div class="prev" id="firmaPrev"></div>
+        <div class="row"><button class="btn" data-firmar>Dibujar firma</button><label class="btn" for="firmaFile" style="cursor:pointer">Subir imagen</label><input type="file" id="firmaFile" accept="image/*" hidden><button class="btn ghost" data-quitar="firma">Quitar</button></div></div>
+    </div>
+    <div class="card">
+      <h2>Notas y exclusiones</h2>
+      <p class="muted small tip" style="margin:0">Salen impresas al final del presupuesto. Indica lo que no incluye.</p>
+      <textarea data-pf="notas" aria-label="Notas y exclusiones"></textarea>
+    </div>
+    <div class="card">
+      <h2>Respaldo</h2>
+      <p class="muted small tip" style="margin:0">Los proyectos se guardan solos en este dispositivo. Para pasarlos a otro teléfono o computadora, exporta el respaldo y ábrelo allá.</p>
+      <div class="row"><button class="btn" data-respaldo>Exportar respaldo</button><label class="btn" for="importFile" style="cursor:pointer">Abrir respaldo</label><input type="file" id="importFile" accept=".json,application/json" hidden></div>
     </div>
   </section>
 
+  <!-- PARTIDAS -->
   <section class="view" id="v-partidas">
     <h1 class="ltitle">Partidas</h1>
     <div class="card">
-      <div class="row spread">
-        <div><h2>Partidas desde Revit</h2><p class="muted small" style="margin:4px 0 0">Confirma la unidad de cada tipo (el punto amarillo marca la sugerida) y elige su APU del catálogo.</p></div>
-        <button class="btn" id="btnSugerencias">Aceptar sugeridas</button>
+      <div class="row spread"><h2>Tablas de Revit</h2><button class="btn sm" id="btnEjemplo">Usar ejemplo</button></div>
+      <div class="drop" id="drop">
+        <strong>Arrastra el .txt exportado de Revit</strong>
+        <label class="btn primary" for="file" style="cursor:pointer">Elegir archivo</label>
+        <input type="file" id="file" accept=".txt,.csv,.tsv" hidden>
+        <span class="muted small tip">Puedes cargar varias tablas (muros, pisos, techos); se suman al proyecto.</span>
       </div>
+      <div class="files" id="files"></div>
+      <div class="status" id="revitStatus"></div>
     </div>
-    <div class="cards" id="cardsRevit"></div>
+    <div id="revitGroups"></div>
     <div class="card">
       <div class="row spread">
-        <div><h2>Partidas manuales</h2><p class="muted small" style="margin:4px 0 0">Lo que Revit no modela: terracería, fundaciones, acero, techos, puertas, instalaciones.</p></div>
-        <button class="btn" id="btnAddManual">Agregar partida</button>
+        <div><h2>Partidas del catálogo</h2><p class="muted small tip" style="margin:4px 0 0">Para todo lo que no viene de Revit, o para armar el presupuesto sin Revit.</p></div>
+        <div class="row"><button class="btn primary" data-addcat>Agregar del catálogo</button><button class="btn" id="btnAddManual">Costo manual</button></div>
       </div>
     </div>
     <div class="cards" id="cardsManual"></div>
-    <div class="row"><button class="btn primary" data-go="presupuesto">Siguiente: ver presupuesto</button></div>
   </section>
 
+  <!-- PRESUPUESTO -->
   <section class="view" id="v-presupuesto">
     <h1 class="ltitle">Presupuesto</h1>
     <div class="hero">
@@ -322,11 +399,15 @@ ul.clean{margin:0;padding-left:18px;font-size:14px;display:flex;flex-direction:c
       <div class="card dist" id="dist"></div>
     </div>
     <div id="avisos"></div>
+    <div class="card">
+      <h2>Exportar</h2>
+      <div class="expbtns"><button class="btn primary" data-exportar="pdf">PDF para imprimir</button><button class="btn" data-exportar="xlsx">Excel con formato</button></div>
+      <div class="row"><button class="btn sm ghost" data-expopts>Opciones de exportación</button><button class="btn sm ghost" data-copiar>Copiar tabla</button></div>
+      <div class="status" id="expStatus"></div>
+    </div>
     <div class="card pres-card">
       <div class="row spread hide-m"><h2>Presupuesto por capítulos</h2></div>
-      <p class="muted small" style="margin:0">El precio unitario es costo directo y se puede editar aquí mismo; una partida editada se puede restaurar a su APU.</p>
-      <div class="row" style="justify-content:flex-end"><button class="btn sm" data-copiar>Copiar para Excel</button><button class="btn sm primary" data-excel>Descargar Excel</button></div>
-      <div class="status" id="expStatus"></div>
+      <p class="muted small tip" style="margin:0">Precio unitario en costo directo, editable aquí mismo.</p>
       <label class="search hide-m" for="qD"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input id="qD" data-q type="search" placeholder="Buscar partida" autocomplete="off"></label>
       <div class="lines-d tbl"><table id="tblPres"></table></div>
       <div class="lines-m" id="linesM"></div>
@@ -335,19 +416,31 @@ ul.clean{margin:0;padding-left:18px;font-size:14px;display:flex;flex-direction:c
     <div class="card">
       <h2>Cierre</h2>
       <div class="row">
-        <div class="seg" role="group" aria-label="Método de cierre" style="flex:0 1 360px">
-          <button data-modo="factor">Factor comercial</button>
-          <button data-modo="ind">Indirectos + utilidad</button>
-        </div>
-        <span id="cfgFactor" class="row"><label for="factor" class="small muted">Factor %</label><input id="factor" type="number" step="1" value="100" style="width:90px"></span>
-        <span id="cfgInd" class="row" hidden><label for="ind" class="small muted">Indirectos %</label><input id="ind" type="number" step="1" value="30" style="width:80px"><label for="util" class="small muted">Utilidad %</label><input id="util" type="number" step="1" value="10" style="width:80px"></span>
+        <div class="seg" role="group" aria-label="Método de cierre" style="flex:0 1 360px"><button data-modo="factor">Factor comercial</button><button data-modo="ind">Indirectos + utilidad</button></div>
+        <span id="cfgFactor" class="row"><label for="factor" class="small muted">Factor %</label><input id="factor" type="number" inputmode="decimal" step="1" style="width:90px"></span>
+        <span id="cfgInd" class="row" hidden><label for="ind" class="small muted">Indirectos %</label><input id="ind" type="number" inputmode="decimal" step="1" style="width:80px"><label for="util" class="small muted">Utilidad %</label><input id="util" type="number" inputmode="decimal" step="1" style="width:80px"></span>
         <label class="switch" for="iva"><input type="checkbox" id="iva"> IVA 13%</label>
       </div>
       <div class="cierre" id="cierre"></div>
-      <p class="muted small" style="margin:0">El factor comercial se aplica una sola vez sobre el costo directo total. Con el factor, indirectos y utilidad quedan en 0. El IVA se aplica una sola vez al final.</p>
+      <p class="small" id="letras" style="margin:0;font-weight:600"></p>
     </div>
   </section>
 
+  <!-- MATERIALES -->
+  <section class="view" id="v-materiales">
+    <h1 class="ltitle">Materiales</h1>
+    <div class="tiles" id="matTiles" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px"></div>
+    <div class="card">
+      <h2>Desperdicio por tipo de material</h2>
+      <p class="muted small tip" style="margin:0">Solo afecta la cantidad a comprar; el presupuesto no cambia.</p>
+      <div class="filters" id="despBox"></div>
+    </div>
+    <div class="card"><h2>Materiales a comprar</h2><div class="tbl"><table id="tblMat"></table></div></div>
+    <div class="card"><h2>Mano de obra</h2><div class="tbl"><table id="tblMO"></table></div></div>
+    <div class="card" id="cardSC"><h2>Subcontratos y otros</h2><div class="tbl"><table id="tblSC"></table></div></div>
+  </section>
+
+  <!-- APU -->
   <section class="view" id="v-biblioteca">
     <h1 class="ltitle">Catálogo de APU</h1>
     <div class="card">
@@ -364,12 +457,14 @@ ul.clean{margin:0;padding-left:18px;font-size:14px;display:flex;flex-direction:c
     </div>
     <div class="card">
       <div class="row spread"><h2>Precios de recursos</h2><button class="btn sm ghost" id="btnReset">Restaurar precios originales</button></div>
-      <p class="muted small" style="margin:0">Cambia aquí el precio de un material, jornal o subcontrato y se actualizan todos los APU que lo usan.</p>
+      <p class="muted small tip" style="margin:0">Cambia aquí el precio de un material, jornal o subcontrato y se actualizan todos los APU que lo usan.</p>
       <div class="filters"><label class="search" for="recQ"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input id="recQ" type="search" placeholder="Buscar recurso" autocomplete="off"></label></div>
       <div class="tbl"><table id="tblRecursos"></table></div>
     </div>
   </section>
 </main>
+<div class="totbar" id="totbar"><div><span id="totLbl">Total sin IVA</span><b id="totVal">$0.00</b></div><button class="btn primary" data-exportar="pdf">PDF</button></div>
+<div class="toast" id="toast" role="status"></div>
 <div class="sheet-bg" id="sheetBg" data-close></div>
 <div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-label="Detalle"></div>
 
@@ -396,16 +491,64 @@ const EJEMPLO = [
 '"ZOCALO: 40"\t""\t"8 m²"\t""\t"82.098 m"',
 '"Total general: 88"\t""\t"489 m²"\t""\t"236.718 m"'
 ].join("\n");
-/* ===== Utilidades ===== */
+/* ================= Utilidades ================= */
 const R2 = n => Math.round((n + Number.EPSILON) * 100) / 100;
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const money = n => "$" + (n || 0).toLocaleString("en-US", {minimumFractionDigits:2, maximumFractionDigits:2});
 const num = (n, d = 2) => (n ?? 0).toLocaleString("en-US", {minimumFractionDigits:d, maximumFractionDigits:d});
 const norm = s => String(s).toUpperCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/(\d+)\s*CM/g, "$1").replace(/\s+/g, " ").trim();
+const hoy = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; };
+const fechaTxt = f => { if(!f) return ""; const [y, m, d] = f.split("-"); return `${d}/${m}/${y}`; };
 const UNIDADES = ["m²","ml","m³","u","SG"];
-const KEY = "apu-demo-v3";
+const KEY = "apu-demo-v4";
+const NUM = 'type="number" inputmode="decimal" step="0.01" min="0"';
+let toastT;
+function toast(msg){ const t = $("#toast"); t.textContent = msg; t.classList.add("on"); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove("on"), 1800); }
 
+/* Fórmulas de cantidad: + - * / ( ) y "x" como multiplicación */
+function evalFormula(s){
+  if(s == null) return null;
+  const src = String(s).replace(/,/g, ".").replace(/[x×]/gi, "*").replace(/\s+/g, "");
+  if(!src) return null;
+  if(!/^[\d.+\-*/()]+$/.test(src)) return null;
+  let i = 0;
+  const peek = () => src[i];
+  function factor(){
+    if(peek() === "-"){ i++; return -factor(); }
+    if(peek() === "+"){ i++; return factor(); }
+    if(peek() === "("){ i++; const v = expr(); if(peek() !== ")") throw 0; i++; return v; }
+    const m = /^\d*\.?\d+/.exec(src.slice(i)); if(!m) throw 0; i += m[0].length; return parseFloat(m[0]);
+  }
+  function term(){ let v = factor(); while(peek() === "*" || peek() === "/"){ const o = src[i++], r = factor(); v = o === "*" ? v * r : v / r; } return v; }
+  function expr(){ let v = term(); while(peek() === "+" || peek() === "-"){ const o = src[i++], r = term(); v = o === "+" ? v + r : v - r; } return v; }
+  try{ const v = expr(); if(i !== src.length || !isFinite(v)) return null; return v; }catch(e){ return null; }
+}
+
+/* Monto en letras */
+const U = ["","UNO","DOS","TRES","CUATRO","CINCO","SEIS","SIETE","OCHO","NUEVE","DIEZ","ONCE","DOCE","TRECE","CATORCE","QUINCE","DIECISÉIS","DIECISIETE","DIECIOCHO","DIECINUEVE","VEINTE","VEINTIUNO","VEINTIDÓS","VEINTITRÉS","VEINTICUATRO","VEINTICINCO","VEINTISÉIS","VEINTISIETE","VEINTIOCHO","VEINTINUEVE"];
+const D = ["","","","TREINTA","CUARENTA","CINCUENTA","SESENTA","SETENTA","OCHENTA","NOVENTA"];
+const C = ["","CIENTO","DOSCIENTOS","TRESCIENTOS","CUATROCIENTOS","QUINIENTOS","SEISCIENTOS","SETECIENTOS","OCHOCIENTOS","NOVECIENTOS"];
+function menorMil(n, apoc){
+  if(n === 0) return ""; if(n === 100) return "CIEN";
+  const c = Math.floor(n / 100), r = n % 100; let s = C[c];
+  if(r){ let t;
+    if(r < 30) t = U[r]; else { t = D[Math.floor(r / 10)]; if(r % 10) t += " Y " + U[r % 10]; }
+    if(apoc) t = t.replace(/VEINTIUNO$/, "VEINTIÚN").replace(/UNO$/, "UN");
+    s = (s ? s + " " : "") + t; }
+  return s;
+}
+function enLetras(n){
+  n = Math.floor(n); if(n === 0) return "CERO";
+  const mill = Math.floor(n / 1e6), miles = Math.floor((n % 1e6) / 1000), resto = n % 1000, p = [];
+  if(mill) p.push(mill === 1 ? "UN MILLÓN" : menorMil(mill, true) + " MILLONES");
+  if(miles) p.push(miles === 1 ? "MIL" : menorMil(miles, true) + " MIL");
+  if(resto) p.push(menorMil(resto, false));
+  return p.join(" ");
+}
+const montoLetras = v => { const e = Math.floor(R2(v) + 1e-9), c = Math.round((R2(v) - e) * 100); return `${enLetras(e)} ${String(c).padStart(2, "0")}/100 DÓLARES DE LOS ESTADOS UNIDOS DE AMÉRICA`; };
+
+/* ================= Revit ================= */
 function parseNum(s){
   if(s == null) return null;
   let t = String(s).replace(/[^\d.,\-]/g, ""); if(!t) return null;
@@ -451,6 +594,13 @@ function sugerirAPU(n){
   return "";
 }
 const cantidadPorUnidad = (t, u) => u === "m²" ? t.area : u === "ml" ? t.longitud : u === "m³" ? t.volumen : u === "u" ? t.cuenta : u === "SG" ? 1 : 0;
+function revisarTipo(t, unidad){
+  if(!(t.area > 0 && t.longitud > 0)) return "";
+  const h = t.area / t.longitud;
+  if(unidad === "ml" && h > 1.2) return `Altura promedio ${num(h)} m: en Revit quedó con altura de muro. Revisa el modelo.`;
+  if(unidad === "m²" && (h > 4.5 || h < 0.4)) return `Altura promedio ${num(h)} m (${num(t.area)} m² en ${num(t.longitud)} m): revisa el modelo.`;
+  return "";
+}
 function cierre(cd, cfg){
   let ind = 0, util = 0, factor = 0;
   if(cfg.modo === "factor") factor = R2(cd * cfg.factor / 100); else { ind = R2(cd * cfg.ind / 100); util = R2((cd + ind) * cfg.util / 100); }
@@ -458,49 +608,60 @@ function cierre(cd, cfg){
   return {cd, factor, ind, util, sub, iva, total: R2(sub + iva)};
 }
 
-/* ===== Capítulos ===== */
-const ICONS = {
-  "01":'<path d="M5 21V4M5 4h11l-2 4 2 4H5"/>',
-  "02":'<path d="M3 20l6-9 4 5 3-4 5 8z"/>',
-  "03":'<path d="M3 17h18M3 21h18M6 17V9h12v8M9 9V6h6v3"/>',
-  "04":'<path d="M6 21V5M18 21V5M4 5h16M4 12h16"/>',
-  "05":'<path d="M3 5h18v14H3zM3 10h18M3 14.5h18M9 5v5M15 5v5M6 10v4.5M12 10v4.5M18 10v4.5M9 14.5V19M15 14.5V19"/>',
-  "06":'<path d="M3 11l9-7 9 7M6 9.5V20h12V9.5"/>',
-  "07":'<path d="M4 4h16v16H4zM4 12h16M12 4v16"/>',
-  "08":'<path d="M4 20l5-5M14 4l6 6-8 8-6-6z"/>',
-  "09":'<path d="M6 21V3h12v18M3 21h18M14 12h.01"/>',
-  "10":'<path d="M3 5h18M6 9h12M9 13h6M12 13v8"/>',
-  "11":'<path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z"/>',
-  "12":'<path d="M13 2L4 14h7l-1 8 9-12h-7z"/>',
-  "13":'<path d="M12 3l5 7h-3l4 6H6l4-6H7zM12 16v5"/>',
-  "14":'<path d="M4 7h16M10 7V4h4v3M6 7l1 13h10l1-13"/>',
-  "99":'<circle cx="6" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="18" cy="12" r="1.6"/>'
-};
+/* ================= Capítulos ================= */
+const ICONS = {"01":'<path d="M5 21V4M5 4h11l-2 4 2 4H5"/>',"02":'<path d="M3 20l6-9 4 5 3-4 5 8z"/>',"03":'<path d="M3 17h18M3 21h18M6 17V9h12v8M9 9V6h6v3"/>',"04":'<path d="M6 21V5M18 21V5M4 5h16M4 12h16"/>',
+  "05":'<path d="M3 5h18v14H3zM3 10h18M3 14.5h18M9 5v5M15 5v5M6 10v4.5M12 10v4.5M18 10v4.5M9 14.5V19M15 14.5V19"/>',"06":'<path d="M3 11l9-7 9 7M6 9.5V20h12V9.5"/>',"07":'<path d="M4 4h16v16H4zM4 12h16M12 4v16"/>',
+  "08":'<path d="M4 20l5-5M14 4l6 6-8 8-6-6z"/>',"09":'<path d="M6 21V3h12v18M3 21h18M14 12h.01"/>',"10":'<path d="M3 5h18M6 9h12M9 13h6M12 13v8"/>',"11":'<path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z"/>',
+  "12":'<path d="M13 2L4 14h7l-1 8 9-12h-7z"/>',"13":'<path d="M12 3l5 7h-3l4 6H6l4-6H7zM12 16v5"/>',"14":'<path d="M4 7h16M10 7V4h4v3M6 7l1 13h10l1-13"/>',"99":'<circle cx="6" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="18" cy="12" r="1.6"/>'};
 const COLORS = {"01":"#5e5ce6","02":"#a2845e","03":"#ff9f0a","04":"#ffd60a","05":"#ff453a","06":"#0a84ff","07":"#30d158","08":"#bf5af2","09":"#40c8e0","10":"#66d4cf","11":"#64d2ff","12":"#ff375f","13":"#7cc05a","14":"#8e8e93","99":"#636366"};
 const CAPS = DATA.caps.map(c => ({...c, c: COLORS[c.cc]})).concat([{cc:"99", nombre:"Sin APU asignado", subs:{}, c: COLORS["99"]}]);
 const capDe = cc => CAPS.find(c => c.cc === cc) || CAPS[CAPS.length-1];
 const ico = (cc, sm) => `<span class="ico${sm?" sm":""}" style="--c:${capDe(cc).c}" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICONS[cc] || ICONS["99"]}</svg></span>`;
 const CHEV = '<svg class="chev" viewBox="0 0 8 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 1l6 6-6 6"/></svg>';
+const SEARCH_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>';
 
-/* ===== Datos base y estado ===== */
+/* ================= Estado: base global + proyectos ================= */
 const BASE_APU = new Map(DATA.apus.map(a => [a.id, a]));
 const BASE_REC = new Map(DATA.recursos.map(r => [r.id, r]));
-let S, OPEN = null, QUERY = "", PICKQ = "", PICKCAP = "", LIBQ = "", LIBCAP = "", RECQ = "", LINEQ = "";
+const NOTAS_BASE = "1. Precios en dólares de los Estados Unidos de América.\n2. No incluye permisos de construcción, trámites ni pago de acometidas de agua y energía.\n3. No incluye muebles, electrodomésticos ni obras no descritas en este presupuesto.\n4. Cantidades obtenidas del modelo BIM; cambios de diseño se cotizan por separado.";
+const DESP_BASE = {mamposteria:5, cemento:5, agregados:10, acero:5, madera:10, pisos:7, pintura:5, otros:3};
+const DESP_NOMBRE = {mamposteria:"Bloque y ladrillo", cemento:"Cemento", agregados:"Arena, grava y selecto", acero:"Acero y alambre", madera:"Madera y encofrado", pisos:"Cerámica y porcelanato", pintura:"Pintura", otros:"Otros materiales"};
+let DB, OPEN = null, QUERY = "", PICKQ = "", PICKCAP = "", LIBQ = "", LIBCAP = "", RECQ = "", LINEQ = "", SEL = "05.01.02", ADDED = {};
+const P = () => DB.proyectos[DB.actual];
+const uid = () => Math.random().toString(36).slice(2, 9);
 function firstMatch(rx){ for(const a of DATA.apus) if(rx.test(norm(a.nombre))) return a.id; return ""; }
-function estadoInicial(){
-  const m = (rx, cant) => { const id = firstMatch(rx); const a = BASE_APU.get(id); return a ? {apu:id, unidad:a.unidad, cant, desc:"", pu:null, ov:null} : null; };
-  return {rec:{}, apuOv:{}, archivo:"", tipos:[], partidas:[],
-    manual:[m(/^LIMPIEZA Y DESCAPOTE/, 207), m(/^EXCAVACION MANUAL DE ZANJA/, 29.33), m(/^SOLERA DE FUNDACION SF-1/, 51.6), m(/^SOLERA INTERMEDIA Y DE CORONAMIENTO/, 77),
-            m(/^CUBIERTA DE LAMINA/, 104), m(/^PUERTA ABATIBLE/, 4)].filter(Boolean),
-    cfg:{modo:"factor", factor:100, ind:30, util:10, iva:false}, sel:"05.01.02", tema:"noche"};
+function nuevoNumero(){ const y = new Date().getFullYear(); const n = Object.keys(DB.proyectos || {}).length + 1; return `P-${y}-${String(n).padStart(3, "0")}`; }
+function proyectoVacio(nombre){
+  return {id: uid(), nombre: nombre || "Proyecto nuevo", cliente:"", direccion:"", numero: nuevoNumero(), fecha: hoy(), plazo:"", validez:"30 días", notas: NOTAS_BASE,
+    cfg:{modo:"factor", factor:100, ind:30, util:10, iva:false}, revit:[], manual:[], creado: Date.now(), mod: Date.now()};
 }
-function guardar(){ try{ localStorage.setItem(KEY, JSON.stringify(S)); }catch(e){} }
-function cargar(){ try{ const t = localStorage.getItem(KEY); if(t){ S = JSON.parse(t); return !!(S && S.rec && S.apuOv); } }catch(e){} return false; }
-const rec = id => { const b = BASE_REC.get(id) || (S.recNew && S.recNew[id]); return b ? {...b, ...(S.rec[id] || {})} : null; };
-const apuById = id => S.apuOv[id] || BASE_APU.get(id) || null;
-function allRec(){ return [...BASE_REC.values(), ...Object.values(S.recNew || {})].map(r => rec(r.id)); }
-function editableAPU(id){ if(!S.apuOv[id]){ const b = BASE_APU.get(id); S.apuOv[id] = JSON.parse(JSON.stringify(b)); } return S.apuOv[id]; }
-
+function itemCat(rx, cant, formula){ const id = firstMatch(rx), a = BASE_APU.get(id); return a ? {apu:id, unidad:a.unidad, cant, formula: formula || "", desc:"", pu:null, ov:null} : null; }
+function proyectoEjemplo(){
+  const p = proyectoVacio("Vivienda prueba 1"); p.cliente = "Cliente de ejemplo"; p.direccion = "San Miguel, El Salvador"; p.plazo = "90 días calendario";
+  const {titulo, tipos} = parseRevit(EJEMPLO);
+  p.revit.push({id: uid(), archivo: "CANTIDADES DE PAREDES prueba 1.txt" + (titulo ? " · " + titulo : ""), tipos, partidas: tipos.map(t => ({unidad: sugerirUnidad(t.nombre), apu: sugerirAPU(t.nombre), pu:null, ov:null}))});
+  p.manual = [itemCat(/^LIMPIEZA Y DESCAPOTE/i, 207, "15*13.8"), itemCat(/^EXCAVACION MANUAL DE ZANJA/i, 29.33, "2*6.6*0.4*0.8 + 2*2.3*0.4*0.8 + 7.1*0.4*0.8 + 3*8.9*0.4*2"),
+    itemCat(/^SOLERA DE FUNDACION SF-1/i, 51.6, "2*6.6 + 2*2.3 + 7.1 + 3*8.9"), itemCat(/^SOLERA INTERMEDIA Y DE CORONAMIENTO/i, 77),
+    itemCat(/^CUBIERTA DE LAMINA/i, 104), itemCat(/^PUERTA ABATIBLE/i, 4)].filter(Boolean);
+  return p;
+}
+function dbInicial(){
+  const db = {v:4, proyectos:{}, actual:null, rec:{}, apuOv:{}, recNew:{}, tema:"noche", elab:{}, logo:null, firma:null, desp:{...DESP_BASE}};
+  DB = db; const p = proyectoEjemplo(); db.proyectos[p.id] = p; db.actual = p.id;
+  try{ // migración desde la versión anterior
+    const v3 = JSON.parse(localStorage.getItem("apu-demo-v3") || "null");
+    if(v3 && v3.rec){ db.rec = v3.rec || {}; db.apuOv = v3.apuOv || {}; db.recNew = v3.recNew || {}; db.tema = v3.tema || "noche";
+      if(v3.tipos && v3.tipos.length){ p.revit = [{id: uid(), archivo: v3.archivo || "Revit", tipos: v3.tipos, partidas: v3.partidas}]; p.manual = (v3.manual || []).map(m => ({formula:"", ...m})); p.cfg = v3.cfg || p.cfg; } }
+  }catch(e){}
+  return db;
+}
+let saveT;
+function guardar(){ P().mod = Date.now(); clearTimeout(saveT); saveT = setTimeout(() => { try{ localStorage.setItem(KEY, JSON.stringify(DB)); }catch(e){ toast("No se pudo guardar: memoria del navegador llena"); } }, 150); }
+function cargar(){ try{ const t = localStorage.getItem(KEY); if(t){ DB = JSON.parse(t); if(DB && DB.proyectos && DB.proyectos[DB.actual]) return true; } }catch(e){} return false; }
+const rec = id => { const b = BASE_REC.get(id) || DB.recNew[id]; return b ? {...b, ...(DB.rec[id] || {})} : null; };
+const apuById = id => DB.apuOv[id] || BASE_APU.get(id) || null;
+const allRec = () => [...BASE_REC.values(), ...Object.values(DB.recNew)].map(r => rec(r.id));
+function editableAPU(id){ if(!DB.apuOv[id]) DB.apuOv[id] = JSON.parse(JSON.stringify(BASE_APU.get(id))); return DB.apuOv[id]; }
 function costoLinea(r, c){ if(!r) return 0; return r.tipo === "MO" ? c * r.precio * (1 + (r.prest || 0) / 100) : c * r.precio; }
 function costoAPU(a){
   const o = {mat:0, mo:0, sc:0, pd:0};
@@ -510,13 +671,361 @@ function costoAPU(a){
   return o;
 }
 
-/* ===== Revit ===== */
+/* ================= Partidas y cálculo ================= */
+function getItem(ref){ const p = ref.split(":"); return p[0] === "r" ? P().revit[+p[1]].partidas[+p[2]] : P().manual[+p[1]]; }
+function getTipo(ref){ const p = ref.split(":"); return p[0] === "r" ? P().revit[+p[1]].tipos[+p[2]] : null; }
+function puBase(it){ if(it.apu === "__manual") return it.pu != null ? {mat:0, mo:0, sc:0, pd:R2(it.pu), total:R2(it.pu)} : null; const a = apuById(it.apu); return a ? costoAPU(a) : null; }
+function puEf(it){
+  const b = puBase(it); if(!b) return null;
+  if(it.apu !== "__manual" && it.ov != null){ const r = b.total > 0 ? it.ov / b.total : 0; return {mat:R2(b.mat*r), mo:R2(b.mo*r), sc:R2(b.sc*r), pd:R2(b.pd*r), total:R2(it.ov), editado:true, base:b.total}; }
+  return b;
+}
+function lineas(){
+  const out = [], pr = P();
+  pr.revit.forEach((imp, k) => imp.partidas.forEach((p, i) => {
+    const t = imp.tipos[i], a = apuById(p.apu), pu = p.unidad ? puEf(p) : null;
+    let problema = "";
+    if(!p.unidad) problema = "Falta unidad"; else if(!pu) problema = "Sin precio"; else if(a && a.unidad !== p.unidad) problema = "Unidad distinta al APU";
+    out.push({ref:`r:${k}:${i}`, origen:"Revit", titulo:t.nombre, code: a ? a.id : "S/C", info: a ? a.nombre : (p.apu === "__manual" ? "Costo manual" : "Sin APU"), apu: a,
+      cc: a ? a.cc : "99", unidad: p.unidad || "-", cant: p.unidad ? R2(cantidadPorUnidad(t, p.unidad)) : 0, pu, problema, manual: p.apu === "__manual",
+      revisar: p.unidad ? revisarTipo(t, p.unidad) : "", memoria: p.unidad ? `Revit (${p.unidad === "m²" ? "área" : p.unidad === "ml" ? "longitud" : p.unidad === "m³" ? "volumen" : p.unidad === "u" ? "cuenta" : "global"}, ${imp.archivo.split(" · ")[0]})` : ""});
+  }));
+  pr.manual.forEach((m, i) => {
+    const a = apuById(m.apu), pu = puEf(m);
+    out.push({ref:`m:${i}`, origen:"Catálogo", titulo: a ? a.nombre : (m.desc || "Partida con costo manual"), code: a ? a.id : "S/C", info: a ? "APU " + a.id : "Costo manual", apu: a,
+      cc: a ? a.cc : "99", unidad: a ? a.unidad : m.unidad, cant: R2(+m.cant || 0), pu, problema: !pu ? "Sin precio" : (!(+m.cant > 0) ? "Sin cantidad" : ""), manual: m.apu === "__manual", revisar:"", memoria: m.formula || ""});
+  });
+  return out.map(l => { const ok = !l.problema && !!l.pu, sub = ok ? R2(l.cant * l.pu.total) : 0;
+    const mat = ok ? R2(l.cant*l.pu.mat) : 0, mo = ok ? R2(l.cant*l.pu.mo) : 0, sc = ok ? R2(l.cant*l.pu.sc) : 0;
+    return {...l, ok, sub, mat, mo, sc, otro: ok ? R2(sub - mat - mo - sc) : 0}; });
+}
+function calcular(){
+  const ls = lineas(), cd = R2(ls.reduce((s, l) => s + l.sub, 0)), c = cierre(cd, P().cfg), k = cd > 0 ? c.sub / cd : 0;
+  const grupos = CAPS.map(cap => { const items = ls.filter(l => l.cc === cap.cc).sort((a, b) => a.code.localeCompare(b.code, "es", {numeric:true}));
+    return {...cap, items, sub: R2(items.reduce((s, l) => s + l.sub, 0))}; }).filter(g => g.items.length);
+  const sum = f => R2(ls.reduce((s, l) => s + l[f], 0));
+  return {ls, grupos, c, k, mat:sum("mat"), mo:sum("mo"), sc:sum("sc"), otro:sum("otro")};
+}
+function despCat(r){
+  const n = norm(r.nombre);
+  if(/BLOQUE|LADRILLO/.test(n)) return "mamposteria"; if(/CEMENTO/.test(n)) return "cemento"; if(/ARENA|GRAVA|SELECTO|PIEDRA|TIERRA/.test(n)) return "agregados";
+  if(/ACERO|HIERRO|VARILLA|ALAMBRE|MALLA/.test(n)) return "acero"; if(/MADERA|COSTANERA|CUARTON|REGLA|PLYWOOD|TABLA|CLAVO/.test(n)) return "madera";
+  if(/CERAMIC|PORCELANATO|AZULEJO|PISO/.test(n)) return "pisos"; if(/PINTURA|SELLADOR|BARNIZ/.test(n)) return "pintura"; return "otros";
+}
+function explosion(){
+  const {ls} = calcular(), m = new Map(); let sinDesg = 0, eq = 0;
+  for(const l of ls){ if(!l.ok) continue;
+    if(!l.apu || l.manual){ sinDesg += l.sub; continue; }
+    for(const [rid, c] of l.apu.lineas){ const r = rec(rid); if(!r) continue; const e = m.get(rid) || {r, q:0}; e.q += l.cant * c; m.set(rid, e); }
+    eq += l.cant * (l.apu.eq || 0); sinDesg += l.cant * (l.apu.pdir || 0);
+  }
+  const mat = [], mo = [], sc = [];
+  for(const e of m.values()){
+    if(e.r.tipo === "MAT"){ const cat = despCat(e.r), d = DB.desp[cat] ?? 0, compra = e.q * (1 + d / 100); mat.push({...e, cat, d, compra, costo: compra * e.r.precio}); }
+    else if(e.r.tipo === "MO") mo.push({...e, costo: e.q * e.r.precio * (1 + (e.r.prest || 0) / 100)});
+    else sc.push({...e, costo: e.q * e.r.precio});
+  }
+  const byName = (a, b) => a.r.nombre.localeCompare(b.r.nombre, "es");
+  return {mat: mat.sort(byName), mo: mo.sort((a, b) => b.q - a.q), sc: sc.sort(byName), eq, sinDesg};
+}
+
+/* ================= Render: encabezado y proyecto ================= */
+function renderHeader(){ const p = P(); $("#projName").textContent = p.nombre || "Proyecto"; $("#projSub").textContent = [p.cliente, p.numero].filter(Boolean).join(" · "); }
+function renderProyecto(){
+  const p = P();
+  document.querySelectorAll("[data-pf]").forEach(el => { if(document.activeElement !== el) el.value = p[el.dataset.pf] ?? ""; });
+  document.querySelectorAll("[data-ef]").forEach(el => { if(document.activeElement !== el) el.value = DB.elab[el.dataset.ef] ?? ""; });
+  $("#logoPrev").innerHTML = DB.logo ? `<img src="${DB.logo.data}" alt="Logo">` : "<span>Sin logo</span>";
+  $("#firmaPrev").innerHTML = DB.firma ? `<img src="${DB.firma.data}" alt="Firma">` : "<span>Sin firma</span>";
+}
+
+/* ================= Render: partidas ================= */
+function editorPU(l){
+  if(!l.pu && !l.manual) return '<span class="muted">-</span>';
+  const it = getItem(l.ref), val = l.manual ? (it.pu ?? "") : l.pu.total;
+  const reset = l.pu && l.pu.editado ? ` <button class="btn sm ghost" data-reset="${l.ref}" title="Volver a ${money(l.pu.base)}">Restaurar</button>` : "";
+  return `<span class="edit"><input ${NUM} data-ref="${l.ref}" data-k="${l.manual ? "pu" : "ov"}" value="${val}" aria-label="Precio unitario">${reset}</span>`;
+}
+function cantInput(ref, it){
+  return `<input type="text" inputmode="decimal" data-ref="${ref}" data-k="cant" value="${esc(it.formula || (it.cant ?? ""))}" placeholder="Ej. 2*6.6*0.4" aria-label="Cantidad o fórmula" style="width:150px">`;
+}
+function pickBtn(ref, apuId){
+  const a = apuById(apuId);
+  const label = apuId === "__manual" ? "Costo unitario manual" : a ? a.nombre : "Elegir APU del catálogo";
+  const sub = apuId === "__manual" ? "Sin APU" : a ? `${a.id} · ${a.unidad} · ${money(costoAPU(a).total)}` : "Busca por nombre o código";
+  return `<button class="pickbtn" data-pick="${ref}">${ico(a ? a.cc : "99", true)}<span class="txt"><span class="t">${esc(label)}</span><span class="s">${esc(sub)}</span></span>${CHEV}</button>`;
+}
+function estadoChip(p, a, pu){
+  if(!p.unidad) return '<span class="chip warn">Confirmar unidad</span>';
+  if(!p.apu || (p.apu === "__manual" && p.pu == null)) return '<span class="chip bad">Sin precio</span>';
+  if(a && a.unidad !== p.unidad) return `<span class="chip bad">El APU es por ${a.unidad}</span>`;
+  if(pu && pu.editado) return '<span class="chip info">Precio editado</span>';
+  return '<span class="chip ok">Lista</span>';
+}
+function renderPartidas(){
+  const pr = P();
+  $("#files").innerHTML = pr.revit.map((imp, k) => `<span class="chip info">${esc(imp.archivo)} · ${imp.tipos.length} tipos<button data-quitarimp="${k}" aria-label="Quitar tabla">×</button></span>`).join("");
+  $("#revitGroups").innerHTML = pr.revit.map((imp, k) => `<div class="cards">` + imp.partidas.map((p, i) => {
+    const t = imp.tipos[i], a = apuById(p.apu), sug = sugerirUnidad(t.nombre), pu = p.unidad ? puEf(p) : null, cc = a ? a.cc : "99";
+    const cant = p.unidad ? cantidadPorUnidad(t, p.unidad) : null, rv = p.unidad ? revisarTipo(t, p.unidad) : "", ref = `r:${k}:${i}`;
+    return `<article class="pcard">
+      <div class="head">${ico(cc)}<div class="grow"><div class="t">${esc(t.nombre)}</div><div class="cat">${esc(capDe(cc).nombre)}</div></div>${estadoChip(p, a, pu)}</div>
+      <div class="facts"><span>Área <b>${num(t.area)}</b> m²</span><span>Long. <b>${num(t.longitud,3)}</b> m</span><span>Cuenta <b>${t.cuenta}</b></span></div>
+      ${rv ? `<div class="warnline">${esc(rv)}</div>` : ""}
+      <div class="seg" role="group" aria-label="Unidad">${UNIDADES.map(u => `<button data-unit="${u}" data-ref="${ref}" aria-pressed="${u===p.unidad}" class="${u===sug?"sug":""}">${u}</button>`).join("")}</div>
+      ${pickBtn(ref, p.apu)}
+      <div class="price-row"><div><div class="lbl">Cantidad</div><div class="val">${cant != null ? num(cant) : "-"} <span class="small muted">${p.unidad || ""}</span></div></div>
+        <div><div class="lbl">P.U. costo directo</div>${p.unidad || p.apu === "__manual" ? editorPU({ref, pu, manual:p.apu==="__manual"}) : '<span class="muted">-</span>'}</div></div>
+    </article>`; }).join("") + `</div>`).join("");
+  $("#cardsManual").innerHTML = !pr.manual.length ? '<div class="card muted">Sin partidas del catálogo. Usa "Agregar del catálogo".</div>' : pr.manual.map((m, i) => {
+    const a = apuById(m.apu), pu = puEf(m), cc = a ? a.cc : "99", ref = `m:${i}`, sub = pu && +m.cant > 0 ? R2(m.cant * pu.total) : 0;
+    return `<article class="pcard">
+      <div class="head">${ico(cc)}<div class="grow"><div class="t">${esc(a ? a.nombre : (m.desc || "Partida con costo manual"))}</div><div class="cat">${a ? a.id + " · " : ""}${esc(capDe(cc).nombre)}</div></div><button class="del" data-del="${i}" aria-label="Quitar partida">×</button></div>
+      ${pickBtn(ref, m.apu)}
+      ${m.apu === "__manual" ? `<input data-ref="${ref}" data-k="desc" value="${esc(m.desc)}" placeholder="Descripción de la partida" aria-label="Descripción">
+        <div class="seg" role="group" aria-label="Unidad">${UNIDADES.map(u => `<button data-unit="${u}" data-ref="${ref}" aria-pressed="${u===m.unidad}">${u}</button>`).join("")}</div>` : ""}
+      <div class="price-row"><div><div class="lbl">Cantidad (${esc(a ? a.unidad : m.unidad)})</div>${cantInput(ref, m)}${m.formula ? `<div class="formula">= ${num(m.cant, 3)}</div>` : ""}</div>
+        <div><div class="lbl">P.U. costo directo</div>${editorPU({ref, pu, manual:m.apu==="__manual"})}</div></div>
+      <div class="price-row"><span class="lbl">Parcial</span><span class="val">${money(sub)}</span></div>
+    </article>`;
+  }).join("");
+}
+
+/* ================= Render: presupuesto ================= */
+function renderPresupuesto(){
+  const {ls, grupos: todos, c, k, mat, mo, sc, otro} = calcular(), cfg = P().cfg, q = norm(QUERY);
+  const grupos = q ? todos.map(g => ({...g, items: g.items.filter(l => norm(l.titulo + " " + l.info + " " + l.code).includes(q))})).filter(g => g.items.length) : todos;
+  $("#totalCard").innerHTML = `<span class="lbl">Total ${cfg.iva ? "con IVA" : "sin IVA"}</span><span class="big">${money(c.total)}</span>
+    <div class="row small muted"><span>Costo directo ${money(c.cd)}</span><span>·</span><span>${cfg.modo==="factor" ? `Factor ${num(cfg.factor,0)}%` : `Ind. ${num(cfg.ind,0)}% + Util. ${num(cfg.util,0)}%`}</span></div>
+    <div class="mini"><div><span>Materiales</span><b>${money(mat)}</b></div><div><span>Mano de obra</span><b>${money(mo)}</b></div><div><span>Equipo y subcontratos</span><b>${money(sc)}</b></div><div><span>Sin desglose</span><b>${money(otro)}</b></div></div>`;
+  const tot = c.cd || 1;
+  $("#dist").innerHTML = `<div class="row spread"><h3>Costo directo por capítulo</h3><span class="chip">${ls.filter(l=>l.ok).length} de ${ls.length} partidas en el total</span></div>
+    <div class="bar" role="img" aria-label="Distribución por capítulo">${todos.filter(g=>g.sub>0).map(g => `<i style="width:${(g.sub/tot*100).toFixed(2)}%;background:${g.c}" title="${esc(g.nombre)}"></i>`).join("")}</div>
+    <div class="legend">${todos.map(g => `<div><span class="dot" style="background:${g.c}"></span><span class="lname">${g.cc} ${esc(g.nombre)}</span><span class="n">${money(g.sub)}</span><span class="n">${c.cd ? num(g.sub/tot*100,1) : "0.0"}%</span></div>`).join("")}</div>`;
+  const prob = ls.filter(l => l.problema), rev = ls.filter(l => l.revisar);
+  $("#avisos").innerHTML = (prob.length ? `<div class="note"><b>${prob.length} partida(s) fuera del total:</b> ${prob.map(l => esc(l.titulo) + " (" + l.problema.toLowerCase() + ")").join("; ")}.</div>` : "") +
+    (rev.length ? `<div class="note" style="margin-top:8px"><b>Revisar en Revit:</b> ${rev.map(l => `${esc(l.titulo)}: ${esc(l.revisar)}`).join(" ")}</div>` : "");
+  const chips = l => (l.problema ? ` <span class="chip bad">${esc(l.problema)}</span>` : "") + (l.pu && l.pu.editado ? ' <span class="chip info">Editado</span>' : "") + (l.revisar ? ' <span class="chip warn">Revisar</span>' : "");
+  $("#tblPres").innerHTML = `<thead><tr><th>Código</th><th>Partida</th><th class="u">Unidad</th><th class="n">Cantidad</th><th class="n">P.U. (C.D.)</th><th class="n">Parcial</th><th class="n">P.U. venta</th><th class="n">Total</th></tr></thead><tbody>` +
+    grupos.map(g => `<tr class="cap"><td class="code">${g.cc}</td><td colspan="4"><span class="capcell">${ico(g.cc,true)}${esc(g.nombre)}</span></td><td class="n">${money(g.sub)}</td><td></td><td class="n">${money(R2(g.sub*k))}</td></tr>` +
+      g.items.map(l => `<tr><td class="code">${esc(l.code)}</td><td>${esc(l.titulo)}<div class="ref">${esc(l.info)} · ${l.origen}</div>${l.memoria && l.origen !== "Revit" ? `<div class="formula">${esc(l.memoria)}</div>` : ""}${chips(l)}</td><td class="u">${esc(l.unidad)}</td><td class="n">${num(l.cant)}</td><td class="n">${editorPU(l)}</td><td class="n">${l.ok ? money(l.sub) : "-"}</td><td class="n">${l.ok ? money(R2(l.pu.total*k)) : "-"}</td><td class="n">${l.ok ? money(R2(l.sub*k)) : "-"}</td></tr>`).join("")).join("") +
+    `<tr class="total"><td></td><td colspan="4">Subtotal ${cfg.iva ? "(antes de IVA)" : ""}</td><td class="n">${money(c.cd)}</td><td></td><td class="n">${money(c.sub)}</td></tr></tbody>`;
+  $("#linesM").innerHTML = (grupos.length ? grupos.map(g => `<div class="ghead"><span>${g.cc} ${esc(g.nombre)}</span><span class="n">${money(g.sub)}</span></div><div class="group">` +
+    g.items.map(l => `<button class="irow" data-open="${l.ref}">${ico(g.cc)}<span class="body"><span class="txt"><span class="t">${esc(l.titulo)}</span><span class="s">${l.ok ? `${esc(l.code)} · ${num(l.cant)} ${esc(l.unidad)} × ${money(l.pu.total)}` : esc(l.problema)}</span></span>${l.problema ? '<span class="flag" style="background:var(--bad)"></span>' : (l.revisar ? '<span class="flag" style="background:var(--warn)"></span>' : (l.pu && l.pu.editado ? '<span class="flag" style="background:var(--accent)"></span>' : ""))}<span class="amt">${l.ok ? money(l.sub) : ""}</span>${CHEV}</span></button>`).join("") + "</div>").join("")
+    : '<div class="ghead"><span>Sin resultados</span></div>') + `<div class="ghead"><span>Costo directo</span><span class="n" style="color:var(--ink)">${money(c.cd)}</span></div>`;
+  document.querySelectorAll("[data-modo]").forEach(b => b.setAttribute("aria-pressed", b.dataset.modo === cfg.modo));
+  $("#cierre").innerHTML = `<span>Costo directo</span><span class="v">${money(c.cd)}</span>
+    ${cfg.modo==="factor" ? `<span>Factor comercial ${num(cfg.factor,0)}%</span><span class="v">${money(c.factor)}</span>` : `<span>Indirectos ${num(cfg.ind,0)}%</span><span class="v">${money(c.ind)}</span><span>Utilidad ${num(cfg.util,0)}%</span><span class="v">${money(c.util)}</span>`}
+    <span>Subtotal</span><span class="v">${money(c.sub)}</span><span>IVA 13%</span><span class="v">${cfg.iva ? money(c.iva) : "No aplicado"}</span>
+    <span class="big">Total</span><span class="v big">${money(c.total)}</span>`;
+  $("#letras").textContent = "SON: " + montoLetras(c.total);
+  $("#factor").value = cfg.factor; $("#ind").value = cfg.ind; $("#util").value = cfg.util; $("#iva").checked = cfg.iva;
+  $("#cfgFactor").hidden = cfg.modo !== "factor"; $("#cfgInd").hidden = cfg.modo === "factor";
+  $("#totLbl").textContent = `Total ${cfg.iva ? "con IVA" : "sin IVA"}`; $("#totVal").textContent = money(c.total);
+}
+
+/* ================= Render: materiales ================= */
+function renderMateriales(){
+  const ex = explosion(), tm = ex.mat.reduce((s, x) => s + x.costo, 0), jt = ex.mo.reduce((s, x) => s + x.q, 0), cmo = ex.mo.reduce((s, x) => s + x.costo, 0);
+  $("#matTiles").innerHTML = `<div class="tile"><span>Materiales a comprar</span><b>${money(tm)}</b></div><div class="tile"><span>Jornales totales</span><b>${num(jt, 1)}</b></div><div class="tile"><span>Mano de obra</span><b>${money(cmo)}</b></div><div class="tile"><span>Recursos distintos</span><b>${ex.mat.length + ex.mo.length + ex.sc.length}</b></div>`;
+  $("#despBox").innerHTML = Object.keys(DESP_BASE).map(k => `<label class="small muted" style="display:flex;flex-direction:column;gap:4px;flex:1 1 150px">${DESP_NOMBRE[k]} (%)<input ${NUM} data-desp="${k}" value="${DB.desp[k] ?? 0}"></label>`).join("");
+  $("#tblMat").innerHTML = `<thead><tr><th>Material</th><th class="u">Unidad</th><th class="n">Cantidad neta</th><th class="n">Desp.</th><th class="n">A comprar</th><th class="n">Precio</th><th class="n">Costo</th></tr></thead><tbody>` +
+    (ex.mat.map(x => `<tr><td>${esc(x.r.nombre)}</td><td class="u">${esc(x.r.unidad)}</td><td class="n">${num(x.q, 2)}</td><td class="n">${num(x.d, 0)}%</td><td class="n"><b>${num(Math.ceil(x.compra * 100) / 100, 2)}</b></td><td class="n">${money(x.r.precio)}</td><td class="n">${money(x.costo)}</td></tr>`).join("") || '<tr><td colspan="7" class="muted">Sin materiales: agrega partidas con APU desglosado.</td></tr>') +
+    `<tr class="sub"><td colspan="6">Total materiales</td><td class="n">${money(tm)}</td></tr></tbody>`;
+  $("#tblMO").innerHTML = `<thead><tr><th>Categoría</th><th class="n">Jornales</th><th class="n">Jornal + prest.</th><th class="n">Costo</th></tr></thead><tbody>` +
+    (ex.mo.map(x => `<tr><td>${esc(x.r.nombre)}</td><td class="n">${num(x.q, 1)}</td><td class="n">${money(x.r.precio * (1 + (x.r.prest || 0) / 100))}</td><td class="n">${money(x.costo)}</td></tr>`).join("") || '<tr><td colspan="4" class="muted">Sin mano de obra desglosada.</td></tr>') +
+    `<tr class="sub"><td>Total</td><td class="n">${num(jt, 1)}</td><td></td><td class="n">${money(cmo)}</td></tr></tbody>`;
+  $("#tblSC").innerHTML = `<thead><tr><th>Concepto</th><th class="u">Unidad</th><th class="n">Cantidad</th><th class="n">Costo</th></tr></thead><tbody>` +
+    ex.sc.map(x => `<tr><td>${esc(x.r.nombre)}</td><td class="u">${esc(x.r.unidad)}</td><td class="n">${num(x.q, 2)}</td><td class="n">${money(x.costo)}</td></tr>`).join("") +
+    `<tr><td>Equipo y herramientas</td><td class="u">SG</td><td class="n">1.00</td><td class="n">${money(ex.eq)}</td></tr><tr><td>Partidas sin desglose (precio global)</td><td class="u">SG</td><td class="n">1.00</td><td class="n">${money(ex.sinDesg)}</td></tr></tbody>`;
+}
+
+/* ================= Render: catálogo ================= */
+function allAPU(){ const custom = Object.values(DB.apuOv).filter(a => !BASE_APU.has(a.id)); return DATA.apus.map(a => DB.apuOv[a.id] || a).concat(custom); }
+function buscarAPU(q, cap, max){
+  const words = norm(q).split(" ").filter(Boolean), out = []; let total = 0;
+  for(const a of allAPU()){ if(cap && a.cc !== cap) continue;
+    if(words.length){ const h = norm(a.id + " " + a.nombre); if(!words.every(w => h.includes(w))) continue; }
+    total++; if(out.length < max) out.push(a); }
+  return {out, total};
+}
+const capOptions = (sel, todos) => (todos ? `<option value="">Todos los capítulos</option>` : "") + DATA.caps.map(c => `<option value="${c.cc}"${c.cc===sel?" selected":""}>${c.cc} ${esc(c.nombre)}</option>`).join("");
+function renderLibList(){
+  const {out, total} = buscarAPU(LIBQ, LIBCAP, 80);
+  $("#libCount").textContent = `${total.toLocaleString("en-US")} APU${total > out.length ? `, mostrando ${out.length}. Afina la búsqueda para ver más.` : ""}`;
+  $("#libList").innerHTML = out.map(a => `<button data-apu="${a.id}" aria-current="${a.id===SEL}">${ico(a.cc,true)}<span class="body"><span class="code">${a.id}</span><span>${esc(a.nombre)}</span><span class="p">${money(costoAPU(a).total)} / ${esc(a.unidad)}</span></span></button>`).join("") || '<div class="ghead"><span>Sin resultados</span></div>';
+}
+function renderLibDetalle(){
+  const a = apuById(SEL) || DATA.apus[0]; if(!a){ $("#libDetalle").innerHTML = ""; return; }
+  const c = costoAPU(a), sec = t => a.lineas.map((l, j) => ({r: rec(l[0]), c: l[1], j})).filter(x => x.r && x.r.tipo === t);
+  const inP = r => `<input ${NUM} data-rec="${esc(r.id)}" data-k="precio" value="${r.precio}" aria-label="Precio" style="width:90px">`;
+  const inC = x => `<input type="number" inputmode="decimal" step="0.0001" min="0" data-apuline="${esc(a.id)}|${x.j}" value="${x.c}" aria-label="Consumo" style="width:90px">`;
+  const del = x => `<button class="del" data-delline="${esc(a.id)}|${x.j}" aria-label="Quitar línea">×</button>`;
+  const fila = x => `<tr><td>${esc(x.r.nombre)}</td><td class="u">${esc(x.r.unidad)}</td><td class="n">${inC(x)}</td><td class="n">${inP(x.r)}</td><td class="n">${money(costoLinea(x.r, x.c))}</td><td>${del(x)}</td></tr>`;
+  const mats = sec("MAT"), mos = sec("MO"), scs = sec("SC");
+  let h = `<div class="row spread"><div class="row">${ico(a.cc)}<div><span class="code">${a.id} · ${esc(capDe(a.cc).nombre)}</span><h2>${esc(a.nombre)}</h2></div></div><span class="chip info">Unidad: ${esc(a.unidad)}</span></div>
+    <div class="row"><button class="btn primary" data-addapu="${esc(a.id)}">Agregar al presupuesto</button></div>`;
+  h += `<h3>A. Materiales</h3><div class="tbl"><table><thead><tr><th>Recurso</th><th class="u">Unidad</th><th class="n">Consumo</th><th class="n">Precio</th><th class="n">Parcial</th><th></th></tr></thead><tbody>${mats.map(fila).join("") || '<tr><td colspan="6" class="muted">Sin materiales</td></tr>'}<tr class="sub"><td colspan="4">Subtotal A</td><td class="n">${money(c.mat)}</td><td></td></tr></tbody></table></div>`;
+  h += `<h3>B. Mano de obra</h3><div class="tbl"><table><thead><tr><th>Categoría</th><th class="n">Jornal</th><th class="n">Prest. %</th><th class="n">Rend. (jornal/${esc(a.unidad)})</th><th class="n">Parcial</th><th></th></tr></thead><tbody>` +
+    (mos.map(x => `<tr><td>${esc(x.r.nombre)}</td><td class="n">${inP(x.r)}</td><td class="n"><input ${NUM} data-rec="${esc(x.r.id)}" data-k="prest" value="${x.r.prest ?? 0}" aria-label="Prestaciones" style="width:70px"></td><td class="n">${inC(x)}</td><td class="n">${money(costoLinea(x.r, x.c))}</td><td>${del(x)}</td></tr>`).join("") || '<tr><td colspan="6" class="muted">Sin mano de obra</td></tr>') +
+    `<tr class="sub"><td colspan="4">Subtotal B</td><td class="n">${money(c.mo)}</td><td></td></tr></tbody></table></div>`;
+  h += `<h3>C. Equipo y D. Subcontratos</h3><div class="tbl"><table><thead><tr><th>Descripción</th><th class="u">Unidad</th><th class="n">Cantidad</th><th class="n">Precio</th><th class="n">Parcial</th><th></th></tr></thead><tbody>${scs.map(fila).join("")}
+    <tr><td>Equipo y herramientas (monto por ${esc(a.unidad)})</td><td></td><td></td><td class="n"><input ${NUM} data-apuf="${esc(a.id)}|eq" value="${R2(a.eq || 0)}" aria-label="Equipo" style="width:90px"></td><td class="n">${money(a.eq || 0)}</td><td></td></tr>
+    <tr><td>Precio sin desglose</td><td></td><td></td><td class="n"><input ${NUM} data-apuf="${esc(a.id)}|pdir" value="${R2(a.pdir || 0)}" aria-label="Precio sin desglose" style="width:90px"></td><td class="n">${money(a.pdir || 0)}</td><td></td></tr>
+    <tr class="sub"><td colspan="4">Subtotal C + D</td><td class="n">${money(c.sc + c.pd)}</td><td></td></tr></tbody></table></div>`;
+  h += `<div class="row"><button class="btn" data-addline="${esc(a.id)}">Agregar recurso</button>${DB.apuOv[a.id] && BASE_APU.has(a.id) ? `<button class="btn ghost" data-resetapu="${esc(a.id)}">Restaurar este APU</button>` : ""}</div>`;
+  h += `<div class="cierre"><span class="big">Costo directo = A + B + C + D</span><span class="v big">${money(c.total)} / ${esc(a.unidad)}</span></div>`;
+  $("#libDetalle").innerHTML = h;
+}
+function renderRecursos(){
+  const nq = norm(RECQ), tipoTxt = {MAT:"Material", MO:"Mano de obra", SC:"Subcontrato"};
+  const list = allRec().filter(r => !nq || norm(r.nombre).includes(nq)).slice(0, 120);
+  $("#tblRecursos").innerHTML = `<thead><tr><th>Recurso</th><th class="hide-m">Tipo</th><th class="u">Unidad</th><th class="n">Precio</th></tr></thead><tbody>` +
+    list.map(r => `<tr><td>${esc(r.nombre)}${DB.rec[r.id] ? ' <span class="chip info">Editado</span>' : ""}</td><td class="muted hide-m">${tipoTxt[r.tipo]}</td><td class="u">${esc(r.unidad)}</td><td class="n"><input ${NUM} data-rec="${esc(r.id)}" data-k="precio" value="${r.precio}" aria-label="Precio" style="width:96px"></td></tr>`).join("") + "</tbody>";
+}
+
+/* ================= Hojas ================= */
+const TEMAS = [
+  {id:"noche", nombre:"Noche", desc:"Negro con azul, como iOS", sw:["#000000","#1c1c1e","#0a84ff"], meta:"#000000"},
+  {id:"claro", nombre:"Claro", desc:"Gris claro con azul, como iOS de día", sw:["#f2f2f7","#ffffff","#007aff"], meta:"#f2f2f7"},
+  {id:"grafito", nombre:"Grafito", desc:"Gris oscuro con naranja", sw:["#121212","#1e1e1e","#ff9f0a"], meta:"#121212"},
+  {id:"plano", nombre:"Plano", desc:"Azul de plano con celeste", sw:["#0a1929","#0f2438","#4fc3f7"], meta:"#0a1929"},
+  {id:"obra", nombre:"Obra", desc:"Arena claro con naranja de obra", sw:["#f3efe7","#fffcf6","#e8590c"], meta:"#f3efe7"},
+  {id:"agua", nombre:"Verde agua", desc:"Azul petróleo con verde agua", sw:["#0b1114","#121a1e","#2dd4bf"], meta:"#0b1114"},
+  {id:"vino", nombre:"Vino", desc:"Vino oscuro con rosa", sw:["#140b10","#1f1218","#ff6b9d"], meta:"#140b10"}];
+function aplicarTema(){
+  const tm = TEMAS.find(x => x.id === DB.tema) || TEMAS[0];
+  if(tm.id === "noche") delete document.documentElement.dataset.skin; else document.documentElement.dataset.skin = tm.id;
+  const m = document.querySelector('meta[name="theme-color"]'); if(m) m.setAttribute("content", tm.meta);
+}
+function nextCode(cc, ss){
+  const pref = `${cc}.${ss}.`; let max = 0, width = 2;
+  for(const a of allAPU()) if(a.id.startsWith(pref)){ const p = a.id.slice(pref.length); width = Math.max(width, p.length); max = Math.max(max, parseInt(p, 10) || 0); }
+  return pref + String(max + 1).padStart(width, "0");
+}
+function renderPickList(){
+  const el = $("#pickList"); if(!el) return;
+  const {out, total} = buscarAPU(PICKQ, PICKCAP, 60), multi = OPEN === "addcat";
+  el.innerHTML = `<div class="count" style="padding:6px 2px">${total.toLocaleString("en-US")} resultados${total > out.length ? `, mostrando ${out.length}` : ""}</div><div class="group">` +
+    (multi ? out.map(a => `<div class="addrow">${ico(a.cc, true)}<span class="txt"><span class="t">${esc(a.nombre)}</span><span class="s">${a.id} · ${money(costoAPU(a).total)} / ${esc(a.unidad)}</span></span><input type="text" inputmode="decimal" data-qadd="${esc(a.id)}" placeholder="${esc(a.unidad)}" aria-label="Cantidad"><button class="plus${ADDED[a.id] ? " done" : ""}" data-plus="${esc(a.id)}" aria-label="Agregar">${ADDED[a.id] ? "✓" : "+"}</button></div>`).join("")
+    : `<button class="irow" data-choose="__manual">${ico("99")}<span class="body"><span class="txt"><span class="t">Costo unitario manual</span><span class="s">Escribes el precio directo, sin APU</span></span>${CHEV}</span></button>` +
+      out.map(a => `<button class="irow" data-choose="${esc(a.id)}">${ico(a.cc)}<span class="body"><span class="txt"><span class="t">${esc(a.nombre)}</span><span class="s">${a.id} · ${esc(a.unidad)}</span></span><span class="amt">${money(costoAPU(a).total)}</span>${CHEV}</span></button>`).join("")) + "</div>";
+}
+function renderLineList(){
+  const el = $("#lineList"); if(!el) return;
+  const nq = norm(LINEQ), tipoTxt = {MAT:"Material", MO:"Mano de obra", SC:"Subcontrato"};
+  el.innerHTML = `<div class="group">${allRec().filter(r => !nq || norm(r.nombre).includes(nq)).slice(0, 50).map(r => `<button class="irow" data-addrec="${esc(r.id)}"><span class="body"><span class="txt"><span class="t">${esc(r.nombre)}</span><span class="s">${tipoTxt[r.tipo]} · ${esc(r.unidad)}</span></span><span class="amt">${money(r.precio)}</span>${CHEV}</span></button>`).join("") || '<div class="ghead"><span>Sin resultados</span></div>'}</div>`;
+}
+const top = titulo => `<div class="grab"></div><div class="bar-top"><div style="font-size:22px;font-weight:700;letter-spacing:-.02em">${titulo}</div><button class="btn ghost" data-close>Listo</button></div>`;
+function renderSheet(){
+  const sh = $("#sheet"), bg = $("#sheetBg");
+  if(!OPEN){ sh.classList.remove("on"); bg.classList.remove("on"); sh.innerHTML = ""; return; }
+  if(OPEN === "temas"){
+    sh.innerHTML = top("Tema") + `<div class="group">${TEMAS.map(tm => `<button class="irow" data-tema-id="${tm.id}"><span class="swatches">${tm.sw.map(c => `<i style="background:${c}"></i>`).join("")}</span><span class="body"><span class="txt"><span class="t">${tm.nombre}</span><span class="s">${tm.desc}</span></span><span class="check">${tm.id === DB.tema ? "✓" : ""}</span></span></button>`).join("")}</div>`;
+  } else if(OPEN === "proyectos"){
+    const list = Object.values(DB.proyectos).sort((a, b) => b.mod - a.mod);
+    sh.innerHTML = top("Mis proyectos") + `<div class="row"><button class="btn primary" data-nuevoproy="blanco">Nuevo en blanco</button><button class="btn" data-nuevoproy="ejemplo">Nuevo con ejemplo</button><button class="btn" data-duplicar>Duplicar el actual</button></div>
+      <div class="group">${list.map(p => { const cur = DB.actual; DB.actual = p.id; const t = calcular().c.total; DB.actual = cur;
+        return `<div class="addrow"><span class="txt"><span class="t">${esc(p.nombre)}${p.id === DB.actual ? " ✓" : ""}</span><span class="s">${esc([p.cliente, p.numero, fechaTxt(p.fecha)].filter(Boolean).join(" · "))} · ${money(t)}</span></span>
+          ${p.id === DB.actual ? "" : `<button class="btn sm" data-abrir="${p.id}">Abrir</button>`}<button class="del" data-borrarproy="${p.id}" aria-label="Borrar proyecto">×</button></div>`; }).join("")}</div>`;
+  } else if(OPEN.startsWith("borrar:")){
+    const p = DB.proyectos[OPEN.slice(7)];
+    sh.innerHTML = top("Borrar proyecto") + `<p>¿Borrar <b>${esc(p.nombre)}</b>? Esta acción no se puede deshacer. Si quieres conservarlo, exporta antes un respaldo.</p><div class="row"><button class="btn" data-proyectos>Cancelar</button><button class="btn primary" style="background:var(--bad);color:#fff" data-confirmborrar="${p.id}">Borrar</button></div>`;
+  } else if(OPEN === "firma"){
+    sh.innerHTML = top("Firma") + `<p class="muted small" style="margin:0">Firma con el dedo o el mouse dentro del recuadro.</p><canvas class="pad" id="pad" width="900" height="300"></canvas><div class="row"><button class="btn" data-limpiarfirma>Limpiar</button><button class="btn primary" data-guardarfirma>Guardar firma</button></div>`;
+    sh.classList.add("on"); bg.classList.add("on"); iniciarPad(); return;
+  } else if(OPEN === "expopts"){
+    const o = DB.expo || (DB.expo = {version:"cliente", detalle:true, materiales:false, apu:false, memoria:true});
+    const sw = (k, t, s) => `<label class="opt" for="o_${k}"><span>${t}<small>${s}</small></span><span class="switch"><input type="checkbox" id="o_${k}" data-expo="${k}"${o[k] ? " checked" : ""}></span></label>`;
+    sh.innerHTML = top("Opciones de exportación") + `<div class="seg" role="group" aria-label="Versión"><button data-version="cliente" aria-pressed="${o.version==="cliente"}">Para el cliente</button><button data-version="interna" aria-pressed="${o.version==="interna"}">Interna</button></div>
+      <p class="muted small" style="margin:0">${o.version === "cliente" ? "Muestra el precio unitario de venta y el total. No muestra el costo directo ni el factor." : "Muestra costo directo, factor o indirectos, precio de venta y total."}</p>
+      <div class="group opts" style="padding:0 14px">${sw("detalle", "Presupuesto detallado", "Todas las partidas por capítulo")}${sw("memoria", "Memoria de cálculo", "Fórmulas y origen de cada cantidad")}${sw("materiales", "Explosión de materiales", "Lista de compras y jornales")}${sw("apu", "Anexo de APU", "Análisis de cada partida usada")}</div>`;
+  } else if(OPEN.startsWith("pick:") || OPEN === "addcat"){
+    const keep = document.activeElement && document.activeElement.id === "pickQ";
+    sh.innerHTML = top(OPEN === "addcat" ? "Agregar del catálogo" : "Elegir APU") + `<div class="chips">${['<button data-pcap="" aria-pressed="'+(!PICKCAP)+'">Todos</button>'].concat(DATA.caps.map(c => `<button data-pcap="${c.cc}" aria-pressed="${PICKCAP===c.cc}">${c.cc} ${esc(c.nombre)}</button>`)).join("")}</div>
+      <label class="search" for="pickQ">${SEARCH_ICON}<input id="pickQ" type="search" placeholder="Buscar por nombre o código" value="${esc(PICKQ)}" autocomplete="off"></label>
+      ${OPEN === "addcat" ? '<p class="muted small" style="margin:0">Escribe la cantidad (o una fórmula como 2*6.6*0.4) y toca +.</p>' : ""}<div id="pickList"></div>`;
+    renderPickList(); if(keep) $("#pickQ").focus();
+  } else if(OPEN.startsWith("addline:")){
+    sh.innerHTML = top("Agregar recurso") + `<label class="search" for="lineQ">${SEARCH_ICON}<input id="lineQ" type="search" placeholder="Buscar material, jornal o subcontrato" value="${esc(LINEQ)}" autocomplete="off"></label><div id="lineList"></div>
+      <h3>O crea uno nuevo</h3><div class="form"><label class="full">Nombre<input id="nrNombre" placeholder="Ej. Malla electrosoldada 6x6"></label>
+      <label>Tipo<select id="nrTipo"><option value="MAT">Material</option><option value="MO">Mano de obra</option><option value="SC">Subcontrato</option></select></label>
+      <label>Unidad<input id="nrUnidad" placeholder="bolsa, m³, jornal, u"></label><label>Precio<input id="nrPrecio" ${NUM}></label>
+      <label>Consumo por unidad del APU<input id="nrCons" type="number" inputmode="decimal" step="0.0001" min="0" value="1"></label></div><button class="btn primary" data-crearrec>Crear y agregar</button>`;
+    renderLineList();
+  } else if(OPEN === "nuevoapu"){
+    const cc = LIBCAP || "05", subs = DATA.caps.find(c => c.cc === cc).subs;
+    sh.innerHTML = top("Nuevo APU") + `<div class="form"><label class="full">Nombre de la partida<input id="naNombre" placeholder="Ej. Pared de bloque de 20 cm"></label>
+      <label>Capítulo<select id="naCap">${capOptions(cc)}</select></label><label>Subcapítulo<select id="naSub">${Object.entries(subs).map(([s, n]) => `<option value="${s}">${s} ${esc(n)}</option>`).join("")}</select></label>
+      <label>Unidad<select id="naUnidad">${UNIDADES.map(u => `<option>${u}</option>`).join("")}</select></label><label>Código asignado<input id="naCode" value="${nextCode(cc, Object.keys(subs)[0])}" readonly></label></div>
+      <p class="muted small" style="margin:0">Código CC.SS.PP: toma el siguiente número libre del subcapítulo.</p><button class="btn primary" data-crearapu>Crear APU</button>`;
+  } else {
+    const {ls, k} = calcular(), l = ls.find(x => x.ref === OPEN);
+    if(!l){ OPEN = null; return renderSheet(); }
+    const it = getItem(OPEN), a = apuById(it.apu), t = getTipo(OPEN);
+    let unidadUI = "";
+    if(t){ const sug = sugerirUnidad(t.nombre); unidadUI = `<div class="seg" role="group" aria-label="Unidad">${UNIDADES.map(u => `<button data-unit="${u}" data-ref="${OPEN}" aria-pressed="${u===it.unidad}" class="${u===sug?"sug":""}">${u}</button>`).join("")}</div>`; }
+    else if(it.apu === "__manual") unidadUI = `<div class="seg" role="group" aria-label="Unidad">${UNIDADES.map(u => `<button data-unit="${u}" data-ref="${OPEN}" aria-pressed="${u===it.unidad}">${u}</button>`).join("")}</div>`;
+    const cantUI = t ? `<span class="v">${num(l.cant)} ${esc(l.unidad)}</span>` : cantInput(OPEN, it);
+    sh.innerHTML = `<div class="grab"></div><div class="bar-top">${ico(l.cc)}<button class="btn ghost" data-close>Listo</button></div>
+      <div><div style="font-size:22px;font-weight:700;letter-spacing:-.02em">${esc(l.titulo)}</div><div class="muted small">${esc(l.code)} · ${esc(capDe(l.cc).nombre)} · ${l.origen}</div></div>
+      ${l.revisar ? `<div class="note">${esc(l.revisar)}</div>` : ""}${unidadUI}${pickBtn(OPEN, it.apu)}
+      <div class="group"><div class="fld"><span>Cantidad</span>${cantUI}</div>${!t && it.formula ? `<div class="fld"><span>Resultado</span><span class="v">${num(l.cant, 3)}</span></div>` : ""}<div class="fld"><span>P.U. costo directo</span>${editorPU(l)}</div>
+        <div class="fld"><span>Parcial</span><span class="v">${l.ok ? money(l.sub) : "-"}</span></div><div class="fld"><span>Total de venta (sin IVA)</span><span class="v" style="font-weight:600">${l.ok ? money(R2(l.sub*k)) : "-"}</span></div></div>
+      ${l.problema ? `<div class="note">${esc(l.problema)}: complétalo para que entre al total.</div>` : ""}
+      <div class="row">${a ? `<button class="btn" data-verapu="${esc(a.id)}">Ver APU ${esc(a.id)}</button>` : ""}${!t ? `<button class="btn ghost" style="color:var(--bad)" data-del="${OPEN.split(":")[1]}">Quitar partida</button>` : ""}</div>`;
+  }
+  sh.classList.add("on"); bg.classList.add("on");
+}
+
+/* Firma */
+function iniciarPad(){
+  const cv = $("#pad"), ctx = cv.getContext("2d"); let dib = false, last = null;
+  ctx.lineWidth = 4; ctx.lineCap = "round"; ctx.lineJoin = "round"; ctx.strokeStyle = "#111";
+  const pos = e => { const r = cv.getBoundingClientRect(); return [(e.clientX - r.left) * cv.width / r.width, (e.clientY - r.top) * cv.height / r.height]; };
+  cv.addEventListener("pointerdown", e => { dib = true; last = pos(e); cv.setPointerCapture(e.pointerId); cv.dataset.trazo = "1"; });
+  cv.addEventListener("pointermove", e => { if(!dib) return; const p = pos(e); ctx.beginPath(); ctx.moveTo(...last); ctx.lineTo(...p); ctx.stroke(); last = p; });
+  ["pointerup","pointercancel","pointerleave"].forEach(ev => cv.addEventListener(ev, () => { dib = false; }));
+}
+function recortarCanvas(cv){
+  const ctx = cv.getContext("2d"), d = ctx.getImageData(0, 0, cv.width, cv.height).data; let x0 = cv.width, y0 = cv.height, x1 = 0, y1 = 0;
+  for(let y = 0; y < cv.height; y++) for(let x = 0; x < cv.width; x++) if(d[(y * cv.width + x) * 4 + 3] > 10){ if(x < x0) x0 = x; if(y < y0) y0 = y; if(x > x1) x1 = x; if(y > y1) y1 = y; }
+  if(x1 <= x0) return null;
+  const m = 8, w = x1 - x0 + 2 * m, h = y1 - y0 + 2 * m, o = document.createElement("canvas"); o.width = w; o.height = h;
+  o.getContext("2d").drawImage(cv, x0 - m, y0 - m, w, h, 0, 0, w, h);
+  return {data: o.toDataURL("image/png"), w, h};
+}
+function leerImagen(f, max, cb){
+  const fr = new FileReader();
+  fr.onload = () => { const im = new Image(); im.onload = () => { const s = Math.min(1, max / Math.max(im.width, im.height)), cv = document.createElement("canvas");
+    cv.width = Math.round(im.width * s); cv.height = Math.round(im.height * s); cv.getContext("2d").drawImage(im, 0, 0, cv.width, cv.height);
+    cb({data: cv.toDataURL("image/png"), w: cv.width, h: cv.height}); }; im.src = fr.result; };
+  fr.readAsDataURL(f);
+}
+
+/* ================= Render general y navegación ================= */
+function render(){ renderHeader(); renderProyecto(); renderPartidas(); renderPresupuesto(); renderMateriales(); renderLibList(); renderLibDetalle(); renderRecursos(); renderSheet(); }
+const VISTAS = ["proyecto","partidas","presupuesto","materiales","biblioteca"];
+function ir(v){
+  if(!VISTAS.includes(v)) v = "presupuesto";
+  document.querySelectorAll(".view").forEach(s => s.classList.toggle("on", s.id === "v-" + v));
+  document.querySelectorAll(".tab").forEach(t => t.setAttribute("aria-selected", t.dataset.v === v));
+  $("#totbar").classList.toggle("hide", !["partidas","presupuesto","materiales"].includes(v));
+  if(location.hash !== "#" + v) history.replaceState(null, "", "#" + v);
+}
+document.querySelectorAll(".tab").forEach(t => t.addEventListener("click", () => { ir(t.dataset.v); window.scrollTo(0,0); }));
+window.addEventListener("hashchange", () => ir(location.hash.slice(1)));
+document.addEventListener("keydown", e => { if(e.key === "Escape" && OPEN){ OPEN = null; renderSheet(); } });
+
+/* ================= Revit: carga ================= */
 function cargarTexto(texto, nombre){
   const {titulo, tipos} = parseRevit(texto);
   if(!tipos.length){ $("#revitStatus").innerHTML = '<span class="chip bad">No se encontraron tipos</span> Revisa que sea una tabla de planificación exportada como .txt.'; return; }
-  S.archivo = nombre + (titulo ? " · " + titulo : ""); S.tipos = tipos;
-  S.partidas = tipos.map(t => ({unidad:"", apu: sugerirAPU(t.nombre), pu:null, ov:null}));
-  $("#revitStatus").innerHTML = `<span class="chip ok">${tipos.length} tipos leídos</span> Confirma las unidades en Partidas.`;
+  const archivo = nombre + (titulo ? " · " + titulo : ""), pr = P();
+  const imp = {id: uid(), archivo, tipos, partidas: tipos.map(t => ({unidad: sugerirUnidad(t.nombre), apu: sugerirAPU(t.nombre), pu:null, ov:null}))};
+  const k = pr.revit.findIndex(x => x.archivo === archivo);
+  if(k >= 0) pr.revit[k] = imp; else pr.revit.push(imp);
+  $("#revitStatus").innerHTML = `<span class="chip ok">${tipos.length} tipos leídos</span> Revisa la unidad sugerida de cada uno.`;
   guardar(); render();
 }
 function decodificar(buf){
@@ -527,282 +1036,34 @@ function decodificar(buf){
   const u8 = new TextDecoder("utf-8").decode(buf);
   return u8.includes(String.fromCharCode(0xFFFD)) ? new TextDecoder("windows-1252").decode(buf) : u8;
 }
-function leerArchivo(f){ const fr = new FileReader(); fr.onload = () => cargarTexto(decodificar(fr.result), f.name); fr.readAsArrayBuffer(f); }
-
-/* ===== Presupuesto ===== */
-function puBase(it){
-  if(it.apu === "__manual") return it.pu != null ? {mat:0, mo:0, sc:0, pd:R2(it.pu), total:R2(it.pu)} : null;
-  const a = apuById(it.apu); return a ? costoAPU(a) : null;
-}
-function puEf(it){
-  const b = puBase(it); if(!b) return null;
-  if(it.apu !== "__manual" && it.ov != null){ const r = b.total > 0 ? it.ov / b.total : 0;
-    return {mat:R2(b.mat*r), mo:R2(b.mo*r), sc:R2(b.sc*r), pd:R2(b.pd*r), total:R2(it.ov), editado:true, base:b.total}; }
-  return b;
-}
-const getItem = ref => { const [t, i] = ref.split(":"); return t === "p" ? S.partidas[+i] : S.manual[+i]; };
-function lineas(){
-  const out = [];
-  S.partidas.forEach((p, i) => {
-    const t = S.tipos[i], a = apuById(p.apu), pu = p.unidad ? puEf(p) : null;
-    let problema = "";
-    if(!p.unidad) problema = "Falta unidad"; else if(!pu) problema = "Sin precio"; else if(a && a.unidad !== p.unidad) problema = "Unidad distinta al APU";
-    out.push({ref:"p:"+i, origen:"Revit", titulo:t.nombre, code: a ? a.id : "s/c", info: a ? a.nombre : (p.apu === "__manual" ? "Costo manual" : "Sin APU"),
-      cc: a ? a.cc : "99", unidad: p.unidad || "-", cant: p.unidad ? R2(cantidadPorUnidad(t, p.unidad)) : 0, pu, problema, manual: p.apu === "__manual"});
-  });
-  S.manual.forEach((m, i) => {
-    const a = apuById(m.apu), pu = puEf(m);
-    out.push({ref:"m:"+i, origen:"Manual", titulo: a ? a.nombre : (m.desc || "Partida manual"), code: a ? a.id : "s/c", info: a ? "APU " + a.id : "Costo manual",
-      cc: a ? a.cc : "99", unidad: a ? a.unidad : m.unidad, cant: R2(+m.cant || 0), pu, problema: pu ? "" : "Sin precio", manual: m.apu === "__manual"});
-  });
-  return out.map(l => { const ok = !l.problema && !!l.pu, sub = ok ? R2(l.cant * l.pu.total) : 0;
-    const mat = ok ? R2(l.cant*l.pu.mat) : 0, mo = ok ? R2(l.cant*l.pu.mo) : 0, sc = ok ? R2(l.cant*l.pu.sc) : 0;
-    return {...l, ok, sub, mat, mo, sc, otro: ok ? R2(sub - mat - mo - sc) : 0}; });
-}
-function calcular(){
-  const ls = lineas(), cd = R2(ls.reduce((s, l) => s + l.sub, 0)), c = cierre(cd, S.cfg), k = cd > 0 ? c.total / cd : 0;
-  const grupos = CAPS.map(cap => { const items = ls.filter(l => l.cc === cap.cc).sort((a, b) => a.code.localeCompare(b.code, "es", {numeric:true}));
-    return {...cap, items, sub: R2(items.reduce((s, l) => s + l.sub, 0))}; }).filter(g => g.items.length);
-  const sum = f => R2(ls.reduce((s, l) => s + l[f], 0));
-  return {ls, grupos, c, k, mat:sum("mat"), mo:sum("mo"), sc:sum("sc"), otro:sum("otro")};
-}
-function editorPU(l){
-  if(!l.pu && !l.manual) return '<span class="muted">-</span>';
-  const it = getItem(l.ref), val = l.manual ? (it.pu ?? "") : l.pu.total;
-  const reset = l.pu && l.pu.editado ? ` <button class="btn sm ghost" data-reset="${l.ref}" title="Volver a ${money(l.pu.base)}">Restaurar</button>` : "";
-  return `<span class="edit"><input type="number" step="0.01" min="0" data-ref="${l.ref}" data-k="${l.manual ? "pu" : "ov"}" value="${val}" aria-label="Precio unitario">${reset}</span>`;
-}
-function pickBtn(ref, apuId){
-  const a = apuById(apuId);
-  const label = apuId === "__manual" ? "Costo unitario manual" : a ? a.nombre : "Elegir APU del catálogo";
-  const sub = apuId === "__manual" ? "Sin APU" : a ? `${a.id} · ${a.unidad} · ${money(costoAPU(a).total)}` : "Busca por nombre o código";
-  return `<button class="pickbtn" data-pick="${ref}">${ico(a ? a.cc : "99", true)}<span class="txt"><span class="t">${esc(label)}</span><span class="s">${esc(sub)}</span></span>${CHEV}</button>`;
-}
-
-/* ===== Render: Revit y partidas ===== */
-function renderRevit(){
-  $("#revitArchivo").textContent = S.archivo || "Sin archivo";
-  $("#tblRevit").innerHTML = !S.tipos.length ? '<tr><td class="muted">Carga un archivo o usa el ejemplo.</td></tr>' :
-    `<thead><tr><th>Tipo de Revit</th><th class="n">Anchura (m)</th><th class="n">Área (m²)</th><th class="n">Longitud (m)</th><th class="n">Cuenta</th><th class="hide-m">Material estructural</th></tr></thead><tbody>` +
-    S.tipos.map(t => `<tr><td>${esc(t.nombre)}</td><td class="n">${t.anchura != null ? num(t.anchura,3) : "-"}</td><td class="n">${num(t.area)}</td><td class="n">${num(t.longitud,3)}</td><td class="n">${t.cuenta}</td><td class="muted hide-m">${esc(t.material)}</td></tr>`).join("") + "</tbody>";
-}
-function estadoChip(p, a, pu){
-  if(!p.unidad) return '<span class="chip warn">Confirmar unidad</span>';
-  if(!p.apu || (p.apu === "__manual" && p.pu == null)) return '<span class="chip bad">Sin precio</span>';
-  if(a && a.unidad !== p.unidad) return `<span class="chip bad">El APU es por ${a.unidad}</span>`;
-  if(pu && pu.editado) return '<span class="chip info">Precio editado</span>';
-  return '<span class="chip ok">Lista</span>';
-}
-function renderPartidas(){
-  $("#cardsRevit").innerHTML = !S.partidas.length ? '<div class="card muted">Primero carga el export de Revit.</div>' : S.partidas.map((p, i) => {
-    const t = S.tipos[i], a = apuById(p.apu), sug = sugerirUnidad(t.nombre), pu = p.unidad ? puEf(p) : null;
-    const cc = a ? a.cc : "99", cant = p.unidad ? cantidadPorUnidad(t, p.unidad) : null;
-    return `<article class="pcard">
-      <div class="head">${ico(cc)}<div class="grow"><div class="t">${esc(t.nombre)}</div><div class="cat">${esc(capDe(cc).nombre)}</div></div>${estadoChip(p, a, pu)}</div>
-      <div class="facts"><span>Área <b>${num(t.area)}</b> m²</span><span>Long. <b>${num(t.longitud,3)}</b> m</span><span>Cuenta <b>${t.cuenta}</b></span></div>
-      <div class="seg" role="group" aria-label="Unidad">${UNIDADES.map(u => `<button data-unit="${u}" data-p="${i}" aria-pressed="${u===p.unidad}" class="${u===sug?"sug":""}">${u}</button>`).join("")}</div>
-      ${pickBtn("p:"+i, p.apu)}
-      <div class="price-row"><div><div class="lbl">Cantidad</div><div class="val">${cant != null ? num(cant) : "-"} <span class="small muted">${p.unidad || ""}</span></div></div>
-        <div><div class="lbl">P.U. costo directo</div>${p.unidad || p.apu === "__manual" ? editorPU({ref:"p:"+i, pu, manual:p.apu==="__manual"}) : '<span class="muted">-</span>'}</div></div>
-    </article>`;
-  }).join("");
-  $("#cardsManual").innerHTML = !S.manual.length ? '<div class="card muted">Sin partidas manuales.</div>' : S.manual.map((m, i) => {
-    const a = apuById(m.apu), pu = puEf(m), cc = a ? a.cc : "99";
-    return `<article class="pcard">
-      <div class="head">${ico(cc)}<div class="grow"><div class="t">${esc(a ? a.nombre : (m.desc || "Partida manual"))}</div><div class="cat">${esc(capDe(cc).nombre)}</div></div><button class="btn sm ghost" data-del="${i}">Quitar</button></div>
-      ${pickBtn("m:"+i, m.apu)}
-      ${m.apu === "__manual" ? `<input data-ref="m:${i}" data-k="desc" value="${esc(m.desc)}" placeholder="Descripción" aria-label="Descripción">
-        <div class="seg" role="group" aria-label="Unidad">${UNIDADES.map(u => `<button data-unit="${u}" data-m="${i}" aria-pressed="${u===m.unidad}">${u}</button>`).join("")}</div>` : ""}
-      <div class="price-row"><div><div class="lbl">Cantidad (${esc(a ? a.unidad : m.unidad)})</div><span class="edit"><input type="number" step="0.01" min="0" data-ref="m:${i}" data-k="cant" value="${m.cant}" aria-label="Cantidad"></span></div>
-        <div><div class="lbl">P.U. costo directo</div>${editorPU({ref:"m:"+i, pu, manual:m.apu==="__manual", titulo:""})}</div></div>
-    </article>`;
-  }).join("");
-}
-
-/* ===== Render: presupuesto ===== */
-function renderPresupuesto(){
-  const {ls, grupos: todos, c, k, mat, mo, sc, otro} = calcular();
-  const q = norm(QUERY);
-  const grupos = q ? todos.map(g => ({...g, items: g.items.filter(l => norm(l.titulo + " " + l.info + " " + l.code).includes(q))})).filter(g => g.items.length) : todos;
-  $("#totalCard").innerHTML = `<span class="lbl">Total ${S.cfg.iva ? "con IVA" : "sin IVA"}</span><span class="big">${money(c.total)}</span>
-    <div class="row small muted"><span>Costo directo ${money(c.cd)}</span><span>·</span><span>${S.cfg.modo==="factor" ? `Factor ${num(S.cfg.factor,0)}%` : `Ind. ${num(S.cfg.ind,0)}% + Util. ${num(S.cfg.util,0)}%`}</span></div>
-    <div class="mini"><div><span>Materiales</span><b>${money(mat)}</b></div><div><span>Mano de obra</span><b>${money(mo)}</b></div><div><span>Equipo y subcontratos</span><b>${money(sc)}</b></div><div><span>Sin desglose</span><b>${money(otro)}</b></div></div>`;
-  const tot = c.cd || 1;
-  $("#dist").innerHTML = `<div class="row spread"><h3>Costo directo por capítulo</h3><span class="chip">${ls.filter(l=>l.ok).length} de ${ls.length} partidas en el total</span></div>
-    <div class="bar" role="img" aria-label="Distribución por capítulo">${todos.filter(g=>g.sub>0).map(g => `<i style="width:${(g.sub/tot*100).toFixed(2)}%;background:${g.c}" title="${esc(g.nombre)}"></i>`).join("")}</div>
-    <div class="legend">${todos.map(g => `<div><span class="dot" style="background:${g.c}"></span><span class="lname">${g.cc} ${esc(g.nombre)}</span><span class="n">${money(g.sub)}</span><span class="n">${c.cd ? num(g.sub/tot*100,1) : "0.0"}%</span></div>`).join("")}</div>`;
-  const prob = ls.filter(l => l.problema);
-  $("#avisos").innerHTML = prob.length ? `<div class="note"><b>${prob.length} partida(s) fuera del total:</b> ${prob.map(l => esc(l.titulo) + " (" + l.problema.toLowerCase() + ")").join("; ")}.</div>` : "";
-  const chips = l => (l.problema ? ` <span class="chip bad">${esc(l.problema)}</span>` : "") + (l.pu && l.pu.editado ? ' <span class="chip info">Editado</span>' : "");
-  $("#tblPres").innerHTML = `<thead><tr><th>Código</th><th>Partida</th><th class="u">Unidad</th><th class="n">Cantidad</th><th class="n">P.U. (C.D.)</th><th class="n">Parcial</th><th class="n">P.U. final</th><th class="n">Total</th></tr></thead><tbody>` +
-    grupos.map(g => `<tr class="cap"><td class="code">${g.cc}</td><td colspan="4"><span class="capcell">${ico(g.cc,true)}${esc(g.nombre)}</span></td><td class="n">${money(g.sub)}</td><td></td><td class="n">${money(R2(g.sub*k))}</td></tr>` +
-      g.items.map(l => `<tr><td class="code">${esc(l.code)}</td><td>${esc(l.titulo)}<div class="ref">${esc(l.info)} · ${l.origen}</div>${chips(l)}</td><td class="u">${esc(l.unidad)}</td><td class="n">${num(l.cant)}</td><td class="n">${editorPU(l)}</td><td class="n">${l.ok ? money(l.sub) : "-"}</td><td class="n">${l.ok ? money(R2(l.pu.total*k)) : "-"}</td><td class="n">${l.ok ? money(R2(l.sub*k)) : "-"}</td></tr>`).join("")).join("") +
-    `<tr class="total"><td></td><td colspan="4">Total</td><td class="n">${money(c.cd)}</td><td></td><td class="n">${money(c.total)}</td></tr></tbody>`;
-  $("#linesM").innerHTML = (grupos.length ? grupos.map(g => `<div class="ghead"><span>${g.cc} ${esc(g.nombre)}</span><span class="n">${money(g.sub)}</span></div><div class="group">` +
-    g.items.map(l => `<button class="irow" data-open="${l.ref}">${ico(g.cc)}<span class="body"><span class="txt"><span class="t">${esc(l.titulo)}</span><span class="s">${l.ok ? `${esc(l.code)} · ${num(l.cant)} ${esc(l.unidad)} × ${money(l.pu.total)}` : esc(l.problema)}</span></span>${l.problema ? '<span class="flag" style="background:var(--bad)"></span>' : (l.pu && l.pu.editado ? '<span class="flag" style="background:var(--accent)"></span>' : "")}<span class="amt">${l.ok ? money(l.sub) : ""}</span>${CHEV}</span></button>`).join("") + "</div>").join("")
-    : '<div class="ghead"><span>Sin resultados</span></div>') + `<div class="ghead"><span>Costo directo</span><span class="n" style="color:var(--ink)">${money(c.cd)}</span></div>`;
-  const f = S.cfg;
-  document.querySelectorAll("[data-modo]").forEach(b => b.setAttribute("aria-pressed", b.dataset.modo === f.modo));
-  $("#cierre").innerHTML = `<span>Costo directo</span><span class="v">${money(c.cd)}</span>
-    ${f.modo==="factor" ? `<span>Factor comercial ${num(f.factor,0)}%</span><span class="v">${money(c.factor)}</span>` : `<span>Indirectos ${num(f.ind,0)}%</span><span class="v">${money(c.ind)}</span><span>Utilidad ${num(f.util,0)}%</span><span class="v">${money(c.util)}</span>`}
-    <span>Subtotal</span><span class="v">${money(c.sub)}</span><span>IVA 13%</span><span class="v">${f.iva ? money(c.iva) : "No aplicado"}</span>
-    <span class="big">Total</span><span class="v big">${money(c.total)}</span>`;
-}
-
-/* ===== Catálogo ===== */
-function allAPU(){ const custom = Object.values(S.apuOv).filter(a => !BASE_APU.has(a.id)); return DATA.apus.map(a => S.apuOv[a.id] || a).concat(custom); }
-function buscarAPU(q, cap, max){
-  const nq = norm(q), out = []; let total = 0;
-  const words = nq.split(" ").filter(Boolean);
-  for(const a of allAPU()){
-    if(cap && a.cc !== cap) continue;
-    if(words.length){ const h = norm(a.id + " " + a.nombre); if(!words.every(w => h.includes(w))) continue; }
-    total++; if(out.length < max) out.push(a);
-  }
-  return {out, total};
-}
-function capOptions(sel, todos){ return (todos ? `<option value="">Todos los capítulos</option>` : "") + DATA.caps.map(c => `<option value="${c.cc}"${c.cc===sel?" selected":""}>${c.cc} ${esc(c.nombre)}</option>`).join(""); }
-function renderLibList(){
-  const {out, total} = buscarAPU(LIBQ, LIBCAP, 80);
-  $("#libCount").textContent = `${total.toLocaleString("en-US")} APU${total > out.length ? `, mostrando ${out.length}. Afina la búsqueda para ver más.` : ""}`;
-  $("#libList").innerHTML = out.map(a => `<button data-apu="${a.id}" aria-current="${a.id===S.sel}">${ico(a.cc,true)}<span class="body"><span class="code">${a.id}</span><span>${esc(a.nombre)}</span><span class="p">${money(costoAPU(a).total)} / ${esc(a.unidad)}</span></span></button>`).join("") || '<div class="ghead"><span>Sin resultados</span></div>';
-}
-function renderLibDetalle(){
-  const a = apuById(S.sel) || DATA.apus[0]; if(!a){ $("#libDetalle").innerHTML = ""; return; }
-  const c = costoAPU(a), sec = t => a.lineas.map((l, j) => ({r: rec(l[0]), c: l[1], j})).filter(x => x.r && x.r.tipo === t);
-  const inP = r => `<input type="number" step="0.01" min="0" data-rec="${esc(r.id)}" data-k="precio" value="${r.precio}" aria-label="Precio" style="width:90px">`;
-  const inC = x => `<input type="number" step="0.0001" min="0" data-apuline="${esc(a.id)}|${x.j}" value="${x.c}" aria-label="Consumo" style="width:90px">`;
-  const del = x => `<button class="del" data-delline="${esc(a.id)}|${x.j}" aria-label="Quitar línea">×</button>`;
-  const fila = x => `<tr><td>${esc(x.r.nombre)}</td><td class="u">${esc(x.r.unidad)}</td><td class="n">${inC(x)}</td><td class="n">${inP(x.r)}</td><td class="n">${money(costoLinea(x.r, x.c))}</td><td>${del(x)}</td></tr>`;
-  const mats = sec("MAT"), mos = sec("MO"), scs = sec("SC");
-  let h = `<div class="row spread"><div class="row">${ico(a.cc)}<div><span class="code">${a.id} · ${esc(capDe(a.cc).nombre)}</span><h2>${esc(a.nombre)}</h2></div></div><span class="chip info">Unidad: ${esc(a.unidad)}</span></div>`;
-  h += `<h3>A. Materiales</h3><div class="tbl"><table><thead><tr><th>Recurso</th><th class="u">Unidad</th><th class="n">Consumo</th><th class="n">Precio</th><th class="n">Parcial</th><th></th></tr></thead><tbody>${mats.map(fila).join("") || '<tr><td colspan="6" class="muted">Sin materiales</td></tr>'}<tr class="sub"><td colspan="4">Subtotal A</td><td class="n">${money(c.mat)}</td><td></td></tr></tbody></table></div>`;
-  h += `<h3>B. Mano de obra</h3><div class="tbl"><table><thead><tr><th>Categoría</th><th class="n">Jornal</th><th class="n">Prest. %</th><th class="n">Rend. (jornal/${esc(a.unidad)})</th><th class="n">Parcial</th><th></th></tr></thead><tbody>` +
-    (mos.map(x => `<tr><td>${esc(x.r.nombre)}</td><td class="n">${inP(x.r)}</td><td class="n"><input type="number" step="1" min="0" data-rec="${esc(x.r.id)}" data-k="prest" value="${x.r.prest ?? 0}" aria-label="Prestaciones" style="width:70px"></td><td class="n">${inC(x)}</td><td class="n">${money(costoLinea(x.r, x.c))}</td><td>${del(x)}</td></tr>`).join("") || '<tr><td colspan="6" class="muted">Sin mano de obra</td></tr>') +
-    `<tr class="sub"><td colspan="4">Subtotal B</td><td class="n">${money(c.mo)}</td><td></td></tr></tbody></table></div>`;
-  h += `<h3>C. Equipo y D. Subcontratos</h3><div class="tbl"><table><thead><tr><th>Descripción</th><th class="u">Unidad</th><th class="n">Cantidad</th><th class="n">Precio</th><th class="n">Parcial</th><th></th></tr></thead><tbody>${scs.map(fila).join("")}
-    <tr><td>Equipo y herramientas (monto por ${esc(a.unidad)})</td><td></td><td></td><td class="n"><input type="number" step="0.01" min="0" data-apuf="${esc(a.id)}|eq" value="${R2(a.eq || 0)}" aria-label="Equipo" style="width:90px"></td><td class="n">${money(a.eq || 0)}</td><td></td></tr>
-    <tr><td>Precio sin desglose</td><td></td><td></td><td class="n"><input type="number" step="0.01" min="0" data-apuf="${esc(a.id)}|pdir" value="${R2(a.pdir || 0)}" aria-label="Precio sin desglose" style="width:90px"></td><td class="n">${money(a.pdir || 0)}</td><td></td></tr>
-    <tr class="sub"><td colspan="4">Subtotal C + D</td><td class="n">${money(c.sc + c.pd)}</td><td></td></tr></tbody></table></div>`;
-  h += `<div class="row"><button class="btn" data-addline="${esc(a.id)}">Agregar recurso</button>${S.apuOv[a.id] && BASE_APU.has(a.id) ? `<button class="btn ghost" data-resetapu="${esc(a.id)}">Restaurar este APU</button>` : ""}</div>`;
-  h += `<div class="cierre"><span class="big">Costo directo = A + B + C + D</span><span class="v big">${money(c.total)} / ${esc(a.unidad)}</span></div>`;
-  $("#libDetalle").innerHTML = h;
-}
-function renderRecursos(){
-  const nq = norm(RECQ), tipoTxt = {MAT:"Material", MO:"Mano de obra", SC:"Subcontrato"};
-  const list = allRec().filter(r => !nq || norm(r.nombre).includes(nq)).slice(0, 120);
-  $("#tblRecursos").innerHTML = `<thead><tr><th>Recurso</th><th class="hide-m">Tipo</th><th class="u">Unidad</th><th class="n">Precio</th></tr></thead><tbody>` +
-    list.map(r => `<tr><td>${esc(r.nombre)}${S.rec[r.id] ? ' <span class="chip info">Editado</span>' : ""}</td><td class="muted hide-m">${tipoTxt[r.tipo]}</td><td class="u">${esc(r.unidad)}</td><td class="n"><input type="number" step="0.01" min="0" data-rec="${esc(r.id)}" data-k="precio" value="${r.precio}" aria-label="Precio" style="width:96px"></td></tr>`).join("") + "</tbody>";
-}
-function renderBiblioteca(){ renderLibList(); renderLibDetalle(); renderRecursos(); }
-
-/* ===== Hojas: detalle, selector de APU, nuevo APU, agregar recurso, temas ===== */
-const TEMAS = [
-  {id:"noche", nombre:"Noche", desc:"Negro con azul, como iOS", sw:["#000000","#1c1c1e","#0a84ff"], meta:"#000000"},
-  {id:"claro", nombre:"Claro", desc:"Gris claro con azul, como iOS de día", sw:["#f2f2f7","#ffffff","#007aff"], meta:"#f2f2f7"},
-  {id:"grafito", nombre:"Grafito", desc:"Gris oscuro con naranja", sw:["#121212","#1e1e1e","#ff9f0a"], meta:"#121212"},
-  {id:"plano", nombre:"Plano", desc:"Azul de plano con celeste", sw:["#0a1929","#0f2438","#4fc3f7"], meta:"#0a1929"},
-  {id:"obra", nombre:"Obra", desc:"Arena claro con naranja de obra", sw:["#f3efe7","#fffcf6","#e8590c"], meta:"#f3efe7"},
-  {id:"agua", nombre:"Verde agua", desc:"Azul petróleo con verde agua", sw:["#0b1114","#121a1e","#2dd4bf"], meta:"#0b1114"},
-  {id:"vino", nombre:"Vino", desc:"Vino oscuro con rosa", sw:["#140b10","#1f1218","#ff6b9d"], meta:"#140b10"}
-];
-function aplicarTema(){
-  const tm = TEMAS.find(x => x.id === S.tema) || TEMAS[0];
-  if(tm.id === "noche") delete document.documentElement.dataset.skin; else document.documentElement.dataset.skin = tm.id;
-  const m = document.querySelector('meta[name="theme-color"]'); if(m) m.setAttribute("content", tm.meta);
-}
-const SEARCH_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>';
-function renderPickList(){
-  const el = $("#pickList"); if(!el) return;
-  const {out, total} = buscarAPU(PICKQ, PICKCAP, 60);
-  el.innerHTML = `<div class="count" style="padding:6px 2px">${total.toLocaleString("en-US")} resultados${total > out.length ? `, mostrando ${out.length}` : ""}</div><div class="group">` +
-    (OPEN.startsWith("pick:") ? `<button class="irow" data-choose="__manual">${ico("99")}<span class="body"><span class="txt"><span class="t">Costo unitario manual</span><span class="s">Escribes el precio directo, sin APU</span></span>${CHEV}</span></button>` : "") +
-    out.map(a => `<button class="irow" data-choose="${esc(a.id)}">${ico(a.cc)}<span class="body"><span class="txt"><span class="t">${esc(a.nombre)}</span><span class="s">${a.id} · ${esc(a.unidad)}</span></span><span class="amt">${money(costoAPU(a).total)}</span>${CHEV}</span></button>`).join("") + "</div>";
-}
-function renderLineList(){
-  const el = $("#lineList"); if(!el) return;
-  const nq = norm(LINEQ), tipoTxt = {MAT:"Material", MO:"Mano de obra", SC:"Subcontrato"};
-  const list = allRec().filter(r => !nq || norm(r.nombre).includes(nq)).slice(0, 50);
-  el.innerHTML = `<div class="group">${list.map(r => `<button class="irow" data-addrec="${esc(r.id)}"><span class="body"><span class="txt"><span class="t">${esc(r.nombre)}</span><span class="s">${tipoTxt[r.tipo]} · ${esc(r.unidad)}</span></span><span class="amt">${money(r.precio)}</span>${CHEV}</span></button>`).join("") || '<div class="ghead"><span>Sin resultados</span></div>'}</div>`;
-}
-function nextCode(cc, ss){
-  const pref = `${cc}.${ss}.`; let max = 0, width = 2;
-  for(const a of allAPU()) if(a.id.startsWith(pref)){ const p = a.id.slice(pref.length); width = Math.max(width, p.length); max = Math.max(max, parseInt(p, 10) || 0); }
-  return pref + String(max + 1).padStart(width, "0");
-}
-function renderSheet(){
-  const sh = $("#sheet"), bg = $("#sheetBg");
-  if(!OPEN){ sh.classList.remove("on"); bg.classList.remove("on"); sh.innerHTML = ""; return; }
-  const top = (titulo) => `<div class="grab"></div><div class="bar-top"><div style="font-size:22px;font-weight:700;letter-spacing:-.02em">${titulo}</div><button class="btn ghost" data-close>Listo</button></div>`;
-  if(OPEN === "temas"){
-    const actual = S.tema || "noche";
-    sh.innerHTML = top("Tema") + `<div class="group">${TEMAS.map(tm => `<button class="irow" data-tema-id="${tm.id}"><span class="swatches">${tm.sw.map(c => `<i style="background:${c}"></i>`).join("")}</span><span class="body"><span class="txt"><span class="t">${tm.nombre}</span><span class="s">${tm.desc}</span></span><span class="check">${tm.id===actual ? "✓" : ""}</span></span></button>`).join("")}</div>`;
-  } else if(OPEN.startsWith("pick:") || OPEN === "pickcat"){
-    const keep = document.activeElement && document.activeElement.id === "pickQ";
-    sh.innerHTML = top(OPEN === "pickcat" ? "Catálogo" : "Elegir APU") + `<div class="chips">${['<button data-pcap="" aria-pressed="'+(!PICKCAP)+'">Todos</button>'].concat(DATA.caps.map(c => `<button data-pcap="${c.cc}" aria-pressed="${PICKCAP===c.cc}">${c.cc} ${esc(c.nombre)}</button>`)).join("")}</div>
-      <label class="search" for="pickQ">${SEARCH_ICON}<input id="pickQ" type="search" placeholder="Buscar por nombre o código" value="${esc(PICKQ)}" autocomplete="off"></label><div id="pickList"></div>`;
-    renderPickList(); if(keep) $("#pickQ").focus();
-  } else if(OPEN.startsWith("addline:")){
-    sh.innerHTML = top("Agregar recurso") + `<label class="search" for="lineQ">${SEARCH_ICON}<input id="lineQ" type="search" placeholder="Buscar material, jornal o subcontrato" value="${esc(LINEQ)}" autocomplete="off"></label><div id="lineList"></div>
-      <h3>O crea uno nuevo</h3><div class="form"><label class="full">Nombre<input id="nrNombre" placeholder="Ej. Malla electrosoldada 6x6"></label>
-      <label>Tipo<select id="nrTipo"><option value="MAT">Material</option><option value="MO">Mano de obra</option><option value="SC">Subcontrato</option></select></label>
-      <label>Unidad<input id="nrUnidad" placeholder="bolsa, m³, jornal, u"></label><label>Precio<input id="nrPrecio" type="number" step="0.01" min="0"></label>
-      <label>Consumo por unidad del APU<input id="nrCons" type="number" step="0.0001" min="0" value="1"></label></div><button class="btn primary" data-crearrec>Crear y agregar</button>`;
-    renderLineList();
-  } else if(OPEN === "nuevoapu"){
-    const cc = LIBCAP || "05", subs = DATA.caps.find(c => c.cc === cc).subs;
-    sh.innerHTML = top("Nuevo APU") + `<div class="form"><label class="full">Nombre de la partida<input id="naNombre" placeholder="Ej. Pared de bloque de 20 cm"></label>
-      <label>Capítulo<select id="naCap">${capOptions(cc)}</select></label><label>Subcapítulo<select id="naSub">${Object.entries(subs).map(([s, n]) => `<option value="${s}">${s} ${esc(n)}</option>`).join("")}</select></label>
-      <label>Unidad<select id="naUnidad">${UNIDADES.map(u => `<option>${u}</option>`).join("")}</select></label><label>Código asignado<input id="naCode" value="${nextCode(cc, Object.keys(subs)[0])}" readonly></label></div>
-      <p class="muted small" style="margin:0">El código sigue la codificación CC.SS.PP: toma el siguiente número libre del subcapítulo.</p><button class="btn primary" data-crearapu>Crear APU</button>`;
-  } else {
-    const {ls, k} = calcular(), l = ls.find(x => x.ref === OPEN);
-    if(!l){ OPEN = null; return renderSheet(); }
-    const [tipo, i] = OPEN.split(":"), it = getItem(OPEN), a = apuById(it.apu);
-    let unidadUI = "";
-    if(tipo === "p"){ const sug = sugerirUnidad(S.tipos[+i].nombre); unidadUI = `<div class="seg" role="group" aria-label="Unidad">${UNIDADES.map(u => `<button data-unit="${u}" data-p="${i}" aria-pressed="${u===it.unidad}" class="${u===sug?"sug":""}">${u}</button>`).join("")}</div>`; }
-    else if(it.apu === "__manual") unidadUI = `<div class="seg" role="group" aria-label="Unidad">${UNIDADES.map(u => `<button data-unit="${u}" data-m="${i}" aria-pressed="${u===it.unidad}">${u}</button>`).join("")}</div>`;
-    const cantUI = tipo === "m" ? `<input type="number" step="0.01" min="0" data-ref="${OPEN}" data-k="cant" value="${it.cant}" aria-label="Cantidad" style="width:120px">` : `<span class="v">${num(l.cant)} ${esc(l.unidad)}</span>`;
-    sh.innerHTML = `<div class="grab"></div><div class="bar-top">${ico(l.cc)}<button class="btn ghost" data-close>Listo</button></div>
-      <div><div style="font-size:22px;font-weight:700;letter-spacing:-.02em">${esc(l.titulo)}</div><div class="muted small">${esc(l.code)} · ${esc(capDe(l.cc).nombre)} · ${l.origen}</div></div>
-      ${unidadUI}${pickBtn(OPEN, it.apu)}
-      <div class="group"><div class="fld"><span>Cantidad</span>${cantUI}</div><div class="fld"><span>P.U. costo directo</span>${editorPU(l)}</div>
-        <div class="fld"><span>Parcial</span><span class="v">${l.ok ? money(l.sub) : "-"}</span></div><div class="fld"><span>Total con cierre</span><span class="v" style="font-weight:600">${l.ok ? money(R2(l.sub*k)) : "-"}</span></div></div>
-      ${l.problema ? `<div class="note">${esc(l.problema)}: complétalo para que entre al total.</div>` : ""}
-      ${a ? `<button class="btn" data-verapu="${esc(a.id)}">Ver análisis del APU ${esc(a.id)}</button>` : ""}`;
-  }
-  sh.classList.add("on"); bg.classList.add("on");
-}
-
-function render(){
-  renderRevit(); renderPartidas(); renderPresupuesto(); renderBiblioteca(); renderSheet();
-  $("#factor").value = S.cfg.factor; $("#ind").value = S.cfg.ind; $("#util").value = S.cfg.util; $("#iva").checked = S.cfg.iva;
-  $("#cfgFactor").hidden = S.cfg.modo !== "factor"; $("#cfgInd").hidden = S.cfg.modo === "factor";
-}
-
-/* ===== Navegación ===== */
-const VISTAS = ["revit","partidas","presupuesto","biblioteca"];
-function ir(v){
-  if(!VISTAS.includes(v)) v = "presupuesto";
-  document.querySelectorAll(".view").forEach(s => s.classList.toggle("on", s.id === "v-" + v));
-  document.querySelectorAll(".tab").forEach(t => t.setAttribute("aria-selected", t.dataset.v === v));
-  if(location.hash !== "#" + v) history.replaceState(null, "", "#" + v);
-}
-document.querySelectorAll(".tab").forEach(t => t.addEventListener("click", () => { ir(t.dataset.v); window.scrollTo(0,0); }));
-window.addEventListener("hashchange", () => ir(location.hash.slice(1)));
-document.addEventListener("keydown", e => { if(e.key === "Escape" && OPEN){ OPEN = null; renderSheet(); } });
-
-/* ===== Eventos ===== */
 $("#btnEjemplo").addEventListener("click", () => cargarTexto(EJEMPLO, "CANTIDADES DE PAREDES prueba 1.txt"));
-$("#file").addEventListener("change", e => { if(e.target.files[0]) leerArchivo(e.target.files[0]); e.target.value = ""; });
+$("#file").addEventListener("change", e => { const f = e.target.files[0]; if(f){ const fr = new FileReader(); fr.onload = () => cargarTexto(decodificar(fr.result), f.name); fr.readAsArrayBuffer(f); } e.target.value = ""; });
 const drop = $("#drop");
 ["dragenter","dragover"].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add("over"); }));
 ["dragleave","drop"].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove("over"); }));
-drop.addEventListener("drop", e => { const f = e.dataTransfer.files[0]; if(f) leerArchivo(f); });
-$("#btnSugerencias").addEventListener("click", () => { S.partidas.forEach((p, i) => { if(!p.unidad) p.unidad = sugerirUnidad(S.tipos[i].nombre); }); guardar(); render(); });
-$("#btnAddManual").addEventListener("click", () => { S.manual.push({apu:"", unidad:"SG", cant:1, desc:"", pu:null, ov:null}); guardar(); render(); OPEN = "pick:m:" + (S.manual.length - 1); PICKQ = ""; renderSheet(); });
-$("#btnReset").addEventListener("click", () => { S.rec = {}; guardar(); render(); });
+drop.addEventListener("drop", e => { const f = e.dataTransfer.files[0]; if(f){ const fr = new FileReader(); fr.onload = () => cargarTexto(decodificar(fr.result), f.name); fr.readAsArrayBuffer(f); } });
+
+/* ================= Eventos ================= */
+function agregarCatalogo(id, txt){
+  const a = apuById(id); if(!a) return;
+  const v = evalFormula(txt), formula = txt && /[*/+\-()x×]/i.test(String(txt).replace(/^-/, "")) ? String(txt).trim() : "";
+  P().manual.push({apu:id, unidad:a.unidad, cant: v != null ? R2(v) : 0, formula, desc:"", pu:null, ov:null});
+  guardar(); toast(`Agregado: ${a.nombre.slice(0, 40)}`);
+}
+$("#btnAddManual").addEventListener("click", () => { P().manual.push({apu:"__manual", unidad:"SG", cant:1, formula:"", desc:"", pu:null, ov:null}); guardar(); render(); });
+$("#btnReset").addEventListener("click", () => { DB.rec = {}; guardar(); render(); toast("Precios originales restaurados"); });
 $("#libCap").addEventListener("change", e => { LIBCAP = e.target.value; renderLibList(); });
+$("#logoFile").addEventListener("change", e => { const f = e.target.files[0]; if(f) leerImagen(f, 600, img => { DB.logo = img; guardar(); renderProyecto(); toast("Logo guardado"); }); e.target.value = ""; });
+$("#firmaFile").addEventListener("change", e => { const f = e.target.files[0]; if(f) leerImagen(f, 700, img => { DB.firma = img; guardar(); renderProyecto(); toast("Firma guardada"); }); e.target.value = ""; });
+$("#importFile").addEventListener("change", e => {
+  const f = e.target.files[0]; if(!f) return; const fr = new FileReader();
+  fr.onload = () => { try{ const d = JSON.parse(fr.result); const lista = d.proyectos ? Object.values(d.proyectos) : (d.proyecto ? [d.proyecto] : []);
+      if(!lista.length) throw 0;
+      lista.forEach(p => { p.id = uid(); p.mod = Date.now(); DB.proyectos[p.id] = p; DB.actual = p.id; });
+      if(d.apuOv) Object.assign(DB.apuOv, d.apuOv); if(d.recNew) Object.assign(DB.recNew, d.recNew); if(d.rec) Object.assign(DB.rec, d.rec);
+      guardar(); render(); toast(`${lista.length} proyecto(s) abiertos`); }catch(err){ toast("Ese archivo no es un respaldo válido"); } };
+  fr.readAsText(f); e.target.value = "";
+});
 
 document.addEventListener("input", e => {
   const el = e.target;
@@ -811,47 +1072,61 @@ document.addEventListener("input", e => {
   else if(el.id === "recQ"){ RECQ = el.value; renderRecursos(); }
   else if(el.id === "pickQ"){ PICKQ = el.value; renderPickList(); }
   else if(el.id === "lineQ"){ LINEQ = el.value; renderLineList(); }
+  else if(el.dataset.pf){ P()[el.dataset.pf] = el.value; guardar(); if(el.dataset.pf === "nombre" || el.dataset.pf === "cliente" || el.dataset.pf === "numero") renderHeader(); }
+  else if(el.dataset.ef){ DB.elab[el.dataset.ef] = el.value; guardar(); }
 });
 document.addEventListener("click", e => {
-  const T = s => e.target.closest(s);
-  let x;
+  const T = s => e.target.closest(s); let x;
   if(T("[data-temas]")){ OPEN = "temas"; renderSheet(); return; }
-  if((x = T("button[data-tema-id]"))){ S.tema = x.dataset.temaId; aplicarTema(); guardar(); renderSheet(); return; }
-  if((x = T("[data-pick]"))){ OPEN = "pick:" + x.dataset.pick; PICKQ = ""; const it = getItem(x.dataset.pick); const a = apuById(it.apu); PICKCAP = a ? a.cc : ""; renderSheet(); return; }
+  if((x = T("button[data-tema-id]"))){ DB.tema = x.dataset.temaId; aplicarTema(); guardar(); renderSheet(); return; }
+  if(T("[data-proyectos]")){ OPEN = "proyectos"; renderSheet(); return; }
+  if((x = T("[data-nuevoproy]"))){ const p = x.dataset.nuevoproy === "ejemplo" ? proyectoEjemplo() : proyectoVacio(); DB.proyectos[p.id] = p; DB.actual = p.id; OPEN = null; guardar(); render(); ir(x.dataset.nuevoproy === "ejemplo" ? "presupuesto" : "proyecto"); toast("Proyecto creado"); return; }
+  if(T("[data-duplicar]")){ const c = JSON.parse(JSON.stringify(P())); c.id = uid(); c.nombre += " (copia)"; c.numero = nuevoNumero(); c.creado = c.mod = Date.now(); DB.proyectos[c.id] = c; DB.actual = c.id; OPEN = null; guardar(); render(); toast("Proyecto duplicado"); return; }
+  if((x = T("[data-abrir]"))){ DB.actual = x.dataset.abrir; OPEN = null; QUERY = ""; guardar(); render(); toast("Proyecto abierto"); return; }
+  if((x = T("[data-borrarproy]"))){ OPEN = "borrar:" + x.dataset.borrarproy; renderSheet(); return; }
+  if((x = T("[data-confirmborrar]"))){ const id = x.dataset.confirmborrar; delete DB.proyectos[id];
+    if(!Object.keys(DB.proyectos).length){ const p = proyectoVacio(); DB.proyectos[p.id] = p; }
+    if(!DB.proyectos[DB.actual]) DB.actual = Object.values(DB.proyectos).sort((a, b) => b.mod - a.mod)[0].id;
+    OPEN = "proyectos"; guardar(); render(); toast("Proyecto borrado"); return; }
+  if(T("[data-firmar]")){ OPEN = "firma"; renderSheet(); return; }
+  if(T("[data-limpiarfirma]")){ const cv = $("#pad"); cv.getContext("2d").clearRect(0, 0, cv.width, cv.height); return; }
+  if(T("[data-guardarfirma]")){ const f = recortarCanvas($("#pad")); if(!f){ toast("Dibuja tu firma primero"); return; } DB.firma = f; OPEN = null; guardar(); render(); toast("Firma guardada"); return; }
+  if((x = T("[data-quitar]"))){ DB[x.dataset.quitar] = null; guardar(); renderProyecto(); return; }
+  if(T("[data-respaldo]")){ const d = {app:"presupuesto-apu", v:4, fecha: new Date().toISOString(), proyectos: DB.proyectos, apuOv: DB.apuOv, recNew: DB.recNew, rec: DB.rec};
+    bajar(`Respaldo presupuestos ${hoy()}.json`, new Blob([JSON.stringify(d)], {type:"application/json"})); return; }
+  if((x = T("[data-quitarimp]"))){ P().revit.splice(+x.dataset.quitarimp, 1); guardar(); render(); return; }
+  if(T("[data-addcat]")){ OPEN = "addcat"; PICKQ = ""; PICKCAP = ""; ADDED = {}; renderSheet(); return; }
+  if((x = T("[data-plus]"))){ const id = x.dataset.plus, inp = x.closest(".addrow").querySelector("[data-qadd]"); agregarCatalogo(id, inp ? inp.value : ""); ADDED[id] = 1; x.classList.add("done"); x.textContent = "✓"; if(inp) inp.value = ""; renderPartidas(); renderPresupuesto(); renderMateriales(); return; }
+  if((x = T("[data-addapu]"))){ agregarCatalogo(x.dataset.addapu, "1"); render(); return; }
+  if((x = T("[data-pick]"))){ OPEN = "pick:" + x.dataset.pick; PICKQ = ""; const a = apuById(getItem(x.dataset.pick).apu); PICKCAP = a ? a.cc : ""; renderSheet(); return; }
   if((x = T("[data-pcap]"))){ PICKCAP = x.dataset.pcap; renderSheet(); return; }
-  if((x = T("[data-choose]"))){
-    if(OPEN.startsWith("pick:")){ const ref = OPEN.slice(5), it = getItem(ref); it.apu = x.dataset.choose; it.ov = null;
-      const a = apuById(it.apu); if(a && ref.startsWith("m:")) it.unidad = a.unidad;
-      OPEN = ref.startsWith("p:") || ref.startsWith("m:") ? (document.querySelector("#v-presupuesto.on") ? ref : null) : null; guardar(); render(); }
-    return;
-  }
+  if((x = T("[data-choose]"))){ const ref = OPEN.slice(5), it = getItem(ref); it.apu = x.dataset.choose; it.ov = null;
+    const a = apuById(it.apu); if(a && ref.startsWith("m:")) it.unidad = a.unidad;
+    OPEN = document.querySelector("#v-presupuesto.on") ? ref : null; guardar(); render(); return; }
   if((x = T("[data-open]"))){ OPEN = x.dataset.open; renderSheet(); return; }
   if(T("[data-close]")){ OPEN = null; renderSheet(); return; }
-  if((x = T("[data-verapu]"))){ S.sel = x.dataset.verapu; OPEN = null; guardar(); render(); ir("biblioteca"); window.scrollTo(0,0); return; }
-  if((x = T("[data-go]"))){ ir(x.dataset.go); window.scrollTo(0,0); return; }
-  if((x = T("[data-unit]"))){ if(x.dataset.p != null) S.partidas[+x.dataset.p].unidad = x.dataset.unit; else if(x.dataset.m != null) S.manual[+x.dataset.m].unidad = x.dataset.unit; guardar(); render(); return; }
-  if((x = T("[data-modo]"))){ S.cfg.modo = x.dataset.modo; guardar(); render(); return; }
+  if((x = T("[data-verapu]"))){ SEL = x.dataset.verapu; OPEN = null; render(); ir("biblioteca"); window.scrollTo(0,0); return; }
+  if((x = T("[data-unit]"))){ getItem(x.dataset.ref).unidad = x.dataset.unit; guardar(); render(); return; }
+  if((x = T("[data-modo]"))){ P().cfg.modo = x.dataset.modo; guardar(); render(); return; }
   if((x = T("[data-reset]"))){ getItem(x.dataset.reset).ov = null; guardar(); render(); return; }
-  if((x = T("[data-del]"))){ S.manual.splice(+x.dataset.del, 1); guardar(); render(); return; }
-  if((x = T("[data-apu]"))){ S.sel = x.dataset.apu; guardar(); renderLibList(); renderLibDetalle(); if(innerWidth <= 760) $("#libDetalle").scrollIntoView({behavior:"smooth"}); return; }
+  if((x = T("[data-del]"))){ P().manual.splice(+x.dataset.del, 1); OPEN = null; guardar(); render(); return; }
+  if((x = T("[data-apu]"))){ SEL = x.dataset.apu; renderLibList(); renderLibDetalle(); if(innerWidth <= 760) $("#libDetalle").scrollIntoView({behavior:"smooth"}); return; }
   if((x = T("[data-delline]"))){ const [id, j] = x.dataset.delline.split("|"); editableAPU(id).lineas.splice(+j, 1); guardar(); render(); return; }
-  if((x = T("[data-resetapu]"))){ delete S.apuOv[x.dataset.resetapu]; guardar(); render(); return; }
+  if((x = T("[data-resetapu]"))){ delete DB.apuOv[x.dataset.resetapu]; guardar(); render(); return; }
   if((x = T("[data-addline]"))){ OPEN = "addline:" + x.dataset.addline; LINEQ = ""; renderSheet(); return; }
-  if((x = T("[data-addrec]"))){ const id = OPEN.slice(8); editableAPU(id).lineas.push([x.dataset.addrec, 1]); OPEN = null; guardar(); render(); return; }
-  if(T("[data-crearrec]")){
-    const nombre = $("#nrNombre").value.trim(), precio = +$("#nrPrecio").value || 0, tipo = $("#nrTipo").value;
-    if(!nombre){ $("#nrNombre").focus(); return; }
-    const rid = "u_" + Date.now(); S.recNew = S.recNew || {};
-    S.recNew[rid] = {id:rid, nombre, tipo, unidad: $("#nrUnidad").value.trim() || (tipo === "MO" ? "jornal" : "u"), precio, prest: tipo === "MO" ? 14 : null};
-    editableAPU(OPEN.slice(8)).lineas.push([rid, +$("#nrCons").value || 1]); OPEN = null; guardar(); render(); return;
-  }
+  if((x = T("[data-addrec]"))){ editableAPU(OPEN.slice(8)).lineas.push([x.dataset.addrec, 1]); OPEN = null; guardar(); render(); return; }
+  if(T("[data-crearrec]")){ const nombre = $("#nrNombre").value.trim(), tipo = $("#nrTipo").value; if(!nombre){ $("#nrNombre").focus(); return; }
+    const rid = "u_" + uid(); DB.recNew[rid] = {id:rid, nombre, tipo, unidad: $("#nrUnidad").value.trim() || (tipo === "MO" ? "jornal" : "u"), precio: +$("#nrPrecio").value || 0, prest: tipo === "MO" ? 14 : null};
+    editableAPU(OPEN.slice(8)).lineas.push([rid, +$("#nrCons").value || 1]); OPEN = null; guardar(); render(); return; }
   if(T("[data-nuevoapu]")){ OPEN = "nuevoapu"; renderSheet(); return; }
-  if(T("[data-crearapu]")){
-    const nombre = $("#naNombre").value.trim(); if(!nombre){ $("#naNombre").focus(); return; }
+  if(T("[data-crearapu]")){ const nombre = $("#naNombre").value.trim(); if(!nombre){ $("#naNombre").focus(); return; }
     const cc = $("#naCap").value, ss = $("#naSub").value, id = nextCode(cc, ss);
-    S.apuOv[id] = {id, cc, ss, nombre, unidad: $("#naUnidad").value, lineas: [], eq:0, pdir:0, nuevo:1};
-    S.sel = id; LIBCAP = cc; LIBQ = ""; $("#libQ").value = ""; $("#libCap").value = cc; OPEN = null; guardar(); render(); return;
-  }
+    DB.apuOv[id] = {id, cc, ss, nombre, unidad: $("#naUnidad").value, lineas: [], eq:0, pdir:0, nuevo:1};
+    SEL = id; LIBCAP = cc; LIBQ = ""; $("#libQ").value = ""; $("#libCap").value = cc; OPEN = null; guardar(); render(); return; }
+  if(T("[data-expopts]")){ OPEN = "expopts"; renderSheet(); return; }
+  if((x = T("[data-version]"))){ DB.expo.version = x.dataset.version; guardar(); renderSheet(); return; }
+  if((x = T("[data-exportar]"))){ exportar(x.dataset.exportar); return; }
+  if(T("[data-copiar]")){ copiarTabla(); return; }
 });
 document.addEventListener("change", e => {
   const el = e.target;
@@ -859,68 +1134,200 @@ document.addEventListener("change", e => {
     if(el.id === "naCap"){ const subs = DATA.caps.find(c => c.cc === el.value).subs; $("#naSub").innerHTML = Object.entries(subs).map(([s, n]) => `<option value="${s}">${s} ${esc(n)}</option>`).join(""); }
     $("#naCode").value = nextCode($("#naCap").value, $("#naSub").value); return;
   }
+  if(el.dataset.expo){ DB.expo[el.dataset.expo] = el.checked; guardar(); return; }
+  if(el.dataset.desp){ DB.desp[el.dataset.desp] = +el.value || 0; guardar(); renderMateriales(); return; }
   if(el.dataset.ref){
     const it = getItem(el.dataset.ref), k = el.dataset.k;
     if(k === "pu") it.pu = el.value === "" ? null : +el.value;
     else if(k === "ov"){ const b = puBase(it); it.ov = (el.value === "" || (b && +el.value === b.total)) ? null : +el.value; }
-    else if(k === "cant") it.cant = +el.value || 0; else it[k] = el.value;
+    else if(k === "cant"){ const v = evalFormula(el.value); if(v == null && el.value.trim()){ toast("Revisa la fórmula: solo números y + - * / ( )"); return; }
+      it.cant = v != null ? R2(v) : 0; it.formula = /[*/+\-()x×]/i.test(el.value.trim().replace(/^-/, "")) ? el.value.trim() : ""; }
+    else it[k] = el.value;
   } else if(el.dataset.rec){
     const id = el.dataset.rec, v = +el.value || 0;
-    if(S.recNew && S.recNew[id]) S.recNew[id][el.dataset.k] = v;
-    else { S.rec[id] = {...(S.rec[id] || {}), [el.dataset.k]: v}; const b = BASE_REC.get(id); if(b && S.rec[id].precio === b.precio && (S.rec[id].prest ?? b.prest) === b.prest) delete S.rec[id]; }
+    if(DB.recNew[id]) DB.recNew[id][el.dataset.k] = v;
+    else { DB.rec[id] = {...(DB.rec[id] || {}), [el.dataset.k]: v}; const b = BASE_REC.get(id); if(b && DB.rec[id].precio === b.precio && (DB.rec[id].prest ?? b.prest) === b.prest) delete DB.rec[id]; }
   } else if(el.dataset.apuline){ const [id, j] = el.dataset.apuline.split("|"); editableAPU(id).lineas[+j][1] = +el.value || 0; }
   else if(el.dataset.apuf){ const [id, f] = el.dataset.apuf.split("|"); editableAPU(id)[f] = +el.value || 0; }
-  else if(["factor","ind","util","iva"].includes(el.id)){ S.cfg.factor = +$("#factor").value || 0; S.cfg.ind = +$("#ind").value || 0; S.cfg.util = +$("#util").value || 0; S.cfg.iva = $("#iva").checked; }
+  else if(["factor","ind","util","iva"].includes(el.id)){ const c = P().cfg; c.factor = +$("#factor").value || 0; c.ind = +$("#ind").value || 0; c.util = +$("#util").value || 0; c.iva = $("#iva").checked; }
   else return;
   guardar(); render();
 });
 
-/* ===== Exportar ===== */
-function hojaPresupuesto(){
-  const {grupos, c, k} = calcular();
-  const aoa = [["PRESUPUESTO DE OBRA"], ["Proyecto", $("#pNombre").value], ["Ubicación", $("#pLugar").value], ["Fecha", new Date().toISOString().slice(0,10)], ["Fuente de cantidades", S.archivo || "-"], [],
-    ["Código","Partida","Referencia","Unidad","Cantidad","P.U. (C.D.)","Parcial","P.U. final","Total","Observación"]];
-  grupos.forEach(g => { aoa.push([g.cc, g.nombre.toUpperCase(), "", "", "", "", g.sub, "", R2(g.sub*k), ""]);
-    g.items.forEach(l => aoa.push([l.code, l.titulo, l.info, l.unidad, l.cant, l.pu ? l.pu.total : null, l.ok ? l.sub : null, l.ok ? R2(l.pu.total*k) : null, l.ok ? R2(l.sub*k) : null, l.problema || (l.pu && l.pu.editado ? "Precio editado" : "")])); });
-  aoa.push([], ["","Costo directo","","","","","","",c.cd]);
-  if(S.cfg.modo === "factor") aoa.push(["",`Factor comercial ${S.cfg.factor}%`,"","","","","","",c.factor]); else aoa.push(["",`Indirectos ${S.cfg.ind}%`,"","","","","","",c.ind], ["",`Utilidad ${S.cfg.util}%`,"","","","","","",c.util]);
-  aoa.push(["","Subtotal","","","","","","",c.sub], ["","IVA 13%","","","","","","",S.cfg.iva ? c.iva : "No aplicado"], ["","TOTAL","","","","","","",c.total]);
-  return aoa;
-}
-function hojaAPU(){
-  const ids = [...new Set(S.partidas.concat(S.manual).map(it => it.apu).filter(id => apuById(id)))].sort((a, b) => a.localeCompare(b, "es", {numeric:true}));
-  const aoa = [["ANÁLISIS DE PRECIOS UNITARIOS"], []];
-  ids.forEach(id => { const a = apuById(id), c = costoAPU(a);
-    aoa.push([`${a.id} ${a.nombre}`, "", "Unidad:", a.unidad], ["Recurso","Tipo","Unidad","Consumo","Precio","Prestaciones %","Parcial"]);
-    a.lineas.forEach(([rid, cc]) => { const r = rec(rid); if(r) aoa.push([r.nombre, r.tipo, r.unidad, cc, r.precio, r.tipo==="MO" ? r.prest : "", R2(costoLinea(r, cc))]); });
-    if(a.eq) aoa.push(["Equipo y herramientas","EQ","","","","",R2(a.eq)]); if(a.pdir) aoa.push(["Precio sin desglose","","","","","",R2(a.pdir)]);
-    aoa.push(["A. Materiales","","","","","",c.mat],["B. Mano de obra","","","","","",c.mo],["C + D. Equipo y subcontratos","","","","","",c.sc],["Sin desglose","","","","","",c.pd],["COSTO DIRECTO","","","","","",c.total],[]); });
-  return aoa;
-}
-const aTSV = aoa => aoa.map(r => r.map(v => v == null ? "" : String(v)).join("\t")).join("\n");
-document.querySelector("[data-copiar]").addEventListener("click", async () => {
-  try{ await navigator.clipboard.writeText(aTSV(hojaPresupuesto())); $("#expStatus").innerHTML = '<span class="chip ok">Copiado</span> Pega en Excel con Ctrl+V.'; }
-  catch(e){ $("#expStatus").innerHTML = '<span class="chip bad">No se pudo copiar</span>'; }
-});
-document.querySelector("[data-excel]").addEventListener("click", async () => {
-  if(typeof XLSX === "undefined"){ $("#expStatus").innerHTML = '<span class="chip bad">No cargó la librería de Excel</span> Usa "Copiar para Excel".'; return; }
-  const wb = XLSX.utils.book_new();
-  const h1 = XLSX.utils.aoa_to_sheet(hojaPresupuesto()); h1["!cols"] = [{wch:10},{wch:48},{wch:44},{wch:8},{wch:11},{wch:12},{wch:13},{wch:12},{wch:14},{wch:18}];
-  const h2 = XLSX.utils.aoa_to_sheet(hojaAPU()); h2["!cols"] = [{wch:50},{wch:6},{wch:8},{wch:10},{wch:10},{wch:14},{wch:12}];
-  const h3 = XLSX.utils.aoa_to_sheet([["Tipo de Revit","Anchura (m)","Área (m²)","Longitud (m)","Cuenta","Unidad elegida","APU"]].concat(S.tipos.map((t,i)=>[t.nombre,t.anchura,t.area,t.longitud,t.cuenta,S.partidas[i].unidad||"",S.partidas[i].apu||""])));
-  XLSX.utils.book_append_sheet(wb, h1, "Presupuesto"); XLSX.utils.book_append_sheet(wb, h2, "APU"); XLSX.utils.book_append_sheet(wb, h3, "Cantidades Revit");
-  const bytes = XLSX.write(wb, {bookType:"xlsx", type:"array"});
-  const nombre = "Presupuesto " + ($("#pNombre").value || "obra").replace(/[\\/:*?"<>|]/g, "") + ".xlsx";
-  const blob = new Blob([bytes], {type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
+/* ================= Exportación ================= */
+function cargarScript(src){ return new Promise((ok, mal) => { if(document.querySelector(`script[src="${src}"]`)) return ok(); const s = document.createElement("script"); s.src = src; s.onload = ok; s.onerror = mal; document.head.appendChild(s); }); }
+async function bajar(nombre, blob){
   let dl = null; try{ dl = window.claude && window.claude.use ? await window.claude.use("downloads") : null; }catch(e){ dl = null; }
-  if(dl){ try{ await dl.save({filename:nombre, data:blob}); $("#expStatus").innerHTML = '<span class="chip ok">Excel listo</span>'; return; }
-    catch(e){ try{ await dl.save({filename:nombre, data:new Uint8Array(bytes)}); $("#expStatus").innerHTML = '<span class="chip ok">Excel listo</span>'; return; } catch(e2){ $("#expStatus").innerHTML = '<span class="chip warn">Descarga cancelada</span>'; return; } } }
-  try{ const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = nombre; document.body.appendChild(a); a.click(); a.remove(); $("#expStatus").innerHTML = '<span class="chip ok">Descarga iniciada</span>'; }
-  catch(e){ $("#expStatus").innerHTML = '<span class="chip warn">El navegador bloqueó la descarga</span>'; }
-});
+  if(dl){ try{ await dl.save({filename:nombre, data:blob}); $("#expStatus").innerHTML = '<span class="chip ok">Listo</span> Revisa tus descargas.'; return; }
+    catch(e){ try{ await dl.save({filename:nombre, data:new Uint8Array(await blob.arrayBuffer())}); return; }catch(e2){ $("#expStatus").innerHTML = '<span class="chip warn">Descarga cancelada</span>'; return; } } }
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = nombre; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 4000); $("#expStatus").innerHTML = '<span class="chip ok">Descarga iniciada</span>';
+}
+function datosExport(){
+  const o = DB.expo || (DB.expo = {version:"cliente", detalle:true, materiales:false, apu:false, memoria:true});
+  const {grupos, c, k} = calcular(), p = P(), interna = o.version === "interna";
+  const apus = [...new Set(lineas().filter(l => l.ok && l.apu && !l.manual).map(l => l.apu.id))].sort((a, b) => a.localeCompare(b, "es", {numeric:true}));
+  return {o, grupos, c, k, p, interna, apus, ex: explosion(), el: DB.elab || {}};
+}
+const nombreArchivo = ext => `Presupuesto ${(P().numero || "").replace(/[\\/:*?"<>|]/g, "")} ${(P().nombre || "obra").replace(/[\\/:*?"<>|]/g, "")}.${ext}`.replace(/\s+/g, " ");
+async function exportar(tipo){
+  const s = $("#expStatus"); s.innerHTML = '<span class="chip info">Preparando…</span>';
+  try{
+    if(tipo === "pdf"){ await cargarScript("https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"); await cargarScript("https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"); await bajar(nombreArchivo("pdf"), hacerPDF()); }
+    else { await cargarScript("https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"); await bajar(nombreArchivo("xlsx"), await hacerExcel()); }
+  }catch(e){ console.error(e); s.innerHTML = '<span class="chip bad">No se pudo generar</span> Revisa tu conexión a internet e intenta de nuevo.'; }
+}
+function hacerPDF(){
+  const {o, grupos, c, k, p, interna, apus, ex, el} = datosExport();
+  const {jsPDF} = window.jspdf, doc = new jsPDF({unit:"pt", format:"letter"}), W = doc.internal.pageSize.getWidth(), H = doc.internal.pageSize.getHeight(), M = 40;
+  const AZ = [31, 56, 100], GR = [120, 120, 120];
+  const hechas = new Set();
+  const encabezado = () => {
+    const pg = doc.internal.getCurrentPageInfo().pageNumber; if(hechas.has(pg)) return; hechas.add(pg);
+    let x = M;
+    if(DB.logo){ const h = 36, w = Math.min(110, h * DB.logo.w / DB.logo.h); doc.addImage(DB.logo.data, "PNG", M, 22, w, h, "logo", "FAST"); x = M + w + 10; }
+    doc.setFont("helvetica", "bold"); doc.setFontSize(11); doc.setTextColor(...AZ); doc.text(el.empresa || el.nombre || "Presupuesto de obra", x, 36);
+    doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.setTextColor(...GR); doc.text([p.nombre || "", [p.numero, fechaTxt(p.fecha)].filter(Boolean).join("   ")].filter(Boolean), W - M, 32, {align:"right"});
+    doc.setDrawColor(...AZ); doc.setLineWidth(1); doc.line(M, 64, W - M, 64);
+  };
+  const pie = () => { const n = doc.internal.getNumberOfPages();
+    for(let i = 1; i <= n; i++){ doc.setPage(i); doc.setFontSize(7.5); doc.setTextColor(...GR);
+      doc.text([el.nombre, el.profesion, el.registro ? "Reg. " + el.registro : "", el.tel, el.correo].filter(Boolean).join("  ·  "), M, H - 24);
+      doc.text(`Página ${i} de ${n}`, W - M, H - 24, {align:"right"}); } };
+  const base = {margin:{top:76, left:M, right:M, bottom:44}, styles:{font:"helvetica", fontSize:8, cellPadding:3, lineColor:[210, 210, 210], lineWidth:0.4}, headStyles:{fillColor:AZ, textColor:255, fontStyle:"bold"}, didDrawPage: encabezado, theme:"grid", didParseCell: d => { d.cell.text = d.cell.text.map(s => s.replace(/²/g, "2").replace(/³/g, "3")); }};
+  encabezado();
+  doc.setFont("helvetica", "bold"); doc.setFontSize(15); doc.setTextColor(20); doc.text("PRESUPUESTO DE OBRA", M, 92);
+  doc.autoTable({...base, startY:100, theme:"plain", styles:{fontSize:9, cellPadding:2}, columnStyles:{0:{fontStyle:"bold", cellWidth:110}},
+    body:[["Proyecto", p.nombre || ""], ["Cliente", p.cliente || ""], ["Dirección", p.direccion || ""], ["Presupuesto No.", p.numero || ""], ["Fecha", fechaTxt(p.fecha)], ["Plazo de ejecución", p.plazo || ""], ["Validez de la oferta", p.validez || ""]].filter(r => r[1])});
+  // Resumen
+  const res = grupos.map(g => interna ? [g.cc, g.nombre, money(g.sub), money(R2(g.sub * k))] : [g.cc, g.nombre, money(R2(g.sub * k))]);
+  doc.autoTable({...base, startY: doc.lastAutoTable.finalY + 14, head:[interna ? ["Cap.", "RESUMEN POR CAPÍTULOS", "Costo directo", "Monto"] : ["Cap.", "RESUMEN POR CAPÍTULOS", "Monto"]], body: res,
+    columnStyles: interna ? {0:{cellWidth:36}, 2:{halign:"right", cellWidth:90}, 3:{halign:"right", cellWidth:90}} : {0:{cellWidth:36}, 2:{halign:"right", cellWidth:100}}});
+  const cierreRows = interna ? [["Costo directo", money(c.cd)], ...(P().cfg.modo === "factor" ? [[`Factor comercial ${P().cfg.factor}%`, money(c.factor)]] : [[`Indirectos ${P().cfg.ind}%`, money(c.ind)], [`Utilidad ${P().cfg.util}%`, money(c.util)]])] : [];
+  cierreRows.push(["Subtotal", money(c.sub)], ["IVA 13%", P().cfg.iva ? money(c.iva) : "No aplicado"], ["TOTAL", money(c.total)]);
+  doc.autoTable({...base, startY: doc.lastAutoTable.finalY + 6, theme:"plain", margin:{...base.margin, left: W - M - 260}, tableWidth:260, body: cierreRows, styles:{fontSize:9.5, cellPadding:3},
+    columnStyles:{1:{halign:"right"}}, didParseCell: d => { if(d.row.index === cierreRows.length - 1){ d.cell.styles.fontStyle = "bold"; d.cell.styles.fontSize = 11; d.cell.styles.textColor = AZ; } }});
+  let y = doc.lastAutoTable.finalY + 14;
+  doc.setFont("helvetica", "bold"); doc.setFontSize(9); doc.setTextColor(20); const sl = doc.splitTextToSize("SON: " + montoLetras(c.total), W - 2 * M); doc.text(sl, M, y); y += sl.length * 12 + 8;
+  if(p.notas){ doc.setFont("helvetica", "bold"); doc.text("NOTAS Y EXCLUSIONES", M, y); y += 12; doc.setFont("helvetica", "normal"); doc.setFontSize(8.5);
+    const nl = doc.splitTextToSize(p.notas, W - 2 * M); if(y + nl.length * 11 > H - 150){ doc.addPage(); encabezado(); y = 90; } doc.text(nl, M, y); y += nl.length * 11 + 10; }
+  // Firmas
+  if(y > H - 150){ doc.addPage(); encabezado(); y = 100; }
+  y = Math.max(y + 10, H - 170);
+  const fx = [M, W / 2 + 20], fw = W / 2 - M - 20;
+  if(DB.firma){ const h = 50, w = Math.min(fw, h * DB.firma.w / DB.firma.h); doc.addImage(DB.firma.data, "PNG", fx[0] + (fw - w) / 2, y, w, h, "firma", "FAST"); }
+  doc.setDrawColor(60); doc.setLineWidth(0.6); doc.line(fx[0], y + 56, fx[0] + fw, y + 56); doc.line(fx[1], y + 56, fx[1] + fw, y + 56);
+  doc.setFont("helvetica", "bold"); doc.setFontSize(8.5); doc.setTextColor(20);
+  doc.text(["Elaborado por", el.nombre || ""].filter(Boolean), fx[0] + fw / 2, y + 68, {align:"center"});
+  doc.text(["Recibido y aceptado", p.cliente || "Cliente"], fx[1] + fw / 2, y + 68, {align:"center"});
+  doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.text([el.profesion, el.registro ? "Reg. " + el.registro : ""].filter(Boolean), fx[0] + fw / 2, y + 90, {align:"center"});
+  // Detalle
+  if(o.detalle){ doc.addPage(); encabezado();
+    const body = [];
+    grupos.forEach(g => { body.push([{content: g.cc, styles:{fontStyle:"bold", fillColor:[232, 238, 247]}}, {content: g.nombre.toUpperCase(), colSpan: interna ? 6 : 4, styles:{fontStyle:"bold", fillColor:[232, 238, 247]}}, {content: money(R2(g.sub * k)), styles:{fontStyle:"bold", halign:"right", fillColor:[232, 238, 247]}}]);
+      g.items.forEach(l => { const desc = l.titulo + (l.origen === "Revit" && l.info !== l.titulo ? "\n" + l.info : "") + (o.memoria && l.memoria ? "\nMemoria: " + l.memoria : "");
+        const row = [l.code, desc, l.unidad, num(l.cant)]; if(interna) row.push(l.ok ? money(l.pu.total) : "-", l.ok ? money(l.sub) : "-");
+        row.push(l.ok ? money(R2(l.pu.total * k)) : "-", l.ok ? money(R2(l.sub * k)) : "-"); body.push(row); }); });
+    const head = ["Código", "Descripción", "Unidad", "Cantidad"].concat(interna ? ["P.U. C.D.", "Parcial C.D."] : []).concat(["P.U.", "Total"]);
+    const cs = interna ? {0:{cellWidth:48}, 2:{halign:"center", cellWidth:36}, 3:{halign:"right", cellWidth:50}, 4:{halign:"right", cellWidth:56}, 5:{halign:"right", cellWidth:62}, 6:{halign:"right", cellWidth:56}, 7:{halign:"right", cellWidth:64}}
+      : {0:{cellWidth:52}, 2:{halign:"center", cellWidth:40}, 3:{halign:"right", cellWidth:56}, 4:{halign:"right", cellWidth:64}, 5:{halign:"right", cellWidth:72}};
+    doc.setFont("helvetica", "bold"); doc.setFontSize(12); doc.setTextColor(20); doc.text("PRESUPUESTO DETALLADO", M, 88);
+    doc.autoTable({...base, startY:96, head:[head], body, columnStyles: cs, foot:[[{content:"SUBTOTAL (sin IVA)", colSpan: head.length - 1, styles:{halign:"right"}}, {content: money(c.sub), styles:{halign:"right"}}]], footStyles:{fillColor:AZ, textColor:255, fontStyle:"bold"}, showFoot:"lastPage"});
+  }
+  if(o.materiales){ doc.addPage(); encabezado(); doc.setFont("helvetica", "bold"); doc.setFontSize(12); doc.setTextColor(20); doc.text("EXPLOSIÓN DE MATERIALES", M, 88);
+    doc.autoTable({...base, startY:96, head:[["Material", "Unidad", "Cant. neta", "Desp.", "A comprar"].concat(interna ? ["Precio", "Costo"] : [])],
+      body: ex.mat.map(x => [x.r.nombre, x.r.unidad, num(x.q), num(x.d, 0) + "%", num(Math.ceil(x.compra * 100) / 100)].concat(interna ? [money(x.r.precio), money(x.costo)] : [])),
+      columnStyles:{1:{halign:"center"}, 2:{halign:"right"}, 3:{halign:"right"}, 4:{halign:"right", fontStyle:"bold"}, 5:{halign:"right"}, 6:{halign:"right"}}});
+    doc.autoTable({...base, startY: doc.lastAutoTable.finalY + 14, head:[["Mano de obra", "Jornales"].concat(interna ? ["Costo"] : [])], body: ex.mo.map(x => [x.r.nombre, num(x.q, 1)].concat(interna ? [money(x.costo)] : [])), columnStyles:{1:{halign:"right"}, 2:{halign:"right"}}});
+  }
+  if(o.apu && apus.length){ doc.addPage(); encabezado(); doc.setFont("helvetica", "bold"); doc.setFontSize(12); doc.setTextColor(20); doc.text("ANEXO: ANÁLISIS DE PRECIOS UNITARIOS", M, 88); let yy = 96;
+    apus.forEach(id => { const a = apuById(id), cc = costoAPU(a), body = a.lineas.map(([rid, q]) => { const r = rec(rid); return r ? [r.nombre, r.tipo === "MAT" ? "Material" : r.tipo === "MO" ? "Mano de obra" : "Subcontrato", r.unidad, num(q, 4), money(r.tipo === "MO" ? r.precio * (1 + (r.prest || 0) / 100) : r.precio), money(costoLinea(r, q))] : null; }).filter(Boolean);
+      if(a.eq) body.push(["Equipo y herramientas", "Equipo", "SG", "", "", money(a.eq)]); if(a.pdir) body.push(["Precio sin desglose", "", "SG", "", "", money(a.pdir)]);
+      doc.autoTable({...base, startY: yy, head:[[{content: `${a.id}  ${a.nombre}  (${a.unidad})`, colSpan:6}], ["Recurso", "Tipo", "Unidad", "Consumo", "Precio", "Parcial"]], body,
+        foot:[[{content:"COSTO DIRECTO", colSpan:5, styles:{halign:"right"}}, {content: money(cc.total), styles:{halign:"right"}}]], footStyles:{fillColor:[232, 238, 247], textColor:20, fontStyle:"bold"},
+        columnStyles:{2:{halign:"center"}, 3:{halign:"right"}, 4:{halign:"right"}, 5:{halign:"right"}}, pageBreak:"avoid"});
+      yy = doc.lastAutoTable.finalY + 12; });
+  }
+  pie();
+  return doc.output("blob");
+}
+async function hacerExcel(){
+  const {o, grupos, c, k, p, interna, apus, ex, el} = datosExport();
+  const wb = new ExcelJS.Workbook(); wb.creator = el.nombre || "Presupuesto APU"; wb.created = new Date();
+  const AZ = "FF1F3864", CL = "FFE8EEF7", borde = {top:{style:"thin", color:{argb:"FFD0D0D0"}}, left:{style:"thin", color:{argb:"FFD0D0D0"}}, bottom:{style:"thin", color:{argb:"FFD0D0D0"}}, right:{style:"thin", color:{argb:"FFD0D0D0"}}};
+  const MON = '"$"#,##0.00', NUMF = "#,##0.00";
+  const ws = wb.addWorksheet("Presupuesto", {pageSetup:{paperSize:1, orientation:"portrait", fitToPage:true, fitToWidth:1, fitToHeight:0, margins:{left:0.4, right:0.4, top:0.5, bottom:0.6, header:0.2, footer:0.3}}});
+  const cols = ["Código", "Descripción", "Unidad", "Cantidad"].concat(interna ? ["P.U. C.D.", "Parcial C.D."] : []).concat(["P.U.", "Total"]);
+  ws.columns = cols.map((h, i) => ({width: [14, 52, 9, 12, 13, 15, 13, 15][interna ? i : [0, 1, 2, 3, 6, 7][i]]}));
+  const ult = cols.length;
+  ws.headerFooter.oddFooter = `&L${[el.nombre, el.profesion, el.registro ? "Reg. " + el.registro : ""].filter(Boolean).join(" · ")}&RPágina &P de &N`;
+  if(DB.logo){ const id = wb.addImage({base64: DB.logo.data, extension:"png"}); const h = 52, w = h * DB.logo.w / DB.logo.h; ws.addImage(id, {tl:{col:0, row:0}, ext:{width:w, height:h}}); }
+  ws.getRow(1).height = 22; ws.getRow(2).height = 22;
+  ws.mergeCells(1, 3, 1, ult); ws.getCell(1, 3).value = el.empresa || el.nombre || "Presupuesto de obra"; ws.getCell(1, 3).font = {bold:true, size:13, color:{argb:AZ}}; ws.getCell(1, 3).alignment = {horizontal:"right"};
+  ws.mergeCells(2, 3, 2, ult); ws.getCell(2, 3).value = "PRESUPUESTO DE OBRA"; ws.getCell(2, 3).font = {bold:true, size:15}; ws.getCell(2, 3).alignment = {horizontal:"right"};
+  let r = 4;
+  [["Proyecto", p.nombre], ["Cliente", p.cliente], ["Dirección", p.direccion], ["Presupuesto No.", p.numero], ["Fecha", fechaTxt(p.fecha)], ["Plazo de ejecución", p.plazo], ["Validez de la oferta", p.validez]].filter(x => x[1]).forEach(([a, b]) => {
+    ws.getCell(r, 1).value = a; ws.getCell(r, 1).font = {bold:true}; ws.mergeCells(r, 2, r, ult); ws.getCell(r, 2).value = b; r++; });
+  r++;
+  const hr = ws.getRow(r); cols.forEach((h, i) => { const cell = hr.getCell(i + 1); cell.value = h; cell.font = {bold:true, color:{argb:"FFFFFFFF"}}; cell.fill = {type:"pattern", pattern:"solid", fgColor:{argb:AZ}}; cell.alignment = {horizontal:"center", vertical:"middle"}; cell.border = borde; });
+  hr.height = 20; ws.views = [{state:"frozen", ySplit:r}]; ws.pageSetup.printTitlesRow = `${r}:${r}`; r++;
+  grupos.forEach(g => {
+    const row = ws.getRow(r); row.getCell(1).value = g.cc; ws.mergeCells(r, 2, r, ult - 1); row.getCell(2).value = g.nombre.toUpperCase(); row.getCell(ult).value = R2(g.sub * k); row.getCell(ult).numFmt = MON;
+    for(let i = 1; i <= ult; i++){ const cell = row.getCell(i); cell.font = {bold:true}; cell.fill = {type:"pattern", pattern:"solid", fgColor:{argb:CL}}; cell.border = borde; } r++;
+    g.items.forEach(l => {
+      const row = ws.getRow(r), desc = l.titulo + (l.origen === "Revit" && l.info !== l.titulo ? "\n" + l.info : "") + (o.memoria && l.memoria ? "\nMemoria: " + l.memoria : "");
+      const vals = [l.code, desc, l.unidad, l.cant].concat(interna ? [l.ok ? l.pu.total : null, l.ok ? l.sub : null] : []).concat([l.ok ? R2(l.pu.total * k) : null, l.ok ? R2(l.sub * k) : null]);
+      vals.forEach((v, i) => { const cell = row.getCell(i + 1); cell.value = v; cell.border = borde; cell.alignment = {vertical:"top", wrapText: i === 1, horizontal: i === 2 ? "center" : undefined};
+        if(i === 3) cell.numFmt = NUMF; if(i >= 4) cell.numFmt = MON; });
+      row.height = Math.max(16, desc.split("\n").length * 14 + Math.floor(desc.length / 70) * 12); r++;
+    });
+  });
+  r++;
+  const cfg = P().cfg, filas = interna ? [["Costo directo", c.cd]].concat(cfg.modo === "factor" ? [[`Factor comercial ${cfg.factor}%`, c.factor]] : [[`Indirectos ${cfg.ind}%`, c.ind], [`Utilidad ${cfg.util}%`, c.util]]) : [];
+  filas.push(["Subtotal", c.sub], ["IVA 13%", cfg.iva ? c.iva : "No aplicado"], ["TOTAL", c.total]);
+  filas.forEach(([a, b], i) => { ws.mergeCells(r, ult - 2, r, ult - 1); const ca = ws.getCell(r, ult - 2), cb = ws.getCell(r, ult); ca.value = a; cb.value = b; cb.numFmt = MON; ca.alignment = {horizontal:"right"};
+    const last = i === filas.length - 1; ca.font = {bold:last, size: last ? 12 : 11, color: last ? {argb:AZ} : undefined}; cb.font = ca.font; if(last){ ca.border = {top:{style:"medium"}}; cb.border = {top:{style:"medium"}}; } r++; });
+  r++; ws.mergeCells(r, 1, r, ult); ws.getCell(r, 1).value = "SON: " + montoLetras(c.total); ws.getCell(r, 1).font = {bold:true}; ws.getCell(r, 1).alignment = {wrapText:true}; ws.getRow(r).height = 30; r += 2;
+  if(p.notas){ ws.getCell(r, 1).value = "NOTAS Y EXCLUSIONES"; ws.getCell(r, 1).font = {bold:true}; r++;
+    ws.mergeCells(r, 1, r, ult); ws.getCell(r, 1).value = p.notas; ws.getCell(r, 1).alignment = {wrapText:true, vertical:"top"}; ws.getRow(r).height = Math.max(30, p.notas.split("\n").length * 15 + 8); r += 2; }
+  r += 1; const firmaRow = r;
+  if(DB.firma){ const id = wb.addImage({base64: DB.firma.data, extension:"png"}); const h = 55, w = Math.min(220, h * DB.firma.w / DB.firma.h); ws.addImage(id, {tl:{col:1, row:firmaRow - 1}, ext:{width:w, height:h}}); }
+  r += 4;
+  ws.getCell(r, 2).border = {top:{style:"thin"}}; ws.mergeCells(r, ult - 2, r, ult); ws.getCell(r, ult - 2).border = {top:{style:"thin"}};
+  ws.getCell(r, 2).value = "Elaborado por: " + (el.nombre || ""); ws.getCell(r, ult - 2).value = "Recibido y aceptado: " + (p.cliente || ""); ws.getCell(r, 2).font = {bold:true}; ws.getCell(r, ult - 2).font = {bold:true};
+  r++; ws.getCell(r, 2).value = [el.profesion, el.registro ? "Reg. " + el.registro : ""].filter(Boolean).join(" · ");
+  if(o.materiales){
+    const wm = wb.addWorksheet("Materiales", {pageSetup:{paperSize:1, fitToPage:true, fitToWidth:1, fitToHeight:0}});
+    wm.columns = [{header:"Material", width:46}, {header:"Unidad", width:9}, {header:"Cantidad neta", width:14}, {header:"Desperdicio %", width:13}, {header:"A comprar", width:13}, {header:"Precio", width:11}, {header:"Costo", width:13}];
+    ex.mat.forEach(x => wm.addRow([x.r.nombre, x.r.unidad, R2(x.q), x.d, Math.ceil(x.compra * 100) / 100, x.r.precio, R2(x.costo)]));
+    wm.addRow([]); wm.addRow(["Mano de obra", "", "Jornales", "", "", "", "Costo"]).font = {bold:true};
+    ex.mo.forEach(x => wm.addRow([x.r.nombre, "jornal", R2(x.q), "", "", R2(x.r.precio * (1 + (x.r.prest || 0) / 100)), R2(x.costo)]));
+    wm.getRow(1).font = {bold:true, color:{argb:"FFFFFFFF"}}; wm.getRow(1).fill = {type:"pattern", pattern:"solid", fgColor:{argb:AZ}};
+    ["F", "G"].forEach(cl => wm.getColumn(cl).numFmt = MON);
+  }
+  if(o.apu){
+    const wa = wb.addWorksheet("APU", {pageSetup:{paperSize:1, fitToPage:true, fitToWidth:1, fitToHeight:0}});
+    wa.columns = [{width:46}, {width:13}, {width:9}, {width:11}, {width:12}, {width:13}];
+    apus.forEach(id => { const a = apuById(id), cc = costoAPU(a);
+      const t = wa.addRow([`${a.id}  ${a.nombre}  (${a.unidad})`]); t.font = {bold:true, color:{argb:"FFFFFFFF"}}; t.fill = {type:"pattern", pattern:"solid", fgColor:{argb:AZ}}; wa.mergeCells(t.number, 1, t.number, 6);
+      wa.addRow(["Recurso", "Tipo", "Unidad", "Consumo", "Precio", "Parcial"]).font = {bold:true};
+      a.lineas.forEach(([rid, q]) => { const rr = rec(rid); if(rr) wa.addRow([rr.nombre, rr.tipo === "MAT" ? "Material" : rr.tipo === "MO" ? "Mano de obra" : "Subcontrato", rr.unidad, q, R2(rr.tipo === "MO" ? rr.precio * (1 + (rr.prest || 0) / 100) : rr.precio), R2(costoLinea(rr, q))]); });
+      if(a.eq) wa.addRow(["Equipo y herramientas", "Equipo", "SG", "", "", R2(a.eq)]); if(a.pdir) wa.addRow(["Precio sin desglose", "", "SG", "", "", R2(a.pdir)]);
+      const f = wa.addRow(["COSTO DIRECTO", "", "", "", "", cc.total]); f.font = {bold:true}; f.fill = {type:"pattern", pattern:"solid", fgColor:{argb:CL}}; wa.addRow([]); });
+    ["E", "F"].forEach(cl => wa.getColumn(cl).numFmt = MON);
+  }
+  const buf = await wb.xlsx.writeBuffer();
+  return new Blob([buf], {type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
+}
+async function copiarTabla(){
+  const {grupos, k} = calcular(), rows = [["Código", "Partida", "Unidad", "Cantidad", "P.U.", "Total"]];
+  grupos.forEach(g => { rows.push([g.cc, g.nombre.toUpperCase(), "", "", "", R2(g.sub * k)]); g.items.forEach(l => rows.push([l.code, l.titulo, l.unidad, l.cant, l.ok ? R2(l.pu.total * k) : "", l.ok ? R2(l.sub * k) : ""])); });
+  try{ await navigator.clipboard.writeText(rows.map(r => r.join("\t")).join("\n")); $("#expStatus").innerHTML = '<span class="chip ok">Copiado</span> Pega en Excel con Ctrl+V.'; }catch(e){ $("#expStatus").innerHTML = '<span class="chip bad">No se pudo copiar</span>'; }
+}
 
-/* ===== Inicio ===== */
-if(!cargar()){ S = estadoInicial(); cargarTexto(EJEMPLO, "CANTIDADES DE PAREDES prueba 1.txt"); S.partidas.forEach((p, i) => p.unidad = sugerirUnidad(S.tipos[i].nombre)); guardar(); }
+/* ================= Inicio ================= */
+if(!cargar()){ DB = dbInicial(); try{ localStorage.setItem(KEY, JSON.stringify(DB)); }catch(e){} }
+DB.desp = DB.desp || {...DESP_BASE}; DB.elab = DB.elab || {}; DB.recNew = DB.recNew || {}; DB.rec = DB.rec || {}; DB.apuOv = DB.apuOv || {};
 $("#libCap").innerHTML = capOptions(LIBCAP, true);
 aplicarTema(); render(); ir(location.hash.slice(1) || "presupuesto");
 </script>
