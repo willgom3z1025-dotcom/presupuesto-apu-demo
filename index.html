@@ -697,7 +697,7 @@ function lineas(){
   });
   return out.map(l => { const ok = !l.problema && !!l.pu, sub = ok ? R2(l.cant * l.pu.total) : 0;
     const mat = ok ? R2(l.cant*l.pu.mat) : 0, mo = ok ? R2(l.cant*l.pu.mo) : 0, sc = ok ? R2(l.cant*l.pu.sc) : 0;
-    return {...l, ok, sub, mat, mo, sc, otro: ok ? R2(sub - mat - mo - sc) : 0}; });
+    return {...l, ok, sub, mat, mo, sc, otro: ok ? R2(l.cant*l.pu.pd) : 0}; });
 }
 function calcular(){
   const ls = lineas(), cd = R2(ls.reduce((s, l) => s + l.sub, 0)), c = cierre(cd, P().cfg), k = cd > 0 ? c.sub / cd : 0;
