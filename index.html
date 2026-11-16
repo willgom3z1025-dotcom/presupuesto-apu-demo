@@ -359,7 +359,7 @@ textarea{font:inherit;color:var(--ink);background:var(--group2);border:0;border-
       <h2>Inteligencia artificial</h2>
       <p class="muted small tip" style="margin:0">La IA propone la partida y la unidad solo cuando el modelo no trae COD_PARTIDA y ninguna regla coincide. Nunca da precios: el precio sale del APU.</p>
       <p class="small" id="iaProv" style="margin:0"></p>
-      <div class="form"><label class="full">URL del servicio de IA (fuera de Claude; ej. Supabase Edge Function)<input id="iaUrl" placeholder="https://<proyecto>.supabase.co/functions/v1/proponer-partida" autocomplete="off"></label>
+      <div class="form"><label class="full">URL del servicio de IA (función de Supabase)<input id="iaUrl" placeholder="https://<proyecto>.supabase.co/functions/v1/proponer-partida" autocomplete="off"></label>
         <label class="full">Llave pública del proyecto (anon key, opcional)<input id="iaKey" autocomplete="off"></label></div>
     </div>
     <div class="card">
@@ -894,8 +894,8 @@ function renderProyecto(){
   const p = P();
   document.querySelectorAll("[data-pf]").forEach(el => { if(document.activeElement !== el) el.value = p[el.dataset.pf] ?? ""; });
   document.querySelectorAll("[data-ef]").forEach(el => { if(document.activeElement !== el) el.value = DB.elab[el.dataset.ef] ?? ""; });
-  if(document.activeElement !== $("#iaUrl")) $("#iaUrl").value = DB.iaUrl || ""; if(document.activeElement !== $("#iaKey")) $("#iaKey").value = DB.iaKey || "";
-  proveedorIA().then(pv => { $("#iaProv").innerHTML = pv ? `<span class="chip ok">IA disponible</span> ${esc(pv.nombre)}, modelo ${IA_MODELO}.` : '<span class="chip warn">IA no disponible en esta página</span> Configura la URL del servicio o usa la versión publicada en Claude.'; }).catch(() => {});
+  if(document.activeElement !== $("#iaUrl")) $("#iaUrl").value = iaUrl(); if(document.activeElement !== $("#iaKey")) $("#iaKey").value = DB.iaKey || "";
+  proveedorIA().then(pv => { $("#iaProv").innerHTML = pv ? `<span class="chip ok">IA disponible</span> ${esc(pv.nombre)}, modelo ${IA_MODELO}.` : '<span class="chip warn">IA no disponible</span> Configura la URL del servicio y la llave pública del proyecto.'; }).catch(() => {});
   $("#logoPrev").innerHTML = DB.logo ? `<img src="${DB.logo.data}" alt="Logo">` : "<span>Sin logo</span>";
   $("#firmaPrev").innerHTML = DB.firma ? `<img src="${DB.firma.data}" alt="Firma">` : "<span>Sin firma</span>";
 }
@@ -1327,9 +1327,10 @@ function actualizarRegistro(){
 /* ================= IA: propone partida y unidad (RF-02) =================
    Se usa solo para partidas sin COD_PARTIDA válido y sin regla. La IA nunca da precios: elige un código del
    catálogo estándar (o "SIN COINCIDENCIA"); el precio sale del APU. El usuario confirma o corrige.
-   Proveedor: en la versión publicada en Claude, la capacidad "sample" del artefacto (sin llave en el HTML);
-   fuera de Claude, una función de servidor (Supabase Edge Function) cuya URL se configura en Proyecto. */
-const IA_MODELO = "claude-haiku-5-5";
+   Proveedor: una función de servidor (Supabase Edge Function) que llama a Gemini; la llave vive en el servidor, no en el HTML. */
+const IA_MODELO = "Gemini (Google)";
+const IA_URL_BASE = "https://wohmumibmhbqedyvwuqz.supabase.co/functions/v1/proponer-partida";
+const iaUrl = () => DB.iaUrl || IA_URL_BASE;
 function catalogoIA(){
   const std = DATA.apus.filter(a => !a.ref).map(a => a.id), nuevos = Object.values(DB.apuOv).filter(a => a.nuevo).map(a => a.id);
   return [...new Set(std.concat(nuevos))].map(id => apuById(id)).filter(Boolean).map(a => `${a.id}|${a.unidad}|${a.nombre}`).join("\n");
@@ -1353,10 +1354,10 @@ Responde solo con un arreglo JSON, sin texto adicional: [{"i":0,"codigo":"05.01.
 }
 async function proveedorIA(){
   let s = null; try{ s = window.claude && window.claude.use ? await window.claude.use("sample") : null; }catch(e){ s = null; }
-  if(s) return {nombre: "Claude (capacidad sample del artefacto)", llamar: async prompt => (await s(prompt, {modelTier: "quick", cache: false})).text};
-  if(DB.iaUrl) return {nombre: "Servicio de IA (" + DB.iaUrl.replace(/^https?:\/\//, "").split("/")[0] + ")", llamar: async prompt => {
-    const r = await fetch(DB.iaUrl, {method: "POST", headers: {"Content-Type": "application/json", ...(DB.iaKey ? {"Authorization": "Bearer " + DB.iaKey, "apikey": DB.iaKey} : {})}, body: JSON.stringify({prompt, modelo: IA_MODELO})});
-    if(!r.ok) throw new Error("El servicio respondió " + r.status); const j = await r.json(); return j.text || ""; }};
+  if(s) return {nombre: "asistente de IA del artefacto", llamar: async prompt => (await s(prompt, {modelTier: "quick", cache: false})).text};
+  if(iaUrl() && DB.iaKey) return {nombre: "servicio de IA del proyecto", llamar: async prompt => {
+    const r = await fetch(iaUrl(), {method: "POST", headers: {"Content-Type": "application/json", ...(DB.iaKey ? {"Authorization": "Bearer " + DB.iaKey, "apikey": DB.iaKey} : {})}, body: JSON.stringify({prompt, modelo: IA_MODELO})});
+    const j = await r.json().catch(() => ({})); if(!r.ok) throw new Error("El servicio respondió " + r.status + (j.error ? ": " + j.error : "")); return j.text || ""; }};
   return null;
 }
 function leerJSONIA(txt){
@@ -1368,7 +1369,7 @@ async function proponerIA(k){
   const idx = imp.partidas.map((p, i) => i).filter(i => { const p = imp.partidas[i]; return !p.apu && !p.codNoCat && !(p.ia && p.ia.codigo !== "SIN COINCIDENCIA"); });
   if(!idx.length){ st.innerHTML = '<span class="chip ok">No hay partidas sin asociar</span>'; return; }
   const prov = await proveedorIA();
-  if(!prov){ st.innerHTML = '<span class="chip warn">IA no disponible aquí</span> Funciona en la versión publicada en Claude o configurando el servicio de IA en la pestaña Proyecto. Mientras tanto, elige el APU a mano.'; return; }
+  if(!prov){ st.innerHTML = '<span class="chip warn">IA no disponible aquí</span> Configura el servicio de IA en la pestaña Proyecto. Mientras tanto, elige el APU a mano.'; return; }
   st.innerHTML = `<span class="chip info">Consultando IA…</span> ${idx.length} partida(s) con ${esc(prov.nombre)}.`;
   const items = idx.map(i => { const t = imp.tipos[i]; return {i, nombre: t.nombre + (t.material ? " (" + t.material + ")" : ""),
     cols: [t.area ? `área ${num(t.area)} m²` : "", t.longitud ? `longitud ${num(t.longitud)} m` : "", t.volumen ? `volumen ${num(t.volumen)} m³` : "", `cuenta ${num(t.cuenta, 0)}`, t.diam ? `diámetro ${t.diam}` : ""].filter(Boolean).join(", ")}; });
