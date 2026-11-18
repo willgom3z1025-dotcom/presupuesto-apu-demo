@@ -1455,7 +1455,7 @@ function ir(v){
   document.querySelectorAll(".view").forEach(s => s.classList.toggle("on", s.id === "v-" + v));
   document.querySelectorAll(".tab").forEach(t => t.setAttribute("aria-selected", t.dataset.v === v));
   $("#totbar").classList.toggle("hide", !["partidas","presupuesto","materiales"].includes(v));
-  if(location.hash !== "#" + v) history.replaceState(null, "", "#" + v);
+  if(location.hash !== "#" + v){ try{ history.replaceState(null, "", "#" + v); }catch(e){} }
 }
 document.querySelectorAll(".tab").forEach(t => t.addEventListener("click", () => { ir(t.dataset.v); window.scrollTo(0,0); }));
 window.addEventListener("hashchange", () => ir(location.hash.slice(1)));
@@ -2753,7 +2753,7 @@ if(!cargar()){
 prepararDB();
 $("#libCap").innerHTML = capOptions(LIBCAP, true);
 aplicarTema(); render(); ir(authHash ? "proyecto" : (location.hash.slice(1) || "presupuesto"));
-if(authHash){ history.replaceState(null, "", location.pathname + location.search);
+if(authHash){ try{ history.replaceState(null, "", location.pathname + location.search); }catch(e){}
   const j = {access_token: authHash.get("access_token"), refresh_token: authHash.get("refresh_token"), expires_in: +authHash.get("expires_in") || 3600};
   sbAuth("user", undefined, j.access_token).then(u => { guardarSesion({...j, user: u}); cambiarAlmacen(); toast("Correo confirmado. Sesión iniciada"); return nubeSincronizar(); }).catch(e => toast("No se pudo iniciar sesión: " + e.message)); }
 else if(SES) nubeSincronizar();
