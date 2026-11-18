@@ -1,0 +1,337 @@
+"""Pruebas automáticas de la app v8 (presupuesto APU).
+
+Uso:  python3 pruebas/test_v8.py [ruta de v8/index.html]
+Requisitos: playwright (chromium), pypdf y openpyxl. Para el PDF y el Excel, las librerías jsPDF 2.5.1,
+jspdf-autotable 3.8.2 y ExcelJS 4.4.0 se sirven desde node_modules (variable LIBS) en lugar del CDN.
+Cada comprobación cuenta como una prueba; al final se imprime el total de correctas y fallidas.
+"""
+import json, os, re, sys, io, math
+from pathlib import Path
+from playwright.sync_api import sync_playwright
+from pypdf import PdfReader
+import openpyxl
+
+RAIZ = Path(__file__).resolve().parent.parent
+HTML = Path(sys.argv[1]) if len(sys.argv) > 1 else RAIZ / "v8" / "index.html"
+URL = HTML.resolve().as_uri()
+CAT = json.loads((HTML.parent / "catalogo.json").read_text(encoding="utf-8"))
+LIBS = Path(os.environ.get("LIBS", "/home/claude/libs/node_modules"))
+CDN = {
+    "jspdf.umd.min.js": LIBS / "jspdf/dist/jspdf.umd.min.js",
+    "jspdf.plugin.autotable.min.js": LIBS / "jspdf-autotable/dist/jspdf.plugin.autotable.min.js",
+    "exceljs.min.js": LIBS / "exceljs/dist/exceljs.min.js",
+}
+RES = []
+GRUPO = [""]
+
+
+def chk(nombre, cond, detalle=""):
+    RES.append((GRUPO[0], nombre, bool(cond), "" if cond else str(detalle)[:300]))
+
+
+def grupo(n):
+    GRUPO[0] = n
+    print("…", n, flush=True)
+
+
+def R2(x):
+    return math.floor(x * 100 + 0.5 + 1e-9) / 100 if x >= 0 else -math.floor(-x * 100 + 0.5 + 1e-9) / 100
+
+
+REC = {r["id"]: r for r in CAT["recursos"]}
+
+
+def pu_py(a):
+    t = 0.0
+    for rid, c in a["lineas"]:
+        r = REC.get(rid)
+        if not r:
+            continue
+        t += c * r["precio"] * (1 + (r.get("prest") or 0) / 100) if r["tipo"] == "MO" else c * r["precio"]
+    t += (a.get("eq") or 0) + (a.get("pdir") or 0)
+    return R2(t)
+
+
+def nueva_pagina(b, **kw):
+    ctx = b.new_context(accept_downloads=True, **kw)
+    for nombre, ruta in CDN.items():
+        if ruta.exists():
+            ctx.route(re.compile(r".*/" + re.escape(nombre) + r"$"), (lambda f: (lambda route: route.fulfill(path=f, content_type="application/javascript")))(str(ruta)))
+    ctx.route(re.compile(r"https://.*supabase\.co/.*"), lambda route: route.abort())
+    ctx.set_default_timeout(15000)
+    pg = ctx.new_page()
+    errs = []
+    pg.on("pageerror", lambda e: errs.append(str(e)))
+    return ctx, pg, errs
+
+
+N_ABRIR = [0]
+
+
+def abrir(pg, vista="presupuesto"):
+    N_ABRIR[0] += 1  # cada apertura es una carga nueva de la página
+    pg.goto(URL + "?carga=" + str(N_ABRIR[0]) + "#" + vista)
+    pg.wait_for_timeout(1200)
+
+
+with sync_playwright() as p:
+    b = p.chromium.launch()
+
+    # ---------- 1. Arranque y proyecto de ejemplo ----------
+    grupo("Arranque y ejemplo")
+    ctx, pg, errs = nueva_pagina(b, viewport={"width": 1300, "height": 900})
+    abrir(pg)
+    d = pg.evaluate("(()=>{const C=calcular(); return {total:C.c.total, cd:C.c.cd, mat:C.mat, mo:C.mo, sc:C.sc, otro:C.otro, aj:C.ajPU, ajR:C.ajRed, ver:String(DATA.version), caps:DATA.caps.length, apus:DATA.apus.length, recs:DATA.recursos.length, cat:DB.cat, tabs:[...document.querySelectorAll('nav.tabs .tab')].map(t=>t.textContent.trim())}})()")
+    chk("Sin errores de página al abrir", not errs, errs)
+    chk("Total del ejemplo = $50,645.30", d["total"] == 50645.30, d["total"])
+    chk("Costo directo del ejemplo = $25,322.65", d["cd"] == 25322.65, d["cd"])
+    chk("Catálogo versión 4", d["ver"] == "4", d["ver"])
+    chk("14 partidas en el catálogo", d["caps"] == 14, d["caps"])
+    chk("3,221 subpartidas (153 estándar y 3,068 de referencia)", d["apus"] == 3221, d["apus"])
+    chk("226 recursos (215 + 2 nuevos + 9 varillas de 6 m)", d["recs"] == 226, d["recs"])
+    chk("DB.cat = 3 (códigos nuevos)", d["cat"] == 3, d["cat"])
+    chk("Pestañas: Proyecto, Subpartidas, Presupuesto, Materiales, PU", d["tabs"] == ["Proyecto", "Subpartidas", "Presupuesto", "Materiales", "PU"], d["tabs"])
+    comp = pg.evaluate("(()=>{const C=calcular(); return [C.mat, C.mo, C.sc, C.otro, C.ajEd||0, C.ajRed||0, C.c.cd]})()")
+    chk("Conciliación: componentes = costo directo", abs(sum(comp[:6]) - comp[6]) < 0.005, comp)
+
+    # ---------- 2. Precios de recursos ----------
+    grupo("Precios de recursos (18 nov 2026)")
+    esperado = {
+        "bloque15": (0.80, "actualizado"), "bloque10": (0.71, "actualizado"), "cemento": (8.05, "actualizado"),
+        "arena": (15.93, "provisional"), "acero2": (42.19, "actualizado"), "acero3": (43.01, "actualizado"),
+        "acero4": (43.08, "actualizado"), "alambre": (0.62, "actualizado"), "m_tubo_pvc_1_2_u": (2.39, "actualizado"),
+        "m_tubo_pvc_4_64psi_ml": (2.02, "pendiente"), "m_lamina_zinc_alum_m": (8.67, "pendiente"),
+        "m_panel_thermotecho_2_m": (25.66, "pendiente"), "m_porcelanato_m": (13.42, "pendiente"),
+        "albanil": (30.0, "actualizado"), "armador": (30.0, "actualizado"), "carpintero": (30.0, "actualizado"),
+        "soldador": (30.0, "actualizado"), "electricista": (30.0, "actualizado"), "fontanero": (30.0, "actualizado"),
+        "mo_tablaroquero": (30.0, "actualizado"), "mo_mecanico_de_banco": (30.0, "actualizado"),
+        "auxiliar": (20.0, "actualizado"), "obrero": (20.0, "actualizado"), "maestro": (40.0, "actualizado"),
+        "mo_topografo": (40.0, "actualizado"), "mo_jardinero": (30.0, "actualizado"),
+        "varilla2_6m": (1.24, "actualizado"), "varilla3_6m": (3.19, "actualizado"), "varilla4_6m": (5.66, "actualizado"),
+    }
+    app_rec = pg.evaluate("Object.fromEntries(DATA.recursos.map(r=>[r.id,[r.precio,(r.val||{}).estado||'',(r.val||{}).fecha||'',r.unidad,r.prest]]))")
+    for rid, (pr, est) in esperado.items():
+        x = app_rec.get(rid)
+        chk(f"{rid}: ${pr:.2f}, {est}", x and x[0] == pr and x[1] == est, x)
+    con_fuente = [rid for rid in esperado if app_rec[rid][2] == "18 de noviembre de 2026"]
+    chk("Todos los recursos actualizados guardan la fecha de consulta", len(con_fuente) == len(esperado), set(esperado) - set(con_fuente))
+    chk("Varillas #5 a #10 por validar", all(app_rec[f"varilla{n}_6m"][1] == "pendiente" for n in range(5, 11)))
+    chk("Acero #5 a #10 por quintal sin cambio (60.00)", all(app_rec[f"acero{n}"][0] == 60.0 for n in range(5, 11)))
+    chk("Cable THHN #12 (12.15) a $0.74/ml", pg.evaluate("BASE_APU.get('12.15').pdir") == 0.74)
+    chk("Cable #14 y #10 sin cambio", pg.evaluate("[BASE_APU.get('12.14').pdir, BASE_APU.get('12.16').pdir]") == [0.40, 0.85])
+
+    # ---------- 3. Mano de obra ----------
+    grupo("Mano de obra")
+    mo = {k: v for k, v in app_rec.items() if REC[k]["tipo"] == "MO"}
+    for rid, v in mo.items():
+        chk(f"{rid}: prestaciones 57% y unidad día/hombre", v[4] == 57 and v[3] == "día/hombre", v)
+    chk("Ningún recurso dice 'jornal'", not [r for r in CAT["recursos"] if "jornal" in (r["nombre"] + r["unidad"]).lower()])
+    rend = pg.evaluate("Object.fromEntries(['05.07','05.06'].map(k=>[k, Object.fromEntries(BASE_APU.get(k).lineas.filter(l=>['albanil','auxiliar','armador'].includes(l[0])))]))")
+    chk("05.07 albañil 0.125 día/hombre por m² (8 m²/día)", rend["05.07"]["albanil"] == 0.125, rend)
+    chk("05.06 albañil 0.125 día/hombre por m² (8 m²/día)", rend["05.06"]["albanil"] == 0.125, rend)
+
+    # ---------- 4. P.U. de las 153 subpartidas estándar, recalculados aparte ----------
+    grupo("P.U. de las subpartidas estándar")
+    app_pu = pg.evaluate("Object.fromEntries(DATA.apus.filter(a=>!a.id.startsWith('R')).map(a=>[a.id,costoAPU(a).total]))")
+    for a in CAT["apus"]:
+        if a["id"].startswith("R"):
+            continue
+        chk(f"{a['id']} P.U. = {pu_py(a):.2f}", app_pu[a["id"]] == pu_py(a), (app_pu[a["id"]], pu_py(a)))
+    chk("06.08 ThermoTecho con receta (sin precio global)", pg.evaluate("BASE_APU.get('06.08').pdir === 0 && BASE_APU.get('06.08').lineas.length === 4"))
+    chk("06.08 P.U. = 29.94", app_pu["06.08"] == 29.94, app_pu["06.08"])
+
+    # ---------- 5. Cierre, conjunto y fórmulas ----------
+    grupo("Cierre, conjunto y fórmulas")
+    c1 = pg.evaluate("cierre(1000, {modo:'factor', factor:100, iva:true})")
+    chk("Recargo 100%: subtotal 2,000 e IVA 260", c1["sub"] == 2000 and c1["iva"] == 260 and c1["total"] == 2260, c1)
+    c2 = pg.evaluate("cierre(1000, {modo:'ind', ind:30, util:10, iva:false})")
+    chk("Indirectos 30% + utilidad 10%: 1,430", c2["sub"] == 1430 and c2["iva"] == 0, c2)
+    c3 = pg.evaluate("cierre(1000, {modo:'aiu', adm:10, imp:5, ua:10, iva:false})")
+    chk("Adm. 10% + imp. 5% + util. 10%: 1,250", c3["sub"] == 1250, c3)
+    c4 = pg.evaluate("cierre(333.33, {modo:'factor', factor:33.333, iva:true})")
+    chk("Redondeo a centavos en cada paso", c4["factor"] == 111.11 and c4["sub"] == 444.44 and c4["iva"] == 57.78, c4)
+    cj = pg.evaluate("(()=>{P().nviv=4; const C=calcular(); return [conjunto(C).cd, C.c.cd, conjunto(C).n]})()")
+    chk("Conjunto de 4 viviendas: costo directo × 4", cj[0] == R2(cj[1] * 4) and cj[2] == 4, cj)
+    for f, v in [("2*6.6*0.4 + 7.1*0.4", 8.12), ("15x13.8", 207.0), ("(2+3)*4", 20.0), ("10/4", 2.5), ("1,5*2", 3.0), ("-3+5", 2.0)]:
+        r = pg.evaluate("s=>evalFormula(s)", f)
+        chk(f"Fórmula {f} = {v}", r is not None and abs(r - v) < 1e-9, r)
+    for f in ["2+", "abc", "3*(4"]:
+        chk(f"Fórmula no válida '{f}' se rechaza", pg.evaluate("s=>evalFormula(s)", f) is None)
+
+    # ---------- 6. Acero por metro lineal ----------
+    grupo("Acero por metro lineal")
+    ac = pg.evaluate("VARILLAS.map(v=>[v.n, v.apu, BASE_APU.get(v.apu).unidad, BASE_APU.get(v.apu).lineas[0]])")
+    for n, apu, u, l0 in ac:
+        chk(f"#{n} ({apu}) por ml con 1/6 de varilla de 6 m", u == "ml" and l0[0] == f"varilla{n}_6m" and abs(l0[1] - 1 / 6) < 1e-5, (apu, u, l0))
+    kg = 0.994 / 45.36
+    pu4 = R2(5.66 / 6 + 0.62 * 2 * kg + 0.6 * kg * 30 * 1.57 + 0.6 * kg * 20 * 1.57)
+    chk(f"04.23 (#4) P.U. = {pu4:.2f} por ml", app_pu["04.23"] == pu4, app_pu["04.23"])
+    tabla = "ARMADURA\nFamilia y tipo\tLongitud\nVarilla #4\t1200\nVarilla #3\t450.5\n"
+    t = pg.evaluate("t=>{const r=nuevaTabla(t,'armadura.txt'); return r.imp.partidas.map((p,i)=>[r.imp.tipos[i].nombre,p.apu,p.unidad,cantidadPorUnidad(r.imp.tipos[i],p.unidad)])}", tabla)
+    chk("Tabla de armadura: #4 → 04.23 en ml con 1,200 ml", t[0][1:] == ["04.23", "ml", 1200], t)
+    chk("Tabla de armadura: #3 → 04.22 en ml con 450.5 ml", t[1][1:] == ["04.22", "ml", 450.5], t)
+    pg.evaluate("ACALC.n=4; ACALC.unidad='varillas'; ACALC.valor='100'; ACALC.desp=5")
+    cv = pg.evaluate("convAcero(4, 100, 'varillas', 6, 5)")
+    chk("Calculadora: 100 varillas #4 = 600 ml = 13.148 qq", abs(cv["ml"] - 600) < 1e-9 and round(cv["qq"], 3) == 13.148, cv)
+    chk("Calculadora: con 5% se compran 105 varillas", cv["varCompra"] == 105, cv["varCompra"])
+    pg.evaluate("ir('materiales'); render()")
+    pg.wait_for_timeout(300)
+    n0 = pg.evaluate("P().manual.length")
+    pg.click("[data-aceroadd]")
+    pg.wait_for_timeout(300)
+    ult = pg.evaluate("P().manual[P().manual.length-1]")
+    chk("Calculadora agrega 600 ml de 04.23 al presupuesto", pg.evaluate("P().manual.length") == n0 + 1 and ult["apu"] == "04.23" and ult["cant"] == 600 and ult["unidad"] == "ml", ult)
+    mig = pg.evaluate("""(()=>{ const p={revit:[{partidas:[{apu:'04.23',unidad:'qq',ov:89}],tipos:[{}]}], manual:[{apu:'04.23',unidad:'qq',cant:13.148,formula:'x',ov:90}]}; migrarProyecto(p); return [p.revit[0].partidas[0], p.manual[0]] })()""")
+    chk("Migración: partida de Revit en qq pasa a ml", mig[0]["unidad"] == "ml" and mig[0]["ov"] is None, mig[0])
+    chk("Migración: 13.148 qq de #4 pasan a 600 ml", mig[1]["unidad"] == "ml" and abs(mig[1]["cant"] - 600) < 0.01, mig[1])
+    chk("Explosión: la varilla de 6 m se compra entera", pg.evaluate("UNIDADES_ENTERAS.has(BASE_REC.get('varilla4_6m').unidad)"))
+
+    # ---------- 7. Códigos de Partida y Subpartida ----------
+    grupo("Códigos de Partida y Subpartida")
+    chk("Tabla de equivalencias con 3,221 códigos", pg.evaluate("ANT.size") == 3221)
+    for v, n in [("05.01.07", "05.07"), ("05.01.06", "05.06"), ("05.02.01", "05.09"), ("04.06.03", "04.23"), ("06.02.05", "06.08"), ("12.04.05", "12.15"), ("R11.04.298", "R11.0674")]:
+        chk(f"{v} → {n}", pg.evaluate("c=>codNuevo(c)", v) == n)
+    lc = pg.evaluate("['05.01.07 Pared', '05.07 Pared', '5.7 Pared'].map(s=>leerCodigo(s))")
+    chk("COD_PARTIDA viejo se lee como nuevo", lc[0]["cod"] == "05.07" and lc[0]["valido"] and lc[0]["ant"] == "05.01.07", lc[0])
+    chk("COD_PARTIDA nuevo se lee igual", lc[1]["cod"] == "05.07" and lc[1]["valido"], lc[1])
+    chk("COD_PARTIDA sin ceros no es válido", not lc[2]["valido"], lc[2])
+    chk("Siguiente código libre: 05.12, R11.0918, 04.30", pg.evaluate("[nextCode('05'), nextCode('11',true), nextCode('04')]") == ["05.12", "R11.0918", "04.30"])
+    viejo = {"v": 4, "cat": 2, "actual": "p1", "rec": {}, "recNew": {}, "tema": "noche", "elab": {}, "desp": {},
+             "apuOv": {"05.01.12": {"id": "05.01.12", "cc": "05", "nombre": "Propia", "unidad": "m²", "lineas": [["cemento", 1]], "eq": 0, "pdir": 0, "nuevo": 1}},
+             "aprendido": {"MURO X": {"nombre": "Muro X", "apu": "05.01.07", "unidad": "m²", "veces": 2, "fecha": 1}},
+             "proyectos": {"p1": {"id": "p1", "nombre": "Viejo", "cfg": {"modo": "factor", "factor": 100, "iva": False}, "nviv": 1, "revit": [],
+                                  "manual": [{"apu": "05.01.07", "unidad": "m²", "cant": 10, "formula": "", "desc": "", "pu": None, "ov": None},
+                                             {"apu": "05.01.12", "unidad": "m²", "cant": 2, "formula": "", "desc": "", "pu": None, "ov": None},
+                                             {"apu": "04.06.03", "unidad": "qq", "cant": 1, "formula": "", "desc": "", "pu": None, "ov": None}], "mod": 1}}}
+    ctx2, pg2, errs2 = nueva_pagina(b)
+    abrir(pg2)
+    clave = pg2.evaluate("KEY")
+    # se escribe antes de que cargue la página, para que la app no lo sobrescriba al salir
+    ctx2.add_init_script("if(!sessionStorage.getItem('prueba')){sessionStorage.setItem('prueba','1'); localStorage.setItem(" + json.dumps(clave) + ", " + json.dumps(json.dumps(viejo)) + ");}")
+    abrir(pg2)
+    m = pg2.evaluate("[P().manual.map(x=>[x.apu,x.unidad,x.cant]), Object.keys(DB.apuOv), DB.apuOv[Object.keys(DB.apuOv)[0]].ant, DB.aprendido['MURO X'].apu, DB.cat]")
+    chk("Proyecto viejo: 05.01.07 → 05.07", m[0][0][0] == "05.07", m)
+    chk("Proyecto viejo: PU propio 05.01.12 → 05.12 con su código anterior", m[1] == ["05.12"] and m[2] == "05.01.12" and m[0][1][0] == "05.12", m)
+    chk("Proyecto viejo: acero 04.06.03 en qq → 04.23 en ml", m[0][2][0] == "04.23" and m[0][2][1] == "ml" and abs(m[0][2][2] - 45.63) < 0.01, m[0][2])
+    chk("Proyecto viejo: lo aprendido → 05.07", m[3] == "05.07", m)
+    chk("Proyecto viejo: queda en DB.cat 3 sin errores", m[4] == 3 and not errs2, errs2)
+    ctx2.close()
+
+    # ---------- 8. Catálogo de la base de datos ----------
+    grupo("Catálogo de la base de datos")
+    chk("Un catálogo más viejo no reemplaza al de la app", not pg.evaluate("catMasNueva(2, 4)") and pg.evaluate("catMasNueva(5, 4)"))
+    conv = pg.evaluate("d=>{ const x=catalogoCodigosNuevos({apus:[{id:'05.01.07'},{id:'R11.04.298'},{id:'05.07'}]}); return x.apus.map(a=>a.id) }", None)
+    chk("Catálogo con códigos viejos se convierte", conv == ["05.07", "R11.0674", "05.07"], conv)
+    ctx3, pg3, errs3 = nueva_pagina(b)
+    cat2 = {"version": 2, "caps": CAT["caps"], "recursos": [dict(r, precio=99) for r in CAT["recursos"]], "apus": CAT["apus"]}
+    ctx3.add_init_script("localStorage.setItem('apu-catalogo', " + json.dumps(json.dumps(cat2)) + ");")
+    abrir(pg3)
+    chk("Caché del navegador con versión 2 se ignora", pg3.evaluate("[CAT.version, BASE_REC.get('cemento').precio]") == ["4", 8.05])
+    ctx3.close()
+
+    # ---------- 9. Pantallas ----------
+    grupo("Pantallas y nombres")
+    for v in ["proyecto", "partidas", "presupuesto", "materiales", "biblioteca"]:
+        abrir(pg, v)
+        txt = pg.evaluate("document.querySelector('.view.on').innerText")
+        chk(f"Pestaña {v}: no dice 'jornal' ni 'capítulo'", not re.search(r"jornal|cap[ií]tulo", txt, re.I), re.findall(r".{20}(?:jornal|cap[ií]tulo).{20}", txt, re.I)[:3])
+    abrir(pg, "materiales")
+    chk("Tabla de mano de obra con 'Días/hombre'", "Días/hombre" in pg.inner_text("#tblMO"))
+    chk("Tabla de acero con precio por varilla y por ml", "Precio por varilla de 6 m" in pg.inner_text("#cardAcero") and "Precio por ml" in pg.inner_text("#cardAcero"))
+    abrir(pg, "biblioteca")
+    pg.evaluate("SEL='05.07'; render()")
+    chk("Editor de PU: rendimiento en día/hombre", "día/hombre por m²" in pg.inner_text("#libDetalle"), pg.inner_text("#libDetalle")[:200])
+    abrir(pg, "presupuesto")
+    chk("Presupuesto por partidas", "Presupuesto por partidas" in pg.inner_text("#v-presupuesto"))
+    pg.evaluate("P().revit.forEach(i=>i.partidas.forEach(x=>{x.apu='';})); render()")
+    av = pg.inner_text("#avisos")
+    chk("Aviso resumido de subpartidas fuera del total", "subpartida(s) fuera del total" in av and "Ir a Subpartidas" in av, av[:200])
+    chk("Lista plegable cuando son más de 4", pg.locator("#avisos details").count() >= 1)
+    abrir(pg)
+
+    # ---------- 10. Tamaño de letra ----------
+    grupo("Tamaño de letra")
+    for v, px in [("0.9", 13.5), ("1", 15), ("1.15", 17.25), ("1.3", 19.5)]:
+        pg.evaluate(f"DB.letra={v}; aplicarTema()")
+        chk(f"Letra {v}: texto base {px} px", pg.evaluate("parseFloat(getComputedStyle(document.body).fontSize)") == px)
+    pg.evaluate("guardar()")
+    pg.wait_for_timeout(300)
+    abrir(pg)
+    chk("El tamaño se mantiene al recargar", pg.evaluate("parseFloat(getComputedStyle(document.body).fontSize)") == 19.5)
+    pg.evaluate("DB.letra=1; aplicarTema(); guardar()")
+
+    # ---------- 11. Borrar PU y materiales ----------
+    grupo("Borrar PU y materiales")
+    pg.evaluate("DB.apuOv['05.90']={id:'05.90',cc:'05',nombre:'PU de prueba',unidad:'m²',lineas:[],eq:0,pdir:0,nuevo:1}; render()")
+    pg.evaluate("OPEN='borrarapu:05.90'; renderSheet()")
+    chk("PU propio sin uso: pide confirmación", "¿Borrar" in pg.inner_text("#sheet"))
+    pg.click("[data-confirmborrarcat]")
+    pg.wait_for_timeout(300)
+    chk("PU propio borrado", not pg.evaluate("!!DB.apuOv['05.90']"))
+    pg.evaluate("OPEN='borrarapu:05.07'; renderSheet()")
+    chk("PU usado en un proyecto: no se borra", "No se puede borrar" in pg.inner_text("#sheet"))
+    pg.evaluate("OPEN=null; renderSheet(); SEL='01.01'; ir('biblioteca'); render()")
+    chk("Sin cuenta de administrador no aparece 'Borrar del catálogo'", pg.locator("[data-borrarapu]").count() == 0)
+
+    # ---------- 12. PDF y Excel ----------
+    grupo("PDF y Excel")
+    abrir(pg)
+    pg.evaluate("DB.expo = {...(DB.expo||{}), version:'interna', detalle:true, memoria:true, materiales:true, apu:true}; P().cfg.iva=false; guardar()")
+    with pg.expect_download(timeout=30000) as dl:
+        pg.evaluate("exportar('pdf', true)")
+    tot = pg.evaluate("calcular().c.total")
+    tot_txt = f"{tot:,.2f}"
+    pdf = PdfReader(dl.value.path())
+    texto = "\n".join(pg_.extract_text() or "" for pg_ in pdf.pages)
+    chk("PDF generado", len(pdf.pages) >= 2, len(pdf.pages))
+    chk("PDF: RESUMEN POR PARTIDAS", "RESUMEN POR PARTIDAS" in texto)
+    chk("PDF: columna Subpartida", "Subpartida" in texto)
+    chk(f"PDF: total igual al de la pantalla (${tot_txt})", tot_txt in texto, tot_txt)
+    chk("PDF: mano de obra en días/hombre", "Días/hombre" in texto and not re.search(r"jornal", texto, re.I))
+    with pg.expect_download(timeout=30000) as dl2:
+        pg.evaluate("exportar('xlsx', true)")
+    ruta_x = Path("/tmp") / dl2.value.suggested_filename
+    dl2.value.save_as(ruta_x)
+    wb = openpyxl.load_workbook(ruta_x, data_only=False)
+    todo = []
+    for ws in wb.worksheets:
+        for row in ws.iter_rows(values_only=True):
+            todo.extend(str(v) for v in row if v is not None)
+    s = "\n".join(todo)
+    chk("Excel generado con varias hojas", len(wb.worksheets) >= 4, wb.sheetnames)
+    chk("Excel: columna Subpartida", "Subpartida" in s)
+    chk("Excel: mano de obra en días/hombre", "Días/hombre" in s and not re.search(r"jornal", s, re.I))
+    chk(f"Excel: total igual al de la pantalla ({tot})", any(abs(float(v) - tot) < 0.005 for v in todo if re.fullmatch(r"-?\d+(\.\d+)?", v)), tot)
+    chk("Sin errores de página al exportar", not errs, errs)
+    ctx.close()
+
+    # ---------- 13. Celular y vista previa ----------
+    grupo("Celular y vista previa")
+    ctx4, pg4, errs4 = nueva_pagina(b, viewport={"width": 390, "height": 844}, is_mobile=True, has_touch=True)
+    abrir(pg4)
+    r = pg4.evaluate("(()=>{const r=document.querySelector('nav.tabs').getBoundingClientRect(); return [r.bottom, innerHeight, document.documentElement.scrollWidth<=innerWidth+1]})()")
+    chk("Celular: pestañas abajo", abs(r[0] - r[1]) < 2, r)
+    chk("Celular: sin desborde lateral", r[2], r)
+    ctx4.close()
+    ctx5, pg5, errs5 = nueva_pagina(b)
+    pg5.set_content('<iframe id="f" sandbox="allow-scripts allow-same-origin" style="width:1200px;height:800px"></iframe>')
+    pg5.evaluate("s=>document.getElementById('f').srcdoc=s", HTML.read_text(encoding="utf-8"))
+    pg5.wait_for_timeout(2500)
+    fr = pg5.frames[1]
+    fr.click("text=Subpartidas")
+    pg5.wait_for_timeout(300)
+    chk("Vista previa (iframe srcdoc): sin error de replaceState", not [e for e in errs5 if "replaceState" in e], errs5)
+    ctx5.close()
+    b.close()
+
+ok = sum(1 for r in RES if r[2])
+mal = [r for r in RES if not r[2]]
+grupos = {}
+for g, _, c, _ in RES:
+    grupos.setdefault(g, [0, 0])[0 if c else 1] += 1
+for g, (a, f) in grupos.items():
+    print(f"{g}: {a} correctas{', ' + str(f) + ' fallidas' if f else ''}")
+for g, n, _, det in mal:
+    print(f"FALLA [{g}] {n}: {det}")
+print(f"TOTAL: {ok} correctas, {len(mal)} fallidas, {len(RES)} pruebas")
+sys.exit(1 if mal else 0)

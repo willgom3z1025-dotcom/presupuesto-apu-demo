@@ -2317,7 +2317,7 @@ function leerArchivo(f){
 }
 // Acero 04.21 a 04.29: antes en quintales, ahora en metros lineales (ml = qq × 45.36 ÷ kg/m)
 function aceroAMl(p){
-  const v = id => VARILLAS.find(x => x.apu === id);
+  const v = id => VARILLAS.find(x => x.apu === codNuevo(id)); // también con el código anterior (04.06.0x)
   (p.revit || []).forEach(imp => (imp.partidas || []).forEach(x => { if(x.unidad === "qq" && v(x.apu)){ x.unidad = "ml"; x.ov = null; } }));
   (p.manual || []).forEach(m => { const vr = v(m.apu); if(vr && m.unidad === "qq"){ m.cant = R2((+m.cant || 0) * QQ_KG / vr.kg); m.unidad = "ml"; m.formula = ""; m.ov = null; } });
 }
