@@ -294,18 +294,18 @@ textarea{font:inherit;color:var(--ink);background:var(--group2);border:0;border-
 .opt small{display:block;color:var(--muted);font-size:12px}
 .expbtns{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .expbtns .btn{padding:14px;font-size:16px}
+details.dn{border-top:1px solid var(--sep, rgba(128,128,128,.25));padding:8px 0}
+details.dn>summary{display:flex;justify-content:space-between;gap:12px;cursor:pointer;list-style:none;align-items:baseline}
+details.dn>summary::-webkit-details-marker{display:none}
+details.dn>summary>span:first-child::before{content:"›";display:inline-block;width:14px;transition:transform .15s}
+details.dn[open]>summary>span:first-child::before{transform:rotate(90deg)}
+details.dn .tbl{margin-top:8px}
 @media (max-width:760px){
   .list{display:flex;max-height:46vh}
   .show-m{display:inline-flex}
   #libDetalle .row.spread{flex-wrap:wrap}
   #libDetalle .row.spread > .row{flex:1 1 100%}
   #libDetalle h3{margin:12px 0 6px}
-  details.dn{border-top:1px solid var(--sep, rgba(128,128,128,.25));padding:8px 0}
-  details.dn>summary{display:flex;justify-content:space-between;gap:12px;cursor:pointer;list-style:none;align-items:baseline}
-  details.dn>summary::-webkit-details-marker{display:none}
-  details.dn>summary::before{content:"›";display:inline-block;margin-right:6px;transition:transform .15s}
-  details.dn[open]>summary::before{transform:rotate(90deg)}
-  details.dn .tbl{margin-top:8px}
   input,select,.btn{min-height:44px}
   .seg button{min-height:38px}
   .tip{display:none}
