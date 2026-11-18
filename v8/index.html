@@ -2058,8 +2058,11 @@ function resumenIFC(R){
 function abrirResumenIFC(R, nombre){ IFC_RES = {R, nombre}; OPEN = "ifc"; renderSheet(); }
 function htmlResumenIFC(){
   const {R, nombre} = IFC_RES, S = resumenIFC(R), F = filasIFC(R), p = parseRevit(F.rows), u = R.unidades || {};
-  const uTxt = [u.fLongitud === 1 ? "m" : `longitud × ${num(u.fLongitud, 4)} → m`, "m²", "m³", "kg"].join(", ");
-  return hojaTop("Resumen del modelo IFC") + `<p class="small muted" style="margin:0"><b>${esc(nombre)}</b> · ${esc(R.esquema)} · unidades del archivo: ${esc([u.longitud, u.area, u.volumen, u.masa].filter(Boolean).join(", ").toLowerCase() || "metros")} (se convierten a ${uTxt}) · ${R.niveles.length} nivel(es): ${esc(R.niveles.map(n => n.nombre).join(", "))}</p>
+  const UN = {"METRE":"metros", "MILLI METRE":"milímetros", "CENTI METRE":"centímetros", "DECI METRE":"decímetros", "SQUARE_METRE":"m²", "MILLI SQUARE_METRE":"mm²", "CUBIC_METRE":"m³", "MILLI CUBIC_METRE":"mm³",
+    "KILO GRAM":"kg", "GRAM":"g", "FOOT":"pies", "INCH":"pulgadas", "SQUARE FOOT":"pies²", "CUBIC FOOT":"pies³", "POUND":"libras"};
+  const uTxt = u.fLongitud === 1 ? "sin conversión" : `se convierten a m, m², m³ y kg`;
+  const uArch = [u.longitud, u.area, u.volumen, u.masa].filter(Boolean).map(x => UN[String(x).toUpperCase()] || String(x).toLowerCase()).join(", ") || "metros";
+  return hojaTop("Resumen del modelo IFC") + `<p class="small muted" style="margin:0"><b>${esc(nombre)}</b> · ${esc(R.esquema)} · unidades del archivo: ${esc(uArch)} (${uTxt}) · ${R.niveles.length} nivel(es): ${esc(R.niveles.map(n => n.nombre).join(", "))}</p>
     <div class="ifcnums"><div><b>${S.total}</b><span class="small muted">elementos leídos</span></div><div><b>${S.conQ}</b><span class="small muted">con cantidades</span></div>
       <div><b>${S.porUnidad}</b><span class="small muted">por unidad (puertas, ventanas, aparatos…)</span></div><div><b class="${S.sinQesp.length ? "warn" : ""}">${S.sinQesp.length}</b><span class="small muted">sin cantidades</span></div>
       <div><b>${S.sinCod}</b><span class="small muted">sin código de partida</span></div><div><b>${p.tipos.length}</b><span class="small muted">partidas a crear</span></div></div>
