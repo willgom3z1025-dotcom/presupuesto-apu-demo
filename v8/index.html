@@ -792,9 +792,26 @@ const CAT_KEY = "apu-catalogo", CAT = {origen: "app", version: String(DATA.versi
 function aplicarCatalogo(d){
   if(!d || !Array.isArray(d.apus) || !d.apus.length || !Array.isArray(d.recursos) || !d.recursos.length || !Array.isArray(d.caps)) return false;
   DATA.caps = d.caps; DATA.apus = d.apus; DATA.recursos = d.recursos; DATA.version = d.version;
+  try{ CAT.conservados = conservarBorrados(d); }catch(e){ CAT.conservados = 0; }
   BASE_APU.clear(); d.apus.forEach(a => BASE_APU.set(a.id, a)); BASE_REC.clear(); d.recursos.forEach(r => BASE_REC.set(r.id, r));
   CAPS.splice(0, CAPS.length, ...d.caps.map(c => ({...c, c: COLORS[c.cc]})), {cc:"99", nombre:"Sin APU asignado", subs:{}, c: COLORS["99"]});
   CAT.version = String(d.version); return true;
+}
+/* ===== Borrar PU y materiales =====
+   Lo propio de la cuenta lo borra su dueño. Lo del catálogo global solo lo borra el administrador.
+   Si se usa (un PU en un proyecto, un material en un PU) se avisa y no se borra.
+   A los demás usuarios, un PU borrado del catálogo que tengan en sus proyectos se les conserva como PU propio. */
+const esAdmin = () => !!(SES && NUBE.perfil && NUBE.perfil.es_admin);
+const usaAPU = (p, id) => (p.revit || []).some(imp => (imp.partidas || []).some(x => x.apu === id)) || (p.manual || []).some(m => m.apu === id);
+const usoAPU = id => Object.values(DB.proyectos || {}).filter(p => usaAPU(p, id));
+const usoRec = id => allAPU().filter(a => (a.lineas || []).some(l => l[0] === id));
+function conservarBorrados(d){
+  if(!DB || !DB.proyectos) return 0;
+  const idsA = new Set(d.apus.map(a => a.id)), idsR = new Set(d.recursos.map(r => r.id)); let n = 0;
+  for(const [id, a] of BASE_APU) if(!idsA.has(id) && !DB.apuOv[id] && usoAPU(id).length){ DB.apuOv[id] = {...JSON.parse(JSON.stringify(a)), nuevo: true, borradoCatalogo: true}; n++; }
+  const usados = new Set(Object.values(DB.apuOv).flatMap(a => (a.lineas || []).map(l => l[0])));
+  for(const [id, r] of BASE_REC) if(!idsR.has(id) && !DB.recNew[id] && usados.has(id)){ DB.recNew[id] = {...r, borradoCatalogo: true}; n++; }
+  return n;
 }
 try{ const c = JSON.parse(localStorage.getItem(CAT_KEY) || "null"); if(c && String(c.version) !== String(DATA.version) && aplicarCatalogo(c)) CAT.origen = "bd"; }catch(e){}
 const NOTAS_BASE = "1. Precios en dólares de los Estados Unidos de América.\n2. No incluye permisos de construcción, trámites ni pago de acometidas de agua y energía.\n3. No incluye muebles, electrodomésticos ni obras no descritas en este presupuesto.\n4. Cantidades obtenidas del modelo BIM; cambios de diseño se cotizan por separado.";
@@ -1236,7 +1253,7 @@ function renderLibDetalle(){
     <tr><td>Equipo y herramientas (monto por ${esc(a.unidad)})</td><td></td><td></td><td class="n"><input ${NUM} data-apuf="${esc(a.id)}|eq" value="${R2(a.eq || 0)}" aria-label="Equipo" style="width:90px"></td><td class="n">${money(a.eq || 0)}</td><td></td></tr>
     <tr><td>Precio sin desglose</td><td></td><td></td><td class="n"><input ${NUM} data-apuf="${esc(a.id)}|pdir" value="${R2(a.pdir || 0)}" aria-label="Precio sin desglose" style="width:90px"></td><td class="n">${money(a.pdir || 0)}</td><td></td></tr>
     <tr class="sub"><td colspan="4">Subtotal C + D</td><td class="n">${money(c.sc + c.pd)}</td><td></td></tr></tbody></table></div>`;
-  h += `<div class="row"><button class="btn" data-addline="${esc(a.id)}">Agregar recurso</button>${DB.apuOv[a.id] && BASE_APU.has(a.id) ? `<button class="btn ghost" data-resetapu="${esc(a.id)}">Restaurar este APU</button>` : ""}</div>`;
+  h += `<div class="row"><button class="btn" data-addline="${esc(a.id)}">Agregar recurso</button>${DB.apuOv[a.id] && BASE_APU.has(a.id) ? `<button class="btn ghost" data-resetapu="${esc(a.id)}">Restaurar este APU</button>` : ""}${!BASE_APU.has(a.id) ? `<button class="btn ghost" style="color:var(--bad)" data-borrarapu="${esc(a.id)}">Borrar este PU</button>` : esAdmin() ? `<button class="btn ghost" style="color:var(--bad)" data-borrarapu="${esc(a.id)}">Borrar del catálogo (administrador)</button>` : ""}</div>${a.borradoCatalogo ? `<div class="note">Este PU ya no está en el catálogo general; se conserva en tu cuenta porque lo usas en tus proyectos.</div>` : ""}`;
   const redA = R2(c.total - R2(c.mat) - R2(c.mo) - R2(c.sc + c.pd));
   h += `<div class="cierre">${Math.abs(redA) >= 0.005 ? `<span>Redondeo del P.U. a centavos</span><span class="v">${money(redA)}</span>` : ""}<span class="big">Costo directo = A + B + C + D</span><span class="v big">${money(c.total)} / ${esc(a.unidad)}</span></div>`;
   $("#libDetalle").innerHTML = h;
@@ -1246,8 +1263,8 @@ function renderRecursos(){
   const todos = allRec().filter(r => (!nq || norm(r.nombre).includes(nq)) && (!RECPEND || (r.val && r.val.estado !== "normalizado"))), list = todos.slice(0, 120);
   $("#recCount").textContent = `${todos.length} recurso(s)${todos.length > list.length ? `, mostrando ${list.length}` : ""} · ${allRec().filter(r => r.val && r.val.estado === "pendiente").length} pendiente(s) de validación`;
   const valChip = r => !r.val ? "" : r.val.estado === "pendiente" ? ` <span class="chip warn" title="${esc(r.val.nota)}">Pendiente de validación</span>` : r.val.estado === "corregido" ? ` <span class="chip info" title="${esc(r.val.nota)}">Corregido</span>` : ` <span class="chip" title="${esc(r.val.nota)}">Unidad normalizada</span>`;
-  $("#tblRecursos").innerHTML = `<thead><tr><th>Recurso</th><th class="hide-m">Tipo</th><th class="u">Unidad</th><th class="n">Precio</th></tr></thead><tbody>` +
-    list.map(r => `<tr><td>${esc(r.nombre)}${DB.rec[r.id] ? ' <span class="chip info">Editado</span>' : ""}${valChip(r)}${r.val && r.val.estado !== "normalizado" ? `<div class="ref" style="white-space:normal">${esc(r.val.nota)}</div>` : ""}</td><td class="muted hide-m">${tipoTxt[r.tipo]}</td><td class="u">${esc(r.unidad)}</td><td class="n"><input ${NUM} data-rec="${esc(r.id)}" data-k="precio" value="${r.precio}" aria-label="Precio" style="width:96px"></td></tr>`).join("") + "</tbody>";
+  $("#tblRecursos").innerHTML = `<thead><tr><th>Recurso</th><th class="hide-m">Tipo</th><th class="u">Unidad</th><th class="n">Precio</th><th></th></tr></thead><tbody>` +
+    list.map(r => `<tr><td>${esc(r.nombre)}${DB.rec[r.id] ? ' <span class="chip info">Editado</span>' : ""}${valChip(r)}${r.val && r.val.estado !== "normalizado" ? `<div class="ref" style="white-space:normal">${esc(r.val.nota)}</div>` : ""}</td><td class="muted hide-m">${tipoTxt[r.tipo]}</td><td class="u">${esc(r.unidad)}</td><td class="n"><input ${NUM} data-rec="${esc(r.id)}" data-k="precio" value="${r.precio}" aria-label="Precio" style="width:96px"></td><td>${!BASE_REC.has(r.id) || esAdmin() ? `<button class="del" data-borrarrec="${esc(r.id)}" aria-label="Borrar material" title="${BASE_REC.has(r.id) ? "Borrar del catálogo general" : "Borrar material propio"}">×</button>` : ""}</td></tr>`).join("") + "</tbody>";
 }
 
 /* ================= Hojas ================= */
@@ -1329,6 +1346,8 @@ function renderSheet(){
       <div class="row"><button class="btn primary" type="submit" ${AUTH_OCUPADO ? "disabled" : ""}>${AUTH_OCUPADO ? "Un momento…" : crear ? "Crear cuenta" : "Entrar"}</button>
         <button class="btn ghost" type="button" data-cuenta="${crear ? "entrar" : "crear"}">${crear ? "Ya tengo cuenta" : "Crear una cuenta nueva"}</button></div>
       <p class="muted small" style="margin:0">Con una cuenta tus proyectos se guardan en la nube y los abres desde cualquier computadora o celular. Nadie más puede verlos.</p></form>`;
+  } else if(OPEN.startsWith("borrarapu:") || OPEN.startsWith("borrarrec:")){
+    sh.innerHTML = hojaBorrarCat();
   } else if(OPEN.startsWith("borrar:")){
     const p = DB.proyectos[OPEN.slice(7)];
     sh.innerHTML = hojaTop("Borrar proyecto") + `<p>¿Borrar <b>${esc(p.nombre)}</b>? Esta acción no se puede deshacer. Si quieres conservarlo, exporta antes un respaldo.</p><div class="row"><button class="btn" data-proyectos>Cancelar</button><button class="btn primary" style="background:var(--bad);color:#fff" data-confirmborrar="${p.id}">Borrar</button></div>`;
@@ -1584,8 +1603,9 @@ async function nubeBorrar(id){ try{ await sbRest("proyectos?app_id=eq." + encode
 async function nubeSincronizar(){
   if(!SES) return; NUBE.estado = "subiendo"; renderCuenta();
   try{
-    const [filas, perfil] = await Promise.all([sbRest("proyectos?select=app_id,datos&order=actualizado.desc"), sbRest("perfiles?select=nombre,plan").catch(() => null)]);
+    const [filas, perfil] = await Promise.all([sbRest("proyectos?select=app_id,datos&order=actualizado.desc"), sbRest("perfiles?select=*").catch(() => null)]);
     if(!SES) return; NUBE.perfil = perfil && perfil[0] || null;
+    try{ await rescatarBorrados(); }catch(e){}
     await preciosBajar();
     const enNube = new Map((filas || []).filter(f => f.datos && f.datos.id).map(f => [f.app_id, f.datos]));
     if(enNube.size) for(const [id, p] of Object.entries(DB.proyectos)) if(p._blanco && !enNube.has(id)) delete DB.proyectos[id];
@@ -1595,6 +1615,7 @@ async function nubeSincronizar(){
     if(!DB.proyectos[DB.actual]) DB.actual = Object.values(DB.proyectos).sort((a, b) => (b.mod || 0) - (a.mod || 0))[0].id;
     try{ localStorage.setItem(KEY, JSON.stringify(DB)); }catch(e){}
     NUBE.estado = "ok"; NUBE.hora = Date.now(); NUBE.error = ""; render();
+    try{ await rescatarBorrados(); }catch(e){}
     await nubeSubir();
   }catch(e){ if(SES){ NUBE.estado = "error"; NUBE.error = e.message; renderCuenta(); } }
 }
@@ -1657,7 +1678,10 @@ async function sincronizarCatalogo(){
     CAT.bd = String(m.version);
     if(CAT.bd === CAT.version){ CAT.estado = "al día"; renderCatEstado(); return; }
     const d = await (await fetch(SB_URL + "/rest/v1/rpc/catalogo_json", {method: "POST", headers: {...h, "Content-Type": "application/json"}, body: "{}"})).json();
-    if(aplicarCatalogo(d)){ CAT.origen = "bd"; try{ localStorage.setItem(CAT_KEY, JSON.stringify(d)); }catch(e){} CAT.estado = "actualizado desde la base de datos"; render(); toast("Catálogo de precios actualizado desde la base de datos"); }
+    if(aplicarCatalogo(d)){ CAT.origen = "bd"; try{ localStorage.setItem(CAT_KEY, JSON.stringify(d)); }catch(e){} CAT.estado = "actualizado desde la base de datos";
+      if(CAT.conservados){ try{ localStorage.setItem(KEY, JSON.stringify(DB)); }catch(e){} if(SES) nubeSubir(); }
+      render(); toast(CAT.conservados ? `Catálogo actualizado. ${CAT.conservados} PU o material(es) que ya no están en el catálogo se conservaron como propios` : "Catálogo de precios actualizado desde la base de datos");
+      try{ await rescatarBorrados(); }catch(e){} }
   }catch(e){ CAT.estado = "sin conexión: se usa la última copia"; }
   renderCatEstado();
 }
@@ -1697,6 +1721,48 @@ async function preciosBajar(){
     snap["c:" + f.texto] = JSON.stringify(DB.aprendido[f.texto]); });
   NUBE.snap = snap;
 }
+// PU que los proyectos usan y que ya no existen (borrados del catálogo): se piden a la papelera y quedan como propios
+async function rescatarBorrados(){
+  if(!SES) return 0;
+  const faltan = new Set(); Object.values(DB.proyectos).forEach(p => { (p.revit || []).forEach(imp => (imp.partidas || []).forEach(x => { if(x.apu && !x.apu.startsWith("__") && !apuById(x.apu)) faltan.add(x.apu); }));
+    (p.manual || []).forEach(m => { if(m.apu && !m.apu.startsWith("__") && !apuById(m.apu)) faltan.add(m.apu); }); });
+  if(!faltan.size) return 0;
+  const d = await sbRest("rpc/catalogo_rescatar", {method: "POST", body: {codigos: [...faltan]}}); let n = 0;
+  ((d && d.recursos) || []).forEach(r => { if(!rec(r.id)){ DB.recNew[r.id] = {...r, borradoCatalogo: true}; n++; } });
+  ((d && d.apus) || []).forEach(a => { if(!apuById(a.id)){ DB.apuOv[a.id] = {...a, nuevo: true, borradoCatalogo: true}; n++; } });
+  if(n){ try{ localStorage.setItem(KEY, JSON.stringify(DB)); }catch(e){} render(); nubeSubir(); toast(`${n} PU o material(es) borrados del catálogo se conservaron en tu cuenta porque los usas`); }
+  return n;
+}
+let BORRANDO = false;
+function hojaBorrarCat(){
+  const esApu = OPEN.startsWith("borrarapu:"), id = OPEN.slice(10), x = esApu ? apuById(id) : rec(id), tit = esApu ? "Borrar PU" : "Borrar material";
+  if(!x) return hojaTop(tit) + `<p>Ya no existe.</p><div class="row"><button class="btn" data-close>Cerrar</button></div>`;
+  const global = esApu ? BASE_APU.has(id) : BASE_REC.has(id), nom = esApu ? `${id} ${x.nombre}` : x.nombre;
+  const usos = esApu ? usoAPU(id).map(p => p.nombre || "Proyecto") : usoRec(id).map(a => `${a.id} ${a.nombre}`);
+  if(usos.length) return hojaTop(tit) + `<p>No se puede borrar <b>${esc(nom)}</b> porque se usa en ${usos.length} ${esApu ? "proyecto(s)" : "PU"}:</p>
+    <ul class="small">${usos.slice(0, 12).map(u => `<li>${esc(u)}</li>`).join("")}${usos.length > 12 ? `<li>y ${usos.length - 12} más</li>` : ""}</ul>
+    <p class="muted small">${esApu ? "Quítalo de esos proyectos y vuelve a intentar." : "Quítalo de esos PU y vuelve a intentar. Si solo está mal el precio, corrígelo en la tabla de materiales."}</p>
+    <div class="row"><button class="btn" data-close>Entendido</button></div>`;
+  if(global && !esAdmin()) return hojaTop(tit) + `<p><b>${esc(nom)}</b> es del catálogo general. Solo el administrador lo puede borrar.</p><div class="row"><button class="btn" data-close>Cerrar</button></div>`;
+  return hojaTop(tit) + `<p>¿Borrar <b>${esc(nom)}</b>?</p>
+    <p class="small muted">${global ? "Se borra del catálogo general para todos los usuarios. Queda una copia en la papelera de la base de datos, y a quien lo tenga en sus proyectos se le conserva como PU propio." : `Es ${esApu ? "un PU" : "un material"} de tu cuenta; los demás usuarios no lo ven.`}</p>
+    <div class="row"><button class="btn" data-close>Cancelar</button><button class="btn primary" style="background:var(--bad);color:#fff" data-confirmborrarcat="${esc(OPEN)}"${BORRANDO ? " disabled" : ""}>${BORRANDO ? "Borrando…" : global ? "Borrar para todos" : "Borrar"}</button></div>`;
+}
+async function borrarCatalogo(clave){
+  const esApu = clave.startsWith("borrarapu:"), id = clave.slice(10), global = esApu ? BASE_APU.has(id) : BASE_REC.has(id);
+  if(BORRANDO || (esApu ? usoAPU(id).length : usoRec(id).length)){ renderSheet(); return; }
+  const quitarLocal = () => { if(esApu){ delete DB.apuOv[id]; if(SEL === id) SEL = (DATA.apus[0] || {}).id; } else { delete DB.recNew[id]; delete DB.rec[id]; } };
+  if(!global){ quitarLocal(); OPEN = null; guardar(); render(); toast(esApu ? "PU borrado" : "Material borrado"); return; }
+  if(!esAdmin()){ toast("Solo el administrador puede borrar del catálogo general"); return; }
+  BORRANDO = true; renderSheet();
+  try{
+    const r = await sbRest(esApu ? "apus?codigo=eq." + encodeURIComponent(id) : "recursos?id=eq." + encodeURIComponent(id), {method: "DELETE", prefer: "return=representation"});
+    if(!Array.isArray(r) || r.length !== 1) throw new Error("la base de datos no lo borró; revisa que tu cuenta sea administrador");
+    quitarLocal(); OPEN = null; guardar(); toast(esApu ? `PU ${id} borrado del catálogo general` : "Material borrado del catálogo general");
+    BORRANDO = false; await sincronizarCatalogo();
+  }catch(e){ toast("No se pudo borrar: " + (/foreign key|23503/i.test(e.message) ? "un PU del catálogo usa este material" : e.message)); }
+  BORRANDO = false; render();
+}
 function renderCuenta(){
   const el = $("#cuentaCard"); if(!el) return;
   if(!SES){
@@ -1709,7 +1775,7 @@ function renderCuenta(){
     : NUBE.estado === "error" ? `<span class="chip bad">Sin guardar en la nube</span> <span class="muted small">${esc(NUBE.error)}</span> <button class="btn sm" data-nubereintentar>Reintentar</button>`
     : NUBE.estado ? '<span class="chip warn">Guardando…</span>' : "";
   const pf = NUBE.perfil, inv = proyectosInvitado().filter(p => !DB.proyectos[p.id]).length, invP = preciosInvitado().length;
-  el.innerHTML = `<div class="row spread"><h2>Cuenta</h2><span class="chip">Plan ${esc(pf ? pf.plan : "gratis")}</span></div>
+  el.innerHTML = `<div class="row spread"><h2>Cuenta</h2><span>${esAdmin() ? '<span class="chip ok">Administrador</span> ' : ""}<span class="chip">Plan ${esc(pf ? pf.plan : "gratis")}</span></span></div>
     <div class="facts"><span><b>${esc(pf && pf.nombre || SES.user.email)}</b></span><span>${esc(SES.user.email)}</span></div>
     <div class="row">${est}</div>
     <div class="row">${inv || invP ? `<button class="btn sm" data-copiarinv>Copiar ${[inv ? inv + " proyecto(s)" : "", invP ? invP + " precio(s) o APU propios" : ""].filter(Boolean).join(" y ")} de este navegador a mi cuenta</button>` : ""}<button class="btn sm" data-salir>Cerrar sesión</button></div>`;
@@ -2279,6 +2345,9 @@ document.addEventListener("click", e => {
   if((x = T("[data-nuevoproy]"))){ const p = x.dataset.nuevoproy === "ejemplo" ? proyectoEjemplo() : proyectoVacio(); DB.proyectos[p.id] = p; DB.actual = p.id; OPEN = null; guardar(); render(); ir(x.dataset.nuevoproy === "ejemplo" ? "presupuesto" : "proyecto"); toast("Proyecto creado"); return; }
   if(T("[data-duplicar]")){ const c = JSON.parse(JSON.stringify(P())); c.id = uid(); c.nombre += " (copia)"; c.numero = nuevoNumero(); c.creado = c.mod = Date.now(); DB.proyectos[c.id] = c; DB.actual = c.id; OPEN = null; guardar(); render(); toast("Proyecto duplicado"); return; }
   if((x = T("[data-abrir]"))){ DB.actual = x.dataset.abrir; OPEN = null; QUERY = ""; guardar(); render(); toast("Proyecto abierto"); return; }
+  if((x = T("[data-borrarapu]"))){ OPEN = "borrarapu:" + x.dataset.borrarapu; renderSheet(); return; }
+  if((x = T("[data-borrarrec]"))){ OPEN = "borrarrec:" + x.dataset.borrarrec; renderSheet(); return; }
+  if((x = T("[data-confirmborrarcat]"))){ borrarCatalogo(x.dataset.confirmborrarcat); return; }
   if((x = T("[data-borrarproy]"))){ OPEN = "borrar:" + x.dataset.borrarproy; renderSheet(); return; }
   if((x = T("[data-confirmborrar]"))){ const id = x.dataset.confirmborrar; delete DB.proyectos[id]; if(SES) nubeBorrar(id);
     if(!Object.keys(DB.proyectos).length){ const p = proyectoVacio(); DB.proyectos[p.id] = p; }
