@@ -300,6 +300,12 @@ textarea{font:inherit;color:var(--ink);background:var(--group2);border:0;border-
   #libDetalle .row.spread{flex-wrap:wrap}
   #libDetalle .row.spread > .row{flex:1 1 100%}
   #libDetalle h3{margin:12px 0 6px}
+  details.dn{border-top:1px solid var(--sep, rgba(128,128,128,.25));padding:8px 0}
+  details.dn>summary{display:flex;justify-content:space-between;gap:12px;cursor:pointer;list-style:none;align-items:baseline}
+  details.dn>summary::-webkit-details-marker{display:none}
+  details.dn>summary::before{content:"›";display:inline-block;margin-right:6px;transition:transform .15s}
+  details.dn[open]>summary::before{transform:rotate(90deg)}
+  details.dn .tbl{margin-top:8px}
   input,select,.btn{min-height:44px}
   .seg button{min-height:38px}
   .tip{display:none}
@@ -429,6 +435,8 @@ textarea{font:inherit;color:var(--ink);background:var(--group2);border:0;border-
     </div>
     <div id="avisos"></div>
     <div class="card" id="conjunto"></div>
+    <div class="card" id="dnCard"></div>
+    <div class="card" id="verCard"></div>
     <div class="card">
       <h2>Exportar</h2>
       <div class="expbtns"><button class="btn primary" data-exportar="pdf">PDF para imprimir</button><button class="btn" data-exportar="xlsx">Excel con formato</button></div>
@@ -478,6 +486,7 @@ textarea{font:inherit;color:var(--ink);background:var(--group2);border:0;border-
   <!-- APU -->
   <section class="view" id="v-biblioteca">
     <h1 class="ltitle">Catálogo de precios unitarios</h1>
+    <p class="muted small" id="catEstado" style="margin:-6px 0 10px"></p>
     <div class="card">
       <div class="filters">
         <select id="libFuente" aria-label="Catálogo"><option value="std">Catálogo estándar</option><option value="ref">Referencia (presupuestos anteriores)</option><option value="all">Todos</option></select>
@@ -614,28 +623,53 @@ function leerCodigo(celda){
   const i = s.search(/\s/), cod = i < 0 ? s : s.slice(0, i), desc = i < 0 ? "" : s.slice(i).trim();
   return {texto: s, cod, desc, valido: RX_COD.test(cod)};
 }
-function parseRevit(input){
-  const rows = Array.isArray(input) ? input.map(r => r.map(c => String(c ?? "").trim())) : filasDeTexto(input).filas;
-  const idx = {cod:-1, tipo:-1, anchura:-1, area:-1, longitud:-1, volumen:-1, cuenta:-1, diam:-1, material:-1}; let titulo = "", hdr = -1;
+// Columnas que la app sabe leer de una tabla de planificación de Revit (el usuario puede cambiar la asignación en la vista previa)
+const CAMPOS_REVIT = [
+  ["cod", "Código de partida", /COD_PARTIDA|CODIGO DE PARTIDA|^CODIGO$/],
+  ["tipo", "Familia y tipo", /^(TIPO|FAMILIA Y TIPO|FAMILIA|MONTAJE DE MURO|NOMBRE DE TIPO|DESCRIPCION)$/],
+  ["marca", "Marca de tipo", /^MARCA( DE TIPO)?$/],
+  ["id", "ID del elemento", /^(ID|ID DEL ELEMENTO|ID DE ELEMENTO|ELEMENT ID|IDENTIFICADOR|ID_REVIT)$/],
+  ["cantidad", "Cantidad", /^CANTIDAD$/],
+  ["unidad", "Unidad", /^(UNIDAD|UNIDAD_PRES|UNIDAD DE MEDIDA|UNIDADES)$/],
+  ["anchura", "Anchura o espesor", /ANCHURA|ANCHO|ESPESOR/],
+  ["area", "Área", /^AREA( \(.*\))?$/],
+  ["longitud", "Longitud", /LONGITUD|LARGO/],
+  ["volumen", "Volumen", /^VOLUMEN/],
+  ["cuenta", "Recuento", /^(RECUENTO|CUENTA)$/],
+  ["nivel", "Nivel", /^(NIVEL|NIVEL DE REFERENCIA|NIVEL BASE|NIVEL DE BASE|RESTRICCION DE BASE|PLANTA)$/],
+  ["disc", "Disciplina", /^DISCIPLINA$/],
+  ["diam", "Diámetro o tamaño", /DIAMETRO|TAMANO/],
+  ["material", "Material", /MATERIAL/]];
+const DISCIPLINAS = ["Arquitectónica", "Estructural", "Eléctrica", "Hidrosanitaria"];
+function normDisc(s){ const u = norm(s || ""); if(!u) return "";
+  if(/ARQ/.test(u)) return "Arquitectónica"; if(/ESTRUC/.test(u)) return "Estructural"; if(/ELEC/.test(u)) return "Eléctrica";
+  if(/HIDR|SANIT|PLOM|FONTAN|AGUA/.test(u)) return "Hidrosanitaria"; return String(s).trim(); }
+function normUnidad(s){ const u = norm(s || "").replace(/[\s.]/g, "");
+  if(!u) return ""; if(/^(M2|M²|MT2|METROSCUADRADOS?)$/.test(u)) return "m²"; if(/^(M3|M³|MT3|METROSCUBICOS?)$/.test(u)) return "m³";
+  if(/^(ML|M|MTS|MT|METROS?|METROSLINEALES?)$/.test(u)) return "ml"; if(/^(U|UN|UND|UNID|UNIDAD(ES)?|PZA|PIEZAS?|C\/U|CU)$/.test(u)) return "u";
+  if(/^(QQ|QUINTAL(ES)?)$/.test(u)) return "qq"; if(/^(KG|KILOS?|KILOGRAMOS?)$/.test(u)) return "kg"; if(/^(SG|GLOBAL|SUMAGLOBAL)$/.test(u)) return "SG"; return ""; }
+// Detecta encabezados y columnas; "mapeo" (opcional) reemplaza la detección: {campo: índice de columna o -1, hdr: fila de encabezados}
+function detectarColumnas(rows){
+  const idx = Object.fromEntries(CAMPOS_REVIT.map(([c]) => [c, -1])); let titulo = "", hdr = -1;
   for(let i = 0; i < Math.min(rows.length, 8); i++){
-    rows[i].forEach((c, j) => { const u = norm(c); let hit = true;
-      if(/COD_PARTIDA|CODIGO DE PARTIDA|^CODIGO$/.test(u) && idx.cod < 0) idx.cod = j;
-      else if(/^(TIPO|FAMILIA Y TIPO|FAMILIA|MONTAJE DE MURO|NOMBRE DE TIPO|DESCRIPCION)$/.test(u) && idx.tipo < 0) idx.tipo = j;
-      else if(/ANCHURA|ANCHO|ESPESOR/.test(u) && idx.anchura < 0) idx.anchura = j;
-      else if(/^AREA( \(.*\))?$/.test(u) && idx.area < 0) idx.area = j;
-      else if(/LONGITUD|LARGO/.test(u) && idx.longitud < 0) idx.longitud = j;
-      else if(/^VOLUMEN/.test(u) && idx.volumen < 0) idx.volumen = j;
-      else if(/^(RECUENTO|CUENTA)$/.test(u) && idx.cuenta < 0) idx.cuenta = j;
-      else if(/DIAMETRO|TAMANO/.test(u) && idx.diam < 0) idx.diam = j;
-      else if(/MATERIAL/.test(u) && idx.material < 0) idx.material = j;
-      else hit = false;
-      if(hit) hdr = Math.max(hdr, i); });
+    rows[i].forEach((c, j) => { const u = norm(c); const f = CAMPOS_REVIT.find(([k, , rx]) => idx[k] < 0 && rx.test(u)); if(f){ idx[f[0]] = j; hdr = Math.max(hdr, i); } });
     if(i === 0 && rows[i].filter(Boolean).length === 1 && !RX_COD.test((rows[i].find(Boolean) || "").split(/\s/)[0])) titulo = rows[i].find(Boolean);
   }
+  return {idx, hdr, titulo};
+}
+const filasDeEntrada = input => Array.isArray(input) ? input.map(r => r.map(c => String(c ?? "").trim())) : filasDeTexto(input).filas;
+function parseRevit(input, mapeo){
+  const rows = filasDeEntrada(input), det = detectarColumnas(rows), titulo = det.titulo;
+  const idx = {...det.idx}; let hdr = det.hdr;
+  if(mapeo){ for(const [c] of CAMPOS_REVIT) if(c in mapeo) idx[c] = mapeo[c] == null ? -1 : +mapeo[c]; if(mapeo.hdr != null) hdr = +mapeo.hdr; }
   const conEncabezado = hdr >= 0;
-  if(!conEncabezado){ idx.area = 2; idx.longitud = 4; }
+  if(!conEncabezado && !mapeo){ idx.area = 2; idx.longitud = 4; }
   if(idx.tipo < 0) idx.tipo = idx.cod === 0 ? 1 : 0;
-  const cols = {area: idx.area >= 0, longitud: idx.longitud >= 0, volumen: idx.volumen >= 0, cuenta: idx.cuenta >= 0, diam: idx.diam >= 0, cod: idx.cod >= 0};
+  // "Cantidad" sin columna de unidad es el recuento de elementos
+  if(idx.cantidad >= 0 && idx.unidad < 0 && idx.cuenta < 0){ idx.cuenta = idx.cantidad; idx.cantidad = -1; }
+  const cols = {area: idx.area >= 0, longitud: idx.longitud >= 0, volumen: idx.volumen >= 0, cuenta: idx.cuenta >= 0, diam: idx.diam >= 0, cod: idx.cod >= 0,
+    cantidad: idx.cantidad >= 0, unidad: idx.unidad >= 0, nivel: idx.nivel >= 0, disc: idx.disc >= 0, id: idx.id >= 0, marca: idx.marca >= 0};
+  const val = (r, c) => idx[c] >= 0 ? (r[idx[c]] || "").trim() : "";
   const grupos = new Map(); let filas = 0, ultimo = null;
   for(let i = conEncabezado ? hdr + 1 : 0; i < rows.length; i++){
     const r = rows[i], nom = (r[idx.tipo] || "").trim(), c0 = (r[0] || "").trim();
@@ -643,26 +677,35 @@ function parseRevit(input){
     const m = (nom || c0).match(/^(.*?):\s*(\d+)$/);
     if(m){ if(ultimo && ultimo.g.nombreBase === m[1].trim()){ ultimo.g.cuenta += parseInt(m[2], 10) - ultimo.aporte; ultimo.aporte = parseInt(m[2], 10); } continue; }
     const area = cols.area ? parseNum(r[idx.area]) : null, lon = cols.longitud ? parseNum(r[idx.longitud]) : null, vol = cols.volumen ? parseNum(r[idx.volumen]) : null;
-    const rec = cols.cuenta ? parseNum(r[idx.cuenta]) : null, cod = cols.cod ? leerCodigo(r[idx.cod]) : null, diam = cols.diam ? (r[idx.diam] || "").trim() : "";
-    if(area == null && lon == null && vol == null && rec == null && !(cod && cod.texto)) continue;
+    const rec = cols.cuenta ? parseNum(r[idx.cuenta]) : null, cod = cols.cod ? leerCodigo(r[idx.cod]) : null, diam = val(r, "diam");
+    const cantG = cols.cantidad ? parseNum(r[idx.cantidad]) : null, uni = cols.unidad ? normUnidad(r[idx.unidad]) : "";
+    if(area == null && lon == null && vol == null && rec == null && cantG == null && !(cod && cod.texto)) continue;
     if(!nom && !(cod && cod.texto)) continue;
     filas++;
     const nombreBase = nom || (cod ? (cod.desc || cod.texto) : ""), nombre = nombreBase + (diam ? " " + diam : "");
     const key = cod && cod.valido ? "COD:" + cod.cod : "TIPO:" + norm(nombre);
     let g = grupos.get(key);
     if(!g){ g = {nombre, nombreBase, cod: cod && cod.texto ? cod.cod : "", codValido: !!(cod && cod.valido), codTexto: cod ? cod.texto : "", codDesc: cod ? cod.desc : "", diam,
-      anchura: idx.anchura >= 0 ? parseNum(r[idx.anchura]) : null, material: idx.material >= 0 ? (r[idx.material] || "") : "", area:0, longitud:0, volumen:0, cuenta:0, filas:0, tiposRevit:[]}; grupos.set(key, g); }
+      anchura: idx.anchura >= 0 ? parseNum(r[idx.anchura]) : null, material: idx.material >= 0 ? (r[idx.material] || "") : "", area:0, longitud:0, volumen:0, cuenta:0, cantidad:0, unidadModelo:"", filas:0, tiposRevit:[], det:[]}; grupos.set(key, g); }
     const aporte = rec != null ? rec : 1;
-    g.area += area || 0; g.longitud += lon || 0; g.volumen += vol || 0; g.cuenta += aporte; g.filas++;
+    g.area += area || 0; g.longitud += lon || 0; g.volumen += vol || 0; g.cuenta += aporte; g.cantidad += cantG || 0; g.filas++;
+    if(uni && !g.unidadModelo) g.unidadModelo = uni;
     if(nom && !g.tiposRevit.includes(nom)) g.tiposRevit.push(nom);
+    // Fila de origen: trazabilidad hasta el elemento de Revit
+    g.det.push({f: i + 1, id: val(r, "id"), nivel: val(r, "nivel"), disc: normDisc(val(r, "disc")), marca: val(r, "marca"), a: area || 0, l: lon || 0, v: vol || 0, c: aporte, q: cantG || 0, u: uni});
     ultimo = {g, aporte};
   }
-  const tipos = [...grupos.values()].map(g => { if(g.codValido && g.tiposRevit.length > 1) g.nombre = g.codDesc || g.tiposRevit.join(" + "); return g; });
-  return {titulo, tipos, filas, cols};
+  const tipos = [...grupos.values()].map(g => { if(g.codValido && g.tiposRevit.length > 1) g.nombre = g.codDesc || g.tiposRevit.join(" + ");
+    const ds = [...new Set(g.det.map(d => d.disc).filter(Boolean))]; g.disciplina = ds.length === 1 ? ds[0] : ds.length > 1 ? "Varias" : "";
+    if(!g.det.some(d => d.id || d.nivel || d.disc || d.marca || d.u)) g.det.forEach(d => { delete d.id; delete d.nivel; delete d.disc; delete d.marca; delete d.u; });
+    return g; });
+  const encabezados = hdr >= 0 ? rows[hdr] : (rows[0] || []).map((_, j) => "Columna " + (j + 1));
+  return {titulo, tipos, filas, cols, idx, hdr, encabezados, rows};
 }
 // Unidad sugerida: nunca SG (la suma global solo se acepta con confirmación del usuario)
 function sugerirUnidad(n, t){
   if(t && t.varilla) return "qq";
+  if(t && t.unidadModelo && t.unidadModelo !== "SG" && UNIDADES.includes(t.unidadModelo)) return t.unidadModelo;
   if(/CORDON|CUNETA|ZOCALO|SOLERA|VIGA|COLUMNA|CANAL|TUBERIA|TUBO|POLIDUCTO|CABLE/.test(norm(n))) return "ml";
   if(!t) return "m²";
   if(t.area > 0) return "m²"; if(t.longitud > 0) return "ml"; if(t.volumen > 0) return "m³"; return "u";
@@ -680,7 +723,7 @@ function sugerirAPU(n){
   if(/CORDON|CUNETA/.test(t)) return "13.03.01";
   return "";
 }
-const cantidadPorUnidad = (t, u) => u === "m²" ? t.area : u === "ml" ? t.longitud : u === "m³" ? t.volumen : u === "u" ? t.cuenta : u === "SG" ? 1 : u === "qq" ? qqDeTipo(t) : 0;
+const cantidadPorUnidad = (t, u) => t.unidadModelo && t.unidadModelo === u && t.cantidad > 0 ? t.cantidad : u === "m²" ? t.area : u === "ml" ? t.longitud : u === "m³" ? t.volumen : u === "u" ? t.cuenta : u === "SG" ? 1 : u === "qq" ? qqDeTipo(t) : 0;
 function revisarTipo(t, unidad){
   if(!(t.area > 0 && t.longitud > 0)) return "";
   const h = t.area / t.longitud;
@@ -730,6 +773,16 @@ const SEARCH_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" 
 /* ================= Estado: base global + proyectos ================= */
 const BASE_APU = new Map(DATA.apus.map(a => [a.id, a]));
 const BASE_REC = new Map(DATA.recursos.map(r => [r.id, r]));
+/* ===== Catálogo global: la base de datos (Supabase) es la fuente; la app trae una copia y la actualiza si cambió ===== */
+const CAT_KEY = "apu-catalogo", CAT = {origen: "app", version: String(DATA.version), bd: null, estado: ""};
+function aplicarCatalogo(d){
+  if(!d || !Array.isArray(d.apus) || !d.apus.length || !Array.isArray(d.recursos) || !d.recursos.length || !Array.isArray(d.caps)) return false;
+  DATA.caps = d.caps; DATA.apus = d.apus; DATA.recursos = d.recursos; DATA.version = d.version;
+  BASE_APU.clear(); d.apus.forEach(a => BASE_APU.set(a.id, a)); BASE_REC.clear(); d.recursos.forEach(r => BASE_REC.set(r.id, r));
+  CAPS.splice(0, CAPS.length, ...d.caps.map(c => ({...c, c: COLORS[c.cc]})), {cc:"99", nombre:"Sin APU asignado", subs:{}, c: COLORS["99"]});
+  CAT.version = String(d.version); return true;
+}
+try{ const c = JSON.parse(localStorage.getItem(CAT_KEY) || "null"); if(c && String(c.version) !== String(DATA.version) && aplicarCatalogo(c)) CAT.origen = "bd"; }catch(e){}
 const NOTAS_BASE = "1. Precios en dólares de los Estados Unidos de América.\n2. No incluye permisos de construcción, trámites ni pago de acometidas de agua y energía.\n3. No incluye muebles, electrodomésticos ni obras no descritas en este presupuesto.\n4. Cantidades obtenidas del modelo BIM; cambios de diseño se cotizan por separado.";
 const DESP_BASE = {mamposteria:5, cemento:5, agregados:10, acero:5, madera:10, pisos:7, pintura:5, otros:3};
 /* ================= Acero de refuerzo: varillas, metros, kilogramos y quintales =================
@@ -786,7 +839,7 @@ const OFICIALES = new Set(["05.01.01","05.01.02","05.02.01","08.03.01","13.01.01
 const mapViejo = id => (!id || id === "__manual" || OFICIALES.has(id) || !BASE_APU.has("R" + id)) ? id : "R" + id;
 function proyectoEjemplo(){
   const p = proyectoVacio("Vivienda prueba 1"); p.cliente = "Cliente de ejemplo"; p.direccion = "San Miguel, El Salvador"; p.plazo = "90 días calendario";
-  const r = nuevaTabla(EJEMPLO, "CANTIDADES DE PAREDES prueba 1.txt"); p.revit.push(r.imp); p.registro = [r.reg];
+  const r = nuevaTabla(EJEMPLO, "CANTIDADES DE PAREDES prueba 1.txt"); r.imp.partidas.forEach((x, i) => { if(x.apu && x.unidad && !x.sgPend){ x.conf = true; x._ap = claveTipo(r.imp.tipos[i]) + "|" + x.apu + "|" + x.unidad; } }); /* ejemplo: confirmado, sin enseñar a la IA */ p.revit.push(r.imp); p.registro = [r.reg];
   p.manual = [itemCat("01.01.01", 207, "15*13.8"), itemCat("01.02.01", 207, "15*13.8"), itemCat("02.01.01", 29.33, "2*6.6*0.4*0.8 + 2*2.3*0.4*0.8 + 7.1*0.4*0.8 + 3*8.9*0.4*2"),
     itemCat("03.02.01", 51.6, "2*6.6 + 2*2.3 + 7.1 + 3*8.9"), itemCat("04.03.03", 77), itemCat("06.01.01", 104), itemCat("06.02.01", 104),
     itemCat("07.01.01", 96, "12*8"), itemCat("07.02.01", 96, "12*8"), itemCat("09.01.02", 4), itemCat("14.01.01", 207, "15*13.8")].filter(Boolean);
@@ -818,7 +871,7 @@ function importarRespaldo(texto){
     guardar(); render(); return lista.length;
   }catch(err){ return 0; }
 }
-function guardar(){ P().mod = Date.now(); delete P()._blanco; try{ actualizarRegistro(); }catch(e){} if(SES) nubeProgramar(DB.actual); clearTimeout(saveT); saveT = setTimeout(() => { try{ localStorage.setItem(KEY, JSON.stringify(DB)); }catch(e){ toast("No se pudo guardar: memoria del navegador llena"); } }, 150); }
+function guardar(){ P().mod = Date.now(); delete P()._blanco; try{ aprenderConfirmadas(); actualizarRegistro(); }catch(e){} if(SES) nubeProgramar(DB.actual); clearTimeout(saveT); saveT = setTimeout(() => { try{ localStorage.setItem(KEY, JSON.stringify(DB)); }catch(e){ toast("No se pudo guardar: memoria del navegador llena"); } }, 150); }
 function cargar(){ try{ const t = localStorage.getItem(KEY); if(t){ DB = JSON.parse(t); if(DB && DB.proyectos && DB.proyectos[DB.actual]) return true; } }catch(e){} return false; }
 const rec = id => { const b = BASE_REC.get(id) || DB.recNew[id]; return b ? {...b, ...(DB.rec[id] || {})} : null; };
 const apuById = id => DB.apuOv[id] || BASE_APU.get(id) || null;
@@ -850,7 +903,8 @@ function lineas(){
     const t = imp.tipos[i], a = apuById(p.apu), pu = p.unidad ? puEf(p) : null;
     let problema = "";
     const cantR = p.unidad ? R2(cantidadPorUnidad(t, p.unidad)) : 0, rv = p.unidad ? revisarTipo(t, p.unidad) : "", validada = !!(p.val && p.val.unidad === p.unidad);
-    if(p.sgPend) problema = "SG por confirmar"; else if(!p.unidad) problema = "Falta unidad"; else if(!pu) problema = "Sin precio"; else if(!(pu.total > 0)) problema = "APU sin precio: agrega sus recursos"; else if(a && a.unidad !== p.unidad) problema = "Unidad distinta al APU"; else if(!(cantR > 0)) problema = "Sin cantidad";
+    const sinConf = !!(p.apu && p.origen !== undefined && !estaConfirmada(p) && !p.sgPend);
+    if(p.sgPend) problema = "SG por confirmar"; else if(sinConf) problema = "Asociación por confirmar"; else if(!p.unidad) problema = "Falta unidad"; else if(!pu) problema = "Sin precio"; else if(!(pu.total > 0)) problema = "APU sin precio: agrega sus recursos"; else if(a && a.unidad !== p.unidad) problema = "Unidad distinta al APU"; else if(!(cantR > 0)) problema = "Sin cantidad";
     out.push({pendiente: !!rv && !validada, sinConfirmar: !!(p.apu && p.origen !== undefined && !estaConfirmada(p) && !p.sgPend), validada, obs: validada ? (p.val.obs || "") : "", ref:`r:${k}:${i}`, origen:"Revit", titulo:t.nombre, code: a ? a.id : "S/C", info: a ? a.nombre : (p.apu === "__manual" ? "Costo manual" : "Sin APU"), apu: a,
       cc: a ? a.cc : "99", unidad: p.unidad || "-", cant: cantR, pu, problema, manual: p.apu === "__manual",
       revisar: rv, memoria: p.unidad === "qq" && t.varilla ? `Revit: ${num(t.longitud, 2)} ml de varilla #${t.varilla} × ${varilla(t.varilla).kg} kg/m ÷ ${QQ_KG} kg/qq (${imp.archivo.split(" · ")[0]})` : p.unidad ? `Revit (${p.unidad === "m²" ? "área" : p.unidad === "ml" ? "longitud" : p.unidad === "m³" ? "volumen" : p.unidad === "u" ? "cuenta" : "global"}, ${imp.archivo.split(" · ")[0]})` : ""});
@@ -964,7 +1018,7 @@ function pickBtn(ref, apuId){
   const sub = apuId === "__manual" ? "Sin APU" : a ? `${a.id} · ${a.unidad} · ${money(costoAPU(a).total)}` : "Busca por nombre o código";
   return `<button class="pickbtn" data-pick="${ref}">${ico(a ? a.cc : "99", true)}<span class="txt"><span class="t">${esc(label)}</span><span class="s">${esc(sub)}</span></span>${CHEV}</button>`;
 }
-const origenTxt = p => ({cod:"Asociada por COD_PARTIDA del modelo", regla:"Asociada por regla de palabras clave", ia:"Propuesta por IA", manual:"Asignada a mano", previo:"Asignada en una versión anterior"})[p.origen] || "Sin asociar: elige un APU, usa la IA o escribe un costo manual";
+const origenTxt = p => ({cod:"Asociada por COD_PARTIDA del modelo", regla:"Asociada por regla de palabras clave", aprendido:"Propuesta según tus confirmaciones anteriores", ia:"Propuesta por IA", manual:"Asignada a mano", previo:"Asignada en una versión anterior"})[p.origen] || "Sin asociar: elige un APU, usa la IA o escribe un costo manual";
 function estadoChip(p, a, pu, pendiente, sinCant){
   let apu;
   if(p.sgPend) apu = '<span class="chip warn">SG por confirmar</span>';
@@ -981,7 +1035,7 @@ function renderPartidas(){
   const pr = P();
   $("#files").innerHTML = pr.revit.map((imp, k) => `<span class="chip info">${esc(imp.archivo)} · ${imp.tipos.length} tipos<button data-quitarimp="${k}" aria-label="Quitar tabla">×</button></span>`).join("");
   $("#revitGroups").innerHTML = pr.revit.map((imp, k) => { const st = statsTabla(imp), porConf = imp.partidas.filter(p => p.apu && !estaConfirmada(p) && !p.sgPend).length, paraIA = imp.partidas.filter(p => !p.apu && !p.codNoCat && !(p.ia && p.ia.codigo !== "SIN COINCIDENCIA")).length;
-    return `<div class="card" style="gap:8px"><div class="row spread"><div><b>${esc(imp.archivo)}</b><div class="small muted">${imp.partidas.length} partidas · ${st.cod} por COD_PARTIDA · ${st.regla} por reglas · ${st.ia} por IA · ${st.manual} a mano · ${st.sinAsociar} sin asociar · ${st.confirmadas} confirmadas</div></div>
+    return `<div class="card" style="gap:8px"><div class="row spread"><div><b>${esc(imp.archivo)}</b><div class="small muted">${imp.partidas.length} partidas · ${st.cod} por COD_PARTIDA · ${st.regla} por reglas${st.aprendido ? ` · ${st.aprendido} por lo aprendido` : ""} · ${st.ia} por IA · ${st.manual} a mano · ${st.sinAsociar} sin asociar · ${st.confirmadas} confirmadas</div></div>
       <div class="row">${paraIA || iaOcupada(imp) ? `<button class="btn" data-ia="${k}"${iaOcupada(imp) ? " disabled" : ""}>${iaOcupada(imp) ? "Consultando IA…" : `Proponer con IA (${paraIA})`}</button>` : ""}${porConf ? `<button class="btn primary" data-confirmartodas="${k}">Confirmar asociaciones (${porConf})</button>` : ""}</div></div><div class="status" id="iaStatus${k}">${iaEstadoHTML(imp)}</div></div>
     <div class="cards">` + imp.partidas.map((p, i) => {
     const t = imp.tipos[i], a = apuById(p.apu), sug = sugerirUnidad(t.nombre, t), pu = p.unidad ? puEf(p) : null, cc = a ? a.cc : "99";
@@ -989,7 +1043,7 @@ function renderPartidas(){
     const validada = !!(p.val && p.val.unidad === p.unidad), pendiente = !!rv && !validada;
     return `<article class="pcard">
       <div class="head">${ico(cc)}<div class="grow"><div class="t">${esc(t.nombre)}</div><div class="cat">${esc(capDe(cc).nombre)}</div></div><div>${estadoChip(p, a, pu, pendiente, p.unidad && !(R2(cant) > 0))}</div></div>
-      <div class="facts">${t.cod ? `<span>COD_PARTIDA <b>${esc(t.cod)}</b></span>` : ""}${t.diam ? `<span>Diámetro <b>${esc(t.diam)}</b></span>` : ""}<span>Área <b>${num(t.area)}</b> m²</span><span>Long. <b>${num(t.longitud,3)}</b> m</span>${t.volumen ? `<span>Vol. <b>${num(t.volumen)}</b> m³</span>` : ""}<span>Cuenta <b>${num(t.cuenta, 0)}</b></span>${t.varilla ? (() => { const cv = convAcero(t.varilla, t.longitud, "ml"); return `<span>Varilla <b>#${t.varilla} (${esc(varilla(t.varilla).d)})</b></span><span>Peso <b>${num(cv.kg)}</b> kg = <b>${num(cv.qq)}</b> qq</span><span>≈ <b>${num(cv.varillas, 1)}</b> varillas de ${cv.L} m</span>`; })() : ""}</div>
+      <div class="facts">${t.cod ? `<span>COD_PARTIDA <b>${esc(t.cod)}</b></span>` : ""}${t.diam ? `<span>Diámetro <b>${esc(t.diam)}</b></span>` : ""}<span>Área <b>${num(t.area)}</b> m²</span><span>Long. <b>${num(t.longitud,3)}</b> m</span>${t.volumen ? `<span>Vol. <b>${num(t.volumen)}</b> m³</span>` : ""}<span>Cuenta <b>${num(t.cuenta, 0)}</b></span>${t.disciplina || imp.disciplina ? `<span>Disciplina <b>${esc(imp.disciplina || t.disciplina)}</b></span>` : ""}${(t.det || []).some(d => d.nivel) ? `<span>Nivel <b>${esc([...new Set(t.det.map(d => d.nivel || SIN_NIVEL))].join(", "))}</b></span>` : ""}${t.unidadModelo ? `<span>Modelo <b>${num(t.cantidad)} ${esc(t.unidadModelo)}</b></span>` : ""}${(t.det || []).length ? `<button class="btn sm ghost" data-elementos="${ref}">${t.det.length} fila(s) de Revit${t.det.some(d => d.id) ? " con ID" : ""}</button>` : ""}${t.varilla ? (() => { const cv = convAcero(t.varilla, t.longitud, "ml"); return `<span>Varilla <b>#${t.varilla} (${esc(varilla(t.varilla).d)})</b></span><span>Peso <b>${num(cv.kg)}</b> kg = <b>${num(cv.qq)}</b> qq</span><span>≈ <b>${num(cv.varillas, 1)}</b> varillas de ${cv.L} m</span>`; })() : ""}</div>
       <div class="small muted">${origenTxt(p)}</div>
       ${p.codNoCat && !p.apu ? `<div class="note" style="font-size:13px"><b>Código no está en el catálogo:</b> ${esc(t.cod)}. Puedes crear el APU con ese mismo código o elegir uno del catálogo.<div style="margin-top:6px"><button class="btn sm" data-crearcod="${ref}">Crear APU ${esc(t.cod)}</button></div></div>` : ""}
       ${p.ia ? `<div class="note info" style="font-size:13px"><b>IA:</b> ${p.ia.codigo === "SIN COINCIDENCIA" ? "sin coincidencia en el catálogo" : `${esc(p.ia.codigo)} en ${esc(p.ia.unidad)}, confianza ${num((p.ia.confianza || 0) * 100, 0)}%`}. ${esc(p.ia.razon || "")}</div>` : ""}
@@ -1044,6 +1098,7 @@ function renderPresupuesto(){
   document.querySelectorAll("[data-modo]").forEach(b => b.setAttribute("aria-pressed", b.dataset.modo === cfg.modo));
   $("#cierre").innerHTML = cierreFilas(c, cfg, true).map(([a, b], i, arr) => i === arr.length - 1 ? `<span class="big">Total</span><span class="v big">${money(b)}</span>` : `<span>${esc(a)}</span><span class="v">${typeof b === "number" ? money(b) : esc(b)}</span>`).join("");
   const CJ = conjunto(C);
+  renderDN(C); renderVersiones();
   $("#conjunto").innerHTML = `<div class="row spread"><h2>Vivienda tipo y conjunto</h2><span class="chip">${CJ.n} vivienda(s)</span></div>
     <div class="tbl"><table><thead><tr><th>Concepto</th><th class="n">Vivienda tipo</th><th class="n">Conjunto (${CJ.n})</th></tr></thead><tbody>
     ${cierreFilas(c, cfg, true).map(([a, b], i) => { const b2 = cierreFilas(CJ, cfg, true)[i][1]; return `<tr${a === "TOTAL" ? ' class="total"' : ""}><td>${esc(a)}</td><td class="n">${typeof b === "number" ? money(b) : esc(b)}</td><td class="n">${typeof b2 === "number" ? money(b2) : esc(b2)}</td></tr>`; }).join("")}
@@ -1241,6 +1296,13 @@ function renderSheet(){
       <div class="group">${list.map(p => { const cur = DB.actual; DB.actual = p.id; const t = calcular().c.total; DB.actual = cur;
         return `<div class="addrow"><span class="txt"><span class="t">${esc(p.nombre)}${p.id === DB.actual ? " ✓" : ""}</span><span class="s">${esc([p.cliente, p.numero, fechaTxt(p.fecha)].filter(Boolean).join(" · "))} · ${money(t)}</span></span>
           ${p.id === DB.actual ? "" : `<button class="btn sm" data-abrir="${p.id}">Abrir</button>`}<button class="del" data-borrarproy="${p.id}" aria-label="Borrar proyecto">×</button></div>`; }).join("")}</div>`;
+  } else if(OPEN === "vista" && VISTA){
+    sh.innerHTML = htmlVista();
+  } else if(OPEN.startsWith("elem:")){
+    const t = getTipo(OPEN.slice(5)), det = t.det || [], has = k => det.some(d => d[k]);
+    const cs = [["f", "Fila", 0], ["id", "ID del elemento"], ["nivel", "Nivel"], ["disc", "Disciplina"], ["marca", "Marca"], ["a", "Área (m²)", 2], ["l", "Longitud (m)", 2], ["v", "Volumen (m³)", 2], ["c", "Recuento", 0], ["q", "Cantidad", 2], ["u", "Unidad"]].filter(([k]) => k === "f" || has(k));
+    sh.innerHTML = hojaTop("Elementos de Revit") + `<p class="small muted" style="margin:0"><b>${esc(t.nombre)}</b> · ${det.length} fila(s) del archivo. Cada fila es un elemento (o grupo) del modelo; la cantidad de la partida es la suma de estas filas.</p>
+      <div class="tbl"><table><thead><tr>${cs.map(([, n, d]) => `<th${d != null ? ' class="n"' : ""}>${n}</th>`).join("")}</tr></thead><tbody>${det.map(d => `<tr>${cs.map(([k, , dec]) => dec != null ? `<td class="n">${num(d[k] || 0, dec)}</td>` : `<td>${esc(d[k] || "")}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
   } else if(OPEN.startsWith("cuenta:")){
     const crear = OPEN === "cuenta:crear";
     sh.innerHTML = hojaTop(crear ? "Crear cuenta" : "Entrar") + `<form id="authForm" class="form" style="grid-template-columns:1fr" autocomplete="on">
@@ -1351,7 +1413,7 @@ function leerImagen(f, max, cb){
 }
 
 /* ================= Render general y navegación ================= */
-function render(){ renderHeader(); renderProyecto(); renderPartidas(); renderPresupuesto(); renderMateriales(); renderLibList(); renderLibDetalle(); renderRecursos(); renderSheet(); }
+function render(){ renderCatEstado(); renderHeader(); renderProyecto(); renderPartidas(); renderPresupuesto(); renderMateriales(); renderLibList(); renderLibDetalle(); renderRecursos(); renderSheet(); }
 const VISTAS = ["proyecto","partidas","presupuesto","materiales","biblioteca"];
 function ir(v){
   if(!VISTAS.includes(v)) v = "presupuesto";
@@ -1367,19 +1429,33 @@ document.addEventListener("keydown", e => { if(e.key === "Escape" && OPEN){ OPEN
 /* ================= Revit: carga ================= */
 // Asociación en orden: 1) COD_PARTIDA de Revit; 2) reglas por palabras clave; 3) IA (aparte, a pedido); 4) el usuario
 function apuEstandar(id){ const a = apuById(id); return a && !a.ref ? a : null; }
+// Asociaciones que el usuario ya confirmó antes (por nombre del tipo de Revit normalizado)
+const claveTipo = t => norm(t.nombre || "").replace(/\s+/g, " ").trim();
+function aprendidoDe(t){ const ap = DB && DB.aprendido && DB.aprendido[claveTipo(t)]; return ap && apuById(ap.apu) ? ap : null; }
+// Guarda cada asociación confirmada (una vez por cambio) para proponerla primero la próxima vez
+function aprenderConfirmadas(){
+  if(!DB || !P()) return; DB.aprendido = DB.aprendido || {};
+  P().revit.forEach(imp => imp.partidas.forEach((p, i) => {
+    const t = imp.tipos[i]; if(!t || !estaConfirmada(p) || !p.apu || p.apu === "__manual" || p.origen === "cod" || p.sgPend) return;
+    const k = claveTipo(t), sig = k + "|" + p.apu + "|" + p.unidad; if(!k || p._ap === sig) return;
+    const prev = DB.aprendido[k]; DB.aprendido[k] = {nombre: t.nombre, apu: p.apu, unidad: p.unidad, veces: prev && prev.apu === p.apu && prev.unidad === p.unidad ? prev.veces + 1 : 1, fecha: Date.now()};
+    p._ap = sig; }));
+}
 function asociarTipo(t){
   if(t.codValido){
     const a = apuEstandar(t.cod);
     if(a) return a.unidad === "SG" ? {apu: a.id, unidad: null, origen: "cod", conf: false, sgPend: true} : {apu: a.id, unidad: a.unidad, origen: "cod", conf: true};
     return {apu: "", unidad: sugerirUnidad(t.nombre, t), origen: null, conf: false, codNoCat: true};
   }
+  const ap = aprendidoDe(t);
+  if(ap) return ap.unidad === "SG" ? {apu: ap.apu, unidad: null, origen: "aprendido", conf: false, sgPend: true} : {apu: ap.apu, unidad: ap.unidad, origen: "aprendido", conf: false};
   if(t.varilla && t.longitud > 0){ const av = apuEstandar(varilla(t.varilla).apu); if(av) return {apu: av.id, unidad: "qq", origen: "regla", conf: false}; }
   const regla = sugerirAPU(t.nombre), a = regla && apuEstandar(regla);
   if(a) return a.unidad === "SG" ? {apu: a.id, unidad: null, origen: "regla", conf: false, sgPend: true} : {apu: a.id, unidad: a.unidad, origen: "regla", conf: false};
   return {apu: "", unidad: sugerirUnidad(t.nombre, t), origen: null, conf: false};
 }
-function nuevaTabla(entrada, nombre){
-  const t0 = performance.now(), {titulo, tipos, filas, cols} = parseRevit(entrada);
+function nuevaTabla(entrada, nombre, mapeo, disciplina){
+  const t0 = performance.now(), {titulo, tipos, filas, cols, idx, hdr} = parseRevit(entrada, mapeo);
   if(!tipos.length) return null;
   const ctxAcero = /ARMADURA|ACERO|VARILLA|REFUERZO|REBAR/.test(norm((titulo || "") + " " + nombre));
   tipos.forEach(t => { const vc = VARILLAS.find(v => v.apu === t.cod), v = vc || varillaDe(t.nombre + " " + (t.diam || ""), ctxAcero); if(v && t.longitud > 0) t.varilla = v.n; });
@@ -1387,24 +1463,26 @@ function nuevaTabla(entrada, nombre){
   const partidas = tipos.map(t => ({...asociarTipo(t), pu:null, ov:null})), t2 = performance.now();
   const archivo = nombre + (titulo ? " · " + titulo : ""), id = uid();
   const reg = {id: uid(), imp: id, fecha: new Date().toISOString(), tabla: archivo, filas, tipos: new Set(tipos.flatMap(t => t.tiposRevit.length ? t.tiposRevit : [t.nombre])).size, partidas: tipos.length, tLectura: R2(t1 - t0), tAsoc: R2(t2 - t1), tIA: 0, inicio: Date.now(), tConfirm: null};
-  return {imp: {id, archivo, tipos, partidas, cols, reg: reg.id}, reg};
+  return {imp: {id, archivo, tipos, partidas, cols, reg: reg.id, mapeo: {...idx, hdr}, disciplina: disciplina || ""}, reg};
 }
-function cargarTexto(entrada, nombre){
-  const r = nuevaTabla(entrada, nombre);
+function cargarTexto(entrada, nombre, mapeo, disciplina){
+  const r = nuevaTabla(entrada, nombre, mapeo, disciplina);
   if(!r){ $("#revitStatus").innerHTML = '<span class="chip bad">No se encontraron tipos</span> Revisa que sea una tabla de planificación exportada de Revit (.txt, .csv o .xlsx).'; return; }
   const pr = P(); pr.registro = pr.registro || [];
+  if(!(pr.versiones || []).length && lineas().length) crearVersion("Antes de importar " + nombre);
   const k = pr.revit.findIndex(x => x.archivo === r.imp.archivo);
   if(k >= 0) pr.revit[k] = r.imp; else pr.revit.push(r.imp);
   pr.registro.push(r.reg); actualizarRegistro();
   const st = statsTabla(r.imp);
-  $("#revitStatus").innerHTML = `<span class="chip ok">${r.reg.filas} filas, ${r.reg.tipos} tipos, ${r.reg.partidas} partidas</span> ${st.cod} por COD_PARTIDA, ${st.regla} por reglas, ${st.sinAsociar} sin asociar.${st.codNoCat ? ` ${st.codNoCat} código(s) no están en el catálogo.` : ""}`;
+  crearVersion((k >= 0 ? "Reimportó " : "Importó ") + r.imp.archivo.split(" · ")[0]); if(SES) nubeImportacion(r.imp, DB.actual);
+  $("#revitStatus").innerHTML = `<span class="chip ok">${r.reg.filas} filas, ${r.reg.tipos} tipos, ${r.reg.partidas} partidas</span> ${st.cod} por COD_PARTIDA, ${st.regla} por reglas${st.aprendido ? ` · ${st.aprendido} por lo aprendido` : ""}, ${st.sinAsociar} sin asociar.${st.codNoCat ? ` ${st.codNoCat} código(s) no están en el catálogo.` : ""}`;
   guardar(); render();
 }
 // Registro del procesamiento (por tabla cargada)
 function statsTabla(imp){
-  const s = {cod:0, regla:0, ia:0, manual:0, sinAsociar:0, codNoCat:0, confirmadas:0, iaProp:0, iaAcept:0, iaCorr:0, iaSin:0, iaPend:0};
+  const s = {cod:0, regla:0, aprendido:0, ia:0, manual:0, sinAsociar:0, codNoCat:0, confirmadas:0, iaProp:0, iaAcept:0, iaCorr:0, iaSin:0, iaPend:0};
   imp.partidas.forEach(p => {
-    if(p.origen === "cod") s.cod++; else if(p.origen === "regla") s.regla++; else if(p.origen === "ia") s.ia++; else if(p.origen === "manual") s.manual++; else s.sinAsociar++;
+    if(p.origen === "cod") s.cod++; else if(p.origen === "regla") s.regla++; else if(p.origen === "aprendido") s.aprendido++; else if(p.origen === "ia") s.ia++; else if(p.origen === "manual") s.manual++; else s.sinAsociar++;
     if(p.codNoCat && !p.apu) s.codNoCat++;
     if(estaConfirmada(p)) s.confirmadas++;
     if(p.ia){ s.iaProp++;
@@ -1474,12 +1552,13 @@ async function sbRest(ruta, {method = "GET", body, prefer} = {}){
 }
 const filaNube = p => ({usuario_id: SES.user.id, app_id: p.id, nombre: p.nombre || "Proyecto", ubicacion: p.direccion || null,
   area_m2: +p.area > 0 ? R2(+p.area) : null, fecha: /^\d{4}-\d{2}-\d{2}$/.test(p.fecha || "") ? p.fecha : null, propietario: p.cliente || null, datos: p});
-function nubeProgramar(id){ if(!SES || !id) return; PEND.add(id); NUBE.estado = "pendiente"; clearTimeout(nubeT); nubeT = setTimeout(nubeSubir, 1500); }
+function nubeProgramar(id){ if(!SES) return; if(id) PEND.add(id); NUBE.estado = "pendiente"; clearTimeout(nubeT); nubeT = setTimeout(nubeSubir, 1500); }
 async function nubeSubir(){
-  clearTimeout(nubeT); if(!SES || !PEND.size) return;
+  clearTimeout(nubeT); if(!SES || (!PEND.size && !(NUBE.snap && JSON.stringify(clavesPrecios()) !== JSON.stringify(NUBE.snap)))) return;
   const ids = [...PEND]; PEND.clear(); NUBE.estado = "subiendo"; renderCuenta();
   try{ const filas = ids.map(id => DB.proyectos[id]).filter(p => p && !p._blanco).map(filaNube);
     if(filas.length) await sbRest("proyectos?on_conflict=usuario_id,app_id", {method: "POST", body: filas, prefer: "resolution=merge-duplicates,return=minimal"});
+    await preciosSubir();
     NUBE.estado = "ok"; NUBE.hora = Date.now(); NUBE.error = ""; }
   catch(e){ if(SES){ ids.forEach(i => PEND.add(i)); NUBE.estado = "error"; NUBE.error = e.message; } }
   renderCuenta();
@@ -1491,6 +1570,7 @@ async function nubeSincronizar(){
   try{
     const [filas, perfil] = await Promise.all([sbRest("proyectos?select=app_id,datos&order=actualizado.desc"), sbRest("perfiles?select=nombre,plan").catch(() => null)]);
     if(!SES) return; NUBE.perfil = perfil && perfil[0] || null;
+    await preciosBajar();
     const enNube = new Map((filas || []).filter(f => f.datos && f.datos.id).map(f => [f.app_id, f.datos]));
     if(enNube.size) for(const [id, p] of Object.entries(DB.proyectos)) if(p._blanco && !enNube.has(id)) delete DB.proyectos[id];
     for(const [id, p] of enNube){ const l = DB.proyectos[id]; if(!l || (p.mod || 0) >= (l.mod || 0)){ migrarProyecto(p); DB.proyectos[id] = p; } }
@@ -1499,14 +1579,14 @@ async function nubeSincronizar(){
     if(!DB.proyectos[DB.actual]) DB.actual = Object.values(DB.proyectos).sort((a, b) => (b.mod || 0) - (a.mod || 0))[0].id;
     try{ localStorage.setItem(KEY, JSON.stringify(DB)); }catch(e){}
     NUBE.estado = "ok"; NUBE.hora = Date.now(); NUBE.error = ""; render();
-    if(PEND.size) await nubeSubir();
+    await nubeSubir();
   }catch(e){ if(SES){ NUBE.estado = "error"; NUBE.error = e.message; renderCuenta(); } }
 }
 // Cada cuenta usa su propio almacén local; los proyectos sin cuenta quedan aparte y se pueden copiar
 function cambiarAlmacen(){
   clearTimeout(saveT); try{ localStorage.setItem(KEY, JSON.stringify(DB)); }catch(e){}
   const pref = {tema: DB.tema, elab: DB.elab, logo: DB.logo, firma: DB.firma};
-  KEY = SES ? KEY_INV + ":u:" + SES.user.id : KEY_INV;
+  KEY = SES ? KEY_INV + ":u:" + SES.user.id : KEY_INV; NUBE.snap = null;
   if(!cargar()){
     if(SES){ DB = {v:4, cat:2, proyectos:{}, actual:null, rec:{}, apuOv:{}, recNew:{}, desp:{...DESP_BASE}, ...pref}; const p = proyectoVacio(); p._blanco = true; DB.proyectos[p.id] = p; DB.actual = p.id; }
     else DB = dbInicial();
@@ -1529,17 +1609,77 @@ async function autenticar(crear){
 async function salir(){
   await nubeSubir().catch(() => {});
   const tk = SES && SES.access_token, viejo = KEY; if(tk) sbAuth("logout", {}, tk).catch(() => {});
-  SES = null; NUBE.perfil = null; NUBE.estado = ""; PEND.clear(); try{ localStorage.removeItem(SES_KEY); }catch(e){}
+  SES = null; NUBE.perfil = null; NUBE.estado = ""; NUBE.snap = null; PEND.clear(); try{ localStorage.removeItem(SES_KEY); }catch(e){}
   cambiarAlmacen(); try{ localStorage.removeItem(viejo); }catch(e){} // la copia local de la cuenta se borra; queda en la nube
   toast("Sesión cerrada"); ir("proyecto");
 }
-function proyectosInvitado(){ try{ const d = JSON.parse(localStorage.getItem(KEY_INV) || "null"); return d && d.proyectos ? Object.values(d.proyectos) : []; }catch(e){ return []; } }
+function dbInvitado(){ try{ return JSON.parse(localStorage.getItem(KEY_INV) || "null") || {}; }catch(e){ return {}; } }
+function proyectosInvitado(){ const d = dbInvitado(); return d.proyectos ? Object.values(d.proyectos) : []; }
+// Precios editados, recursos y APU creados sin cuenta que la cuenta todavía no tiene
+function preciosInvitado(){ const d = dbInvitado(), out = [];
+  for(const k of ["rec", "recNew", "apuOv"]) for(const [id, v] of Object.entries(d[k] || {})) if(!(DB[k] || {})[id]) out.push([k, id, v]); return out; }
 function copiarInvitado(){
-  const lista = proyectosInvitado().filter(p => !DB.proyectos[p.id]); if(!lista.length){ toast("No hay proyectos nuevos para copiar"); return; }
+  const lista = proyectosInvitado().filter(p => !DB.proyectos[p.id]), precios = preciosInvitado();
+  if(!lista.length && !precios.length){ toast("No hay nada nuevo para copiar"); return; }
+  precios.forEach(([k, id, v]) => { DB[k][id] = v; });
+  if(!lista.length){ try{ localStorage.setItem(KEY, JSON.stringify(DB)); }catch(e){} render(); nubeSubir(); toast(`${precios.length} precio(s) o APU copiados a tu cuenta`); return; }
   lista.forEach(p => { migrarProyecto(p); DB.proyectos[p.id] = p; PEND.add(p.id); });
   for(const [id, p] of Object.entries(DB.proyectos)) if(p._blanco) delete DB.proyectos[id];
   if(!DB.proyectos[DB.actual]) DB.actual = lista[0].id;
   try{ localStorage.setItem(KEY, JSON.stringify(DB)); }catch(e){} render(); nubeSubir(); toast(`${lista.length} proyecto(s) copiados a tu cuenta`);
+}
+function renderCatEstado(){
+  const el = $("#catEstado"); if(!el) return;
+  const fuente = CAT.bd ? "base de datos" : "copia en la aplicación";
+  el.innerHTML = `Precios base en USD sin IVA · versión ${esc(CAT.version)} · ${fuente}${CAT.estado ? " · " + esc(CAT.estado) : ""}${SES ? " · tus precios editados se guardan en tu cuenta" : ""}`;
+}
+async function sincronizarCatalogo(){
+  try{
+    const h = {apikey: SB_KEY, Authorization: "Bearer " + SB_KEY};
+    const r = await fetch(SB_URL + "/rest/v1/catalogo_meta?select=version", {headers: h}); if(!r.ok) throw new Error("HTTP " + r.status);
+    const m = (await r.json())[0]; if(!m){ CAT.estado = "la base de datos aún no tiene catálogo"; renderCatEstado(); return; }
+    CAT.bd = String(m.version);
+    if(CAT.bd === CAT.version){ CAT.estado = "al día"; renderCatEstado(); return; }
+    const d = await (await fetch(SB_URL + "/rest/v1/rpc/catalogo_json", {method: "POST", headers: {...h, "Content-Type": "application/json"}, body: "{}"})).json();
+    if(aplicarCatalogo(d)){ CAT.origen = "bd"; try{ localStorage.setItem(CAT_KEY, JSON.stringify(d)); }catch(e){} CAT.estado = "actualizado desde la base de datos"; render(); toast("Catálogo de precios actualizado desde la base de datos"); }
+  }catch(e){ CAT.estado = "sin conexión: se usa la última copia"; }
+  renderCatEstado();
+}
+// Precios y APU propios del usuario: una fila por recurso editado o creado y por APU editado o creado
+const clavesPrecios = () => { const m = {};
+  new Set([...Object.keys(DB.rec || {}), ...Object.keys(DB.recNew || {})]).forEach(id => { m["r:" + id] = JSON.stringify({base: DB.recNew[id] || null, ov: DB.rec[id] || null}); });
+  Object.keys(DB.apuOv || {}).forEach(id => { m["a:" + id] = JSON.stringify(DB.apuOv[id]); });
+  Object.entries(DB.aprendido || {}).forEach(([k, v]) => { m["c:" + k] = JSON.stringify(v); }); return m; };
+const enLista = ids => "in.(" + ids.map(i => '"' + encodeURIComponent(String(i).replace(/"/g, '\\"')) + '"').join(",") + ")";
+async function preciosSubir(){
+  if(!SES || !NUBE.snap) return;
+  const cur = clavesPrecios(), snap = NUBE.snap, upR = [], upA = [], delR = [], delA = [], upC = [], delC = [];
+  for(const [k, v] of Object.entries(cur)) if(snap[k] !== v){ const id = k.slice(2), d = JSON.parse(v);
+    if(k[0] === "r"){ const r = rec(id) || {}; upR.push({usuario_id: SES.user.id, recurso_id: id, precio: +r.precio >= 0 ? +r.precio : 0, nombre: d.base ? d.base.nombre : null, unidad: d.base ? d.base.unidad : null, tipo: d.base ? d.base.tipo : null, datos: d}); }
+    else if(k[0] === "c") upC.push({usuario_id: SES.user.id, texto: id, apu_codigo: d.apu, unidad: d.unidad, veces: d.veces || 1});
+    else upA.push({usuario_id: SES.user.id, apu_codigo: id, datos: d}); }
+  for(const k of Object.keys(snap)) if(!(k in cur)) (k[0] === "r" ? delR : k[0] === "c" ? delC : delA).push(k.slice(2));
+  if(upC.length) await sbRest("correcciones_ia?on_conflict=usuario_id,texto", {method: "POST", body: upC, prefer: "resolution=merge-duplicates,return=minimal"});
+  if(delC.length) await sbRest("correcciones_ia?texto=" + enLista(delC), {method: "DELETE"});
+  if(upR.length) await sbRest("precios_usuario?on_conflict=usuario_id,recurso_id", {method: "POST", body: upR, prefer: "resolution=merge-duplicates,return=minimal"});
+  if(upA.length) await sbRest("apus_usuario?on_conflict=usuario_id,apu_codigo", {method: "POST", body: upA, prefer: "resolution=merge-duplicates,return=minimal"});
+  if(delR.length) await sbRest("precios_usuario?recurso_id=" + enLista(delR), {method: "DELETE"});
+  if(delA.length) await sbRest("apus_usuario?apu_codigo=" + enLista(delA), {method: "DELETE"});
+  NUBE.snap = cur;
+}
+async function preciosBajar(){
+  const [rs, as, cs] = await Promise.all([sbRest("precios_usuario?select=recurso_id,datos"), sbRest("apus_usuario?select=apu_codigo,datos"), sbRest("correcciones_ia?select=texto,apu_codigo,unidad,veces,actualizado").catch(() => [])]);
+  const snap = {};
+  (rs || []).forEach(f => { const d = f.datos || {}; const id = f.recurso_id;
+    if(d.base) DB.recNew[id] = d.base; else delete DB.recNew[id];
+    if(d.ov) DB.rec[id] = d.ov; else delete DB.rec[id];
+    snap["r:" + id] = JSON.stringify({base: DB.recNew[id] || null, ov: DB.rec[id] || null}); });
+  (as || []).forEach(f => { if(f.datos){ DB.apuOv[f.apu_codigo] = f.datos; snap["a:" + f.apu_codigo] = JSON.stringify(f.datos); } });
+  DB.aprendido = DB.aprendido || {};
+  (cs || []).forEach(f => { const l = DB.aprendido[f.texto]; if(!l || l.apu !== f.apu_codigo || l.unidad !== f.unidad || (l.veces || 0) < f.veces)
+    DB.aprendido[f.texto] = {nombre: l && l.nombre || f.texto, apu: f.apu_codigo, unidad: f.unidad, veces: f.veces, fecha: Date.parse(f.actualizado) || Date.now()};
+    snap["c:" + f.texto] = JSON.stringify(DB.aprendido[f.texto]); });
+  NUBE.snap = snap;
 }
 function renderCuenta(){
   const el = $("#cuentaCard"); if(!el) return;
@@ -1552,11 +1692,11 @@ function renderCuenta(){
   const est = NUBE.estado === "ok" ? `<span class="chip ok">Guardado en la nube</span>${NUBE.hora ? ` <span class="muted small">${new Date(NUBE.hora).toLocaleTimeString("es-SV", {hour: "2-digit", minute: "2-digit"})}</span>` : ""}`
     : NUBE.estado === "error" ? `<span class="chip bad">Sin guardar en la nube</span> <span class="muted small">${esc(NUBE.error)}</span> <button class="btn sm" data-nubereintentar>Reintentar</button>`
     : NUBE.estado ? '<span class="chip warn">Guardando…</span>' : "";
-  const pf = NUBE.perfil, inv = proyectosInvitado().filter(p => !DB.proyectos[p.id]).length;
+  const pf = NUBE.perfil, inv = proyectosInvitado().filter(p => !DB.proyectos[p.id]).length, invP = preciosInvitado().length;
   el.innerHTML = `<div class="row spread"><h2>Cuenta</h2><span class="chip">Plan ${esc(pf ? pf.plan : "gratis")}</span></div>
     <div class="facts"><span><b>${esc(pf && pf.nombre || SES.user.email)}</b></span><span>${esc(SES.user.email)}</span></div>
     <div class="row">${est}</div>
-    <div class="row">${inv ? `<button class="btn sm" data-copiarinv>Copiar ${inv} proyecto(s) de este navegador a mi cuenta</button>` : ""}<button class="btn sm" data-salir>Cerrar sesión</button></div>`;
+    <div class="row">${inv || invP ? `<button class="btn sm" data-copiarinv>Copiar ${[inv ? inv + " proyecto(s)" : "", invP ? invP + " precio(s) o APU propios" : ""].filter(Boolean).join(" y ")} de este navegador a mi cuenta</button>` : ""}<button class="btn sm" data-salir>Cerrar sesión</button></div>`;
 }
 const iaKey = () => DB.iaKey || IA_KEY_BASE;
 function catalogoIA(){
@@ -1573,7 +1713,8 @@ Reglas:
 - Eléctrico: aparatos por unidad (u), sin canalización ni cable (luminaria 12.02.02, tomacorriente 12.03.04, interruptor 12.03.05); poliducto y cable en ml. No uses las "salidas" completas 12.02.01, 12.03.01, 12.03.02 ni 12.03.03.
 - Evita partidas en suma global (SG): si solo una SG corresponde, propónla con confianza baja.
 - "confianza" entre 0 y 1. "razon": máximo 20 palabras en español.
-Tabla: ${titulo || "(sin título)"}
+${(() => { const ej = Object.values((DB && DB.aprendido) || {}).sort((a, b) => b.veces - a.veces || b.fecha - a.fecha).slice(0, 40);
+  return ej.length ? `Asociaciones ya confirmadas por el usuario (tipo de Revit → código, unidad); úsalas como guía para tipos parecidos:\n${ej.map(e => `${e.nombre} → ${e.apu} (${e.unidad})`).join("\n")}\n` : ""; })()}Tabla: ${titulo || "(sin título)"}
 Tipos (i | nombre | columnas con valor):
 ${items.map(x => `${x.i} | ${x.nombre} | ${x.cols}`).join("\n")}
 Catálogo estándar (código|unidad|descripción):
@@ -1639,11 +1780,11 @@ async function proponerIA(k){
   }
 }
 // Registro del procesamiento: filas para pantalla y exportación
-const REG_COLS = ["Fecha y hora", "Tabla", "Filas leídas", "Tipos distintos", "Partidas", "Por COD_PARTIDA", "Por reglas", "Por IA", "A mano", "Sin asociar", "Propuestas IA", "IA aceptadas sin cambio", "IA corregidas", "IA sin coincidencia", "Aciertos IA (%)", "Lectura (ms)", "Asociación (ms)", "Consulta IA (s)", "Carga a todas confirmadas (min)", "Confirmadas"];
+const REG_COLS = ["Fecha y hora", "Tabla", "Filas leídas", "Tipos distintos", "Partidas", "Por COD_PARTIDA", "Por reglas", "Por IA", "A mano", "Sin asociar", "Propuestas IA", "IA aceptadas sin cambio", "IA corregidas", "IA sin coincidencia", "Aciertos IA (%)", "Lectura (ms)", "Asociación (ms)", "Consulta IA (s)", "Carga a todas confirmadas (min)", "Confirmadas", "Por lo aprendido"];
 function filasRegistro(){
   actualizarRegistro();
   return (P().registro || []).map(r => [new Date(r.fecha).toLocaleString("es-SV"), r.tabla, r.filas, r.tipos, r.partidas ?? r.tipos, r.cod || 0, r.regla || 0, r.ia || 0, r.manual || 0, r.sinAsociar || 0,
-    r.iaProp || 0, r.iaAcept || 0, r.iaCorr || 0, r.iaSin || 0, r.iaProp ? R2(r.iaAcept / r.iaProp * 100) : "", r.tLectura, r.tAsoc, r.tIA || 0, r.tConfirm != null ? R2(r.tConfirm / 60000) : "pendiente", `${r.confirmadas || 0} de ${r.partidas ?? r.tipos}`]);
+    r.iaProp || 0, r.iaAcept || 0, r.iaCorr || 0, r.iaSin || 0, r.iaProp ? R2(r.iaAcept / r.iaProp * 100) : "", r.tLectura, r.tAsoc, r.tIA || 0, r.tConfirm != null ? R2(r.tConfirm / 60000) : "pendiente", `${r.confirmadas || 0} de ${r.partidas ?? r.tipos}`, r.aprendido || 0]);
 }
 async function exportarRegistro(tipo){
   const filas = filasRegistro(), nombre = `Registro de procesamiento ${(P().nombre || "obra").replace(/[\\/:*?"<>|]/g, "")}`;
@@ -1670,10 +1811,108 @@ async function leerXlsx(buf){
   ws.eachRow({includeEmpty: true}, row => { const r = []; for(let c = 1; c <= ws.columnCount; c++){ const cell = row.getCell(c); r.push(cell.text != null ? String(cell.text) : ""); } rows.push(r); });
   return rows;
 }
+// Vista previa con el mapeo de columnas antes de cargar la tabla
+let VISTA = null;
+function abrirVista(entrada, nombre){
+  const p = parseRevit(entrada);
+  if(!p.tipos.length && p.hdr < 0){ $("#revitStatus").innerHTML = '<span class="chip bad">No se encontraron tipos</span> Revisa que sea una tabla de planificación exportada de Revit (.txt, .csv o .xlsx).'; return; }
+  VISTA = {entrada, nombre, mapeo: {...p.idx, hdr: p.hdr}, disc: ""}; OPEN = "vista"; renderSheet();
+}
+function htmlVista(){
+  const V = VISTA, p = parseRevit(V.entrada, V.mapeo), enc = p.encabezados;
+  const opts = sel => '<option value="-1">(no usar)</option>' + enc.map((h, j) => `<option value="${j}"${j === sel ? " selected" : ""}>${esc(h || "Columna " + (j + 1))}</option>`).join("");
+  const mostrar = CAMPOS_REVIT.filter(([c]) => p.idx[c] >= 0), datos = p.rows.slice(p.hdr + 1).filter(r => r.some(Boolean)).slice(0, 8);
+  return hojaTop("Vista previa de la tabla") + `<p class="small muted" style="margin:0">${esc(V.nombre)} · ${p.filas} filas con datos · ${p.tipos.length} partidas${p.hdr >= 0 ? ` · encabezados en la fila ${p.hdr + 1}` : ""}. Revisa qué columna corresponde a cada dato y cambia la que esté mal.</p>
+    <div class="form" id="vistaMapeo">${CAMPOS_REVIT.map(([c, n]) => `<label>${n}<select data-mapeo="${c}">${opts(p.idx[c])}</select></label>`).join("")}
+      <label>Disciplina de la tabla<select id="vistaDisc"><option value="">Según la columna o el capítulo</option>${DISCIPLINAS.map(d => `<option${d === V.disc ? " selected" : ""}>${d}</option>`).join("")}</select></label></div>
+    <div class="tbl"><table><thead><tr>${mostrar.map(([, n]) => `<th>${n}</th>`).join("")}</tr></thead><tbody>${datos.map(r => `<tr>${mostrar.map(([c]) => `<td>${esc(r[p.idx[c]] || "")}</td>`).join("")}</tr>`).join("")}</tbody></table></div>
+    <div class="row"><button class="btn primary" data-vistacargar ${p.tipos.length ? "" : "disabled"}>Cargar tabla (${p.tipos.length} partidas)</button><button class="btn" data-close>Cancelar</button></div>`;
+}
+// ===== Versiones del presupuesto (etapa 6) =====
+const claveLinea = l => [l.origen === "Revit" ? "R" : "C", l.code, norm(l.titulo || ""), l.unidad].join("|");
+function fotoPresupuesto(motivo){
+  const C = calcular(), m = new Map();
+  C.ls.forEach(l => { const k = claveLinea(l), costo = l.pu && l.pu.total > 0 && l.cant > 0 ? R2(l.cant * l.pu.total) : 0, x = m.get(k);
+    if(x){ x.cant = R2(x.cant + l.cant); x.costo = R2(x.costo + costo); x.ok = x.ok && l.ok; }
+    else m.set(k, {k, code: l.code, titulo: l.titulo, unidad: l.unidad, cc: l.cc, cant: l.cant, pu: l.pu ? l.pu.total : 0, costo, ok: l.ok}); });
+  const vs = P().versiones || [];
+  return {n: vs.length ? vs[vs.length - 1].n + 1 : 1, fecha: Date.now(), motivo, cd: C.c.cd, total: C.c.total, lineas: [...m.values()]};
+}
+function crearVersion(motivo){
+  const pr = P(); pr.versiones = pr.versiones || []; const v = fotoPresupuesto(motivo); pr.versiones.push(v);
+  if(pr.versiones.length > 30) pr.versiones.splice(0, pr.versiones.length - 30);
+  VER_SEL = null; guardar(); if(SES) nubeVersion(v); return v;
+}
+// Diferencias de la versión b frente a la a: partidas nuevas, quitadas o con cambios de cantidad o costo
+function compararVersiones(a, b){
+  const A = new Map(a.lineas.map(x => [x.k, x])), B = new Map(b.lineas.map(x => [x.k, x]));
+  return [...new Set([...A.keys(), ...B.keys()])].map(k => { const x = A.get(k), y = B.get(k), z = y || x;
+    const r = {k, code: z.code, titulo: z.titulo, unidad: z.unidad, cantA: x ? x.cant : 0, cantB: y ? y.cant : 0, costoA: x ? x.costo : 0, costoB: y ? y.costo : 0, estado: !x ? "Nueva" : !y ? "Quitada" : "Cambió"};
+    r.dCant = R2(r.cantB - r.cantA); r.dCosto = R2(r.costoB - r.costoA); return r; })
+    .filter(r => r.estado !== "Cambió" || r.dCant || r.dCosto).sort((p, q) => p.code.localeCompare(q.code, "es", {numeric: true}) || p.titulo.localeCompare(q.titulo, "es"));
+}
+let VER_SEL = null; // [índice anterior, índice nuevo]
+function verPar(){ const vs = P().versiones || []; if(vs.length < 2) return null; const s = VER_SEL && vs[VER_SEL[0]] && vs[VER_SEL[1]] ? VER_SEL : [vs.length - 2, vs.length - 1]; return {a: vs[s[0]], b: vs[s[1]], s}; }
+const signo = (v, f) => (v > 0 ? "+" : "") + f(v);
+function renderVersiones(){
+  const el = $("#verCard"); if(!el) return; const vs = P().versiones || [], par = verPar();
+  const opt = sel => vs.map((v, i) => `<option value="${i}"${i === sel ? " selected" : ""}>V${v.n} · ${new Date(v.fecha).toLocaleString("es-SV", {day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit"})} · ${esc(v.motivo)}</option>`).join("");
+  let h = `<div class="row spread"><h2>Versiones del presupuesto</h2><button class="btn sm" data-versionar>Guardar versión ahora</button></div>
+    <p class="muted small" style="margin:0">Se guarda una versión cada vez que importas una tabla de Revit. Compara dos versiones para ver qué cambió en cantidades y costos.</p>`;
+  if(!vs.length){ el.innerHTML = h + '<p class="muted small">Todavía no hay versiones.</p>'; return; }
+  h += `<div class="tbl"><table><thead><tr><th>Versión</th><th>Fecha</th><th>Motivo</th><th class="n">Costo directo</th><th class="n">Total</th></tr></thead><tbody>${vs.slice().reverse().slice(0, 8).map(v => `<tr><td><b>V${v.n}</b></td><td>${new Date(v.fecha).toLocaleString("es-SV")}</td><td>${esc(v.motivo)}</td><td class="n">${money(v.cd)}</td><td class="n">${money(v.total)}</td></tr>`).join("")}</tbody></table></div>`;
+  if(par){
+    const dif = compararVersiones(par.a, par.b), dCd = R2(par.b.cd - par.a.cd), dT = R2(par.b.total - par.a.total);
+    h += `<div class="form"><label>Versión anterior<select id="verA">${opt(par.s[0])}</select></label><label>Versión nueva<select id="verB">${opt(par.s[1])}</select></label></div>
+      <div class="row"><span class="chip ${dCd > 0 ? "warn" : dCd < 0 ? "ok" : ""}">Costo directo ${signo(dCd, money)}</span><span class="chip">Total ${signo(dT, money)}</span><span class="muted small">${dif.length} partida(s) con cambios</span></div>
+      ${dif.length ? `<div class="tbl"><table><thead><tr><th>Partida</th><th>Unidad</th><th class="n">Cant. V${par.a.n}</th><th class="n">Cant. V${par.b.n}</th><th class="n">Dif. cant.</th><th class="n">Costo V${par.a.n}</th><th class="n">Costo V${par.b.n}</th><th class="n">Dif. costo</th></tr></thead><tbody>
+        ${dif.map(r => `<tr><td>${esc(r.code)} ${esc(r.titulo)} ${r.estado !== "Cambió" ? `<span class="chip ${r.estado === "Nueva" ? "info" : "warn"}">${r.estado}</span>` : ""}</td><td class="u">${esc(r.unidad)}</td><td class="n">${num(r.cantA)}</td><td class="n">${num(r.cantB)}</td><td class="n">${signo(r.dCant, num)}</td><td class="n">${money(r.costoA)}</td><td class="n">${money(r.costoB)}</td><td class="n"><b>${signo(r.dCosto, money)}</b></td></tr>`).join("")}</tbody></table></div>` : '<p class="muted small">Sin diferencias entre estas versiones.</p>'}
+      <p class="muted small" style="margin:0">El costo de cada partida es cantidad × P.U. de costo directo; incluye partidas que en esa versión estaban por confirmar.</p>`;
+  }
+  el.innerHTML = h;
+}
+async function nubeProyectoId(appId){ await nubeSubir(); const r = await sbRest("proyectos?select=id&app_id=eq." + encodeURIComponent(appId)); return r && r[0] && r[0].id; }
+async function nubeImportacion(imp, appId){ try{ PEND.add(appId); const pid = await nubeProyectoId(appId); if(pid) await sbRest("importaciones", {method: "POST", body: {proyecto_id: pid, archivo: imp.archivo, filas: imp.tipos.map(t => ({tipo: t.nombre, cod: t.cod, det: t.det || []})), mapeo: imp.mapeo || null}, prefer: "return=minimal"}); }catch(e){} }
+async function nubeVersion(v){ const appId = DB.actual; try{ PEND.add(appId); const pid = await nubeProyectoId(appId); if(pid) await sbRest("versiones?on_conflict=proyecto_id,numero", {method: "POST", body: {proyecto_id: pid, numero: v.n, resumen: v}, prefer: "resolution=merge-duplicates,return=minimal"}); }catch(e){} }
+// ===== Disciplina y nivel (etapa 4) =====
+const DISC_CC = {"03":"Estructural", "04":"Estructural", "05":"Arquitectónica", "06":"Arquitectónica", "07":"Arquitectónica", "08":"Arquitectónica", "09":"Arquitectónica", "10":"Arquitectónica", "11":"Hidrosanitaria", "12":"Eléctrica", "13":"Arquitectónica"};
+const discDeCap = cc => DISC_CC[cc] || "Obras generales";
+const SIN_NIVEL = "Sin nivel";
+const cantFila = (d, u, t) => t.unidadModelo && t.unidadModelo === u && t.cantidad > 0 ? d.q : u === "m²" ? d.a : u === "ml" || u === "qq" ? d.l : u === "m³" ? d.v : d.c;
+// Reparte una línea del presupuesto entre disciplina y nivel según sus filas de Revit
+function repartoLinea(l){
+  const def = discDeCap(l.cc);
+  if(!l.ref || !l.ref.startsWith("r:")) return [{disc: def, nivel: SIN_NIVEL, frac: 1}];
+  const [, k, i] = l.ref.split(":"), imp = P().revit[+k], t = imp.tipos[+i];
+  const base = imp.disciplina || (t.disciplina && t.disciplina !== "Varias" ? t.disciplina : "") || def;
+  const det = t.det || [], tot = det.reduce((s, d) => s + (cantFila(d, l.unidad, t) || 0), 0);
+  if(!det.length || !(tot > 0)) return [{disc: base, nivel: SIN_NIVEL, frac: 1}];
+  const m = new Map(); det.forEach(d => { const key = (imp.disciplina || d.disc || base) + "\u0001" + (d.nivel || SIN_NIVEL); m.set(key, (m.get(key) || 0) + (cantFila(d, l.unidad, t) || 0) / tot); });
+  return [...m].map(([key, frac]) => { const [disc, nivel] = key.split("\u0001"); return {disc, nivel, frac}; });
+}
+function resumenDN(C){
+  C = C || calcular(); const D = new Map(), N = new Map();
+  const add = (M, nombre, l, frac) => { const g = M.get(nombre) || {nombre, cd: 0, items: []}; g.cd += l.sub * frac; g.items.push({code: l.code, titulo: l.titulo, unidad: l.unidad, cant: l.cant * frac, sub: l.sub * frac, frac}); M.set(nombre, g); };
+  for(const l of C.ls) if(l.ok && l.sub) for(const x of repartoLinea(l)){ add(D, x.disc, l, x.frac); add(N, x.nivel, l, x.frac); }
+  const orden = (M, primero) => [...M.values()].map(g => ({...g, cd: R2(g.cd), pct: C.c.cd ? g.cd / C.c.cd * 100 : 0}))
+    .sort((a, b) => primero(a.nombre) - primero(b.nombre) || a.nombre.localeCompare(b.nombre, "es", {numeric: true}));
+  const disc = orden(D, n => { const i = DISCIPLINAS.indexOf(n); return i < 0 ? (n === "Obras generales" ? 9 : 5) : i; }), niv = orden(N, n => n === SIN_NIVEL ? 9 : 0);
+  return {disc, niv, ajusteDisc: R2(C.c.cd - disc.reduce((s, g) => s + g.cd, 0)), ajusteNiv: R2(C.c.cd - niv.reduce((s, g) => s + g.cd, 0)), cd: C.c.cd};
+}
+let DN_MODO = "disc";
+function renderDN(C){
+  const el = $("#dnCard"); if(!el) return;
+  const R = resumenDN(C), lista = DN_MODO === "disc" ? R.disc : R.niv, aj = DN_MODO === "disc" ? R.ajusteDisc : R.ajusteNiv;
+  el.innerHTML = `<div class="row spread"><h2>Por disciplina y nivel</h2><div class="seg" role="group" aria-label="Agrupar por"><button data-dn="disc" aria-pressed="${DN_MODO === "disc"}">Disciplina</button><button data-dn="nivel" aria-pressed="${DN_MODO === "nivel"}">Nivel</button></div></div>
+    <p class="muted small" style="margin:0">El costo directo de cada partida se reparte según las filas de Revit (nivel y disciplina de cada elemento). Las partidas sin filas de Revit van a "Sin nivel" y a la disciplina de su capítulo.</p>
+    ${lista.length ? lista.map(g => `<details class="dn"><summary><span><b>${esc(g.nombre)}</b> <span class="muted small">${g.items.length} partida(s)</span></span><span><b>${money(g.cd)}</b> <span class="muted small">${num(g.pct, 1)}%</span></span></summary>
+      <div class="tbl"><table><thead><tr><th>Código</th><th>Partida</th><th>Unidad</th><th class="n">Cantidad</th><th class="n">Costo directo</th></tr></thead><tbody>${g.items.map(x => `<tr><td>${esc(x.code)}</td><td>${esc(x.titulo)}${x.frac < 0.9999 ? ` <span class="muted small">(${num(x.frac * 100, 1)}%)</span>` : ""}</td><td class="u">${esc(x.unidad)}</td><td class="n">${num(x.cant)}</td><td class="n">${money(x.sub)}</td></tr>`).join("")}</tbody></table></div></details>`).join("")
+      + `<div class="row spread small"><span class="muted">${aj ? `Ajuste por redondeo ${money(aj)} · ` : ""}Costo directo</span><b>${money(R.cd)}</b></div>` : '<p class="muted small">Todavía no hay partidas en el total.</p>'}`;
+}
 function leerArchivo(f){
   if(/\.xlsx$/i.test(f.name)){ $("#revitStatus").innerHTML = '<span class="chip info">Leyendo Excel…</span>';
-    f.arrayBuffer().then(leerXlsx).then(rows => cargarTexto(rows, f.name)).catch(e => { $("#revitStatus").innerHTML = `<span class="chip bad">No se pudo leer el Excel</span> ${esc(e.message || e)}`; }); return; }
-  const fr = new FileReader(); fr.onload = () => cargarTexto(decodificar(fr.result), f.name); fr.readAsArrayBuffer(f);
+    f.arrayBuffer().then(leerXlsx).then(rows => abrirVista(rows, f.name)).catch(e => { $("#revitStatus").innerHTML = `<span class="chip bad">No se pudo leer el Excel</span> ${esc(e.message || e)}`; }); return; }
+  const fr = new FileReader(); fr.onload = () => abrirVista(decodificar(fr.result), f.name); fr.readAsArrayBuffer(f);
 }
 function migrarProyecto(p){
   p.cfg = p.cfg || {}; if(p.cfg.adm == null) p.cfg.adm = 10; if(p.cfg.imp == null) p.cfg.imp = 5; if(p.cfg.ua == null) p.cfg.ua = 10; if(p.nviv == null) p.nviv = 4;
@@ -1771,6 +2010,10 @@ document.addEventListener("click", e => {
     OPEN = "proyectos"; guardar(); render(); toast("Proyecto borrado"); return; }
   if((x = T("[data-cuenta]"))){ OPEN = "cuenta:" + x.dataset.cuenta; AUTH_MSG = ""; renderSheet(); setTimeout(() => { const f = $("#auCorreo") || $("#auNombre"); if(f) f.focus(); }, 50); return; }
   if(T("[data-salir]")){ salir(); return; }
+  if(T("[data-vistacargar]") && VISTA){ const V = VISTA; OPEN = null; VISTA = null; renderSheet(); cargarTexto(V.entrada, V.nombre, V.mapeo, V.disc); return; }
+  if((x = T("[data-elementos]"))){ OPEN = "elem:" + x.dataset.elementos; renderSheet(); return; }
+  if((x = T("[data-dn]"))){ DN_MODO = x.dataset.dn; renderDN(); return; }
+  if(T("[data-versionar]")){ const v = crearVersion("Guardada a mano"); renderVersiones(); toast(`Versión V${v.n} guardada`); return; }
   if(T("[data-copiarinv]")){ copiarInvitado(); return; }
   if(T("[data-nubereintentar]")){ Object.keys(DB.proyectos).forEach(id => PEND.add(id)); nubeSubir(); return; }
   if(T("[data-firmar]")){ OPEN = "firma"; renderSheet(); return; }
@@ -1845,6 +2088,9 @@ document.addEventListener("click", e => {
 });
 document.addEventListener("change", e => {
   const el = e.target;
+  if(el.dataset && el.dataset.mapeo && VISTA){ VISTA.mapeo[el.dataset.mapeo] = +el.value; renderSheet(); return; }
+  if(el.id === "vistaDisc" && VISTA){ VISTA.disc = el.value; return; }
+  if(el.id === "verA" || el.id === "verB"){ const par = verPar(); VER_SEL = [+$("#verA").value, +$("#verB").value]; renderVersiones(); return; }
   if(el.id === "naCap" || el.id === "naSub"){
     if(el.id === "naCap"){ const subs = DATA.caps.find(c => c.cc === el.value).subs; $("#naSub").innerHTML = Object.entries(subs).map(([s, n]) => `<option value="${s}">${s} ${esc(n)}</option>`).join(""); }
     $("#naCode").value = nextCode($("#naCap").value, $("#naSub").value); return;
@@ -2074,6 +2320,32 @@ async function hacerExcel(borradorArg){
     wc.addRow(["", interna ? "Costo directo del conjunto" : "Subtotal del conjunto", "", "", "", "", interna ? CJ.cd : CJ.sub]).font = {bold:true};
     ["F", "G"].forEach(cl => wc.getColumn(cl).numFmt = MON); ["D", "E"].forEach(cl => wc.getColumn(cl).numFmt = NUMF);
   }
+  if(interna){ // Hojas de la etapa 4: disciplina y nivel, y trazabilidad hasta el elemento de Revit
+    const R = resumenDN(C), wd = wb.addWorksheet("Disciplina y nivel", {pageSetup:{paperSize:1, fitToPage:true, fitToWidth:1, fitToHeight:0}});
+    wd.columns = [{width:22}, {width:14}, {width:52}, {width:9}, {width:13}, {width:15}, {width:9}];
+    [["DISCIPLINA", R.disc, R.ajusteDisc], ["NIVEL", R.niv, R.ajusteNiv]].forEach(([tit, lista, aj]) => {
+      const h = wd.addRow([tit, "Código", "Partida", "Unidad", "Cantidad", "Costo directo", "%"]); h.font = {bold:true, color:{argb:"FFFFFFFF"}}; h.fill = {type:"pattern", pattern:"solid", fgColor:{argb:AZ}};
+      lista.forEach(g => { const rg = wd.addRow([g.nombre, "", `${g.items.length} partida(s)`, "", "", g.cd, R2(g.pct)]); rg.font = {bold:true}; rg.fill = {type:"pattern", pattern:"solid", fgColor:{argb:CL}};
+        g.items.forEach(x => wd.addRow(["", x.code, x.titulo, x.unidad, R2(x.cant), R2(x.sub), ""])); });
+      if(aj) wd.addRow(["", "", "Ajuste por redondeo", "", "", aj, ""]);
+      wd.addRow(["", "", "Costo directo", "", "", R.cd, 100]).font = {bold:true}; wd.addRow([]); });
+    wd.getColumn("F").numFmt = MON; wd.getColumn("E").numFmt = NUMF;
+    const wt = wb.addWorksheet("Trazabilidad", {pageSetup:{paperSize:1, orientation:"landscape", fitToPage:true, fitToWidth:1, fitToHeight:0}});
+    wt.columns = [{header:"Código APU", width:12}, {header:"Partida (tipo de Revit)", width:40}, {header:"Archivo", width:30}, {header:"Fila", width:7}, {header:"ID del elemento", width:16}, {header:"Nivel", width:14}, {header:"Disciplina", width:16}, {header:"Marca", width:10}, {header:"Área", width:10}, {header:"Longitud", width:10}, {header:"Volumen", width:10}, {header:"Recuento", width:10}];
+    P().revit.forEach(imp => imp.tipos.forEach((tp, i) => { const a = apuById(imp.partidas[i].apu);
+      (tp.det || []).forEach(d => wt.addRow([a ? a.id : "S/C", tp.nombre, imp.archivo, d.f, d.id || "", d.nivel || "", imp.disciplina || d.disc || tp.disciplina || "", d.marca || "", R2(d.a || 0), R2(d.l || 0), R2(d.v || 0), d.c])); }));
+    wt.getRow(1).font = {bold:true, color:{argb:"FFFFFFFF"}}; wt.getRow(1).fill = {type:"pattern", pattern:"solid", fgColor:{argb:AZ}};
+    const par = verPar();
+    if(par){ const wv = wb.addWorksheet("Comparación de versiones", {pageSetup:{paperSize:1, orientation:"landscape", fitToPage:true, fitToWidth:1, fitToHeight:0}});
+      wv.columns = [{width:12}, {width:46}, {width:9}, {width:12}, {width:12}, {width:12}, {width:14}, {width:14}, {width:14}, {width:11}];
+      wv.addRow([`COMPARACIÓN V${par.a.n} (${new Date(par.a.fecha).toLocaleString("es-SV")}, ${par.a.motivo}) CON V${par.b.n} (${new Date(par.b.fecha).toLocaleString("es-SV")}, ${par.b.motivo})`]).font = {bold:true, color:{argb:AZ}};
+      const hv = wv.addRow(["Código", "Partida", "Unidad", `Cant. V${par.a.n}`, `Cant. V${par.b.n}`, "Dif. cant.", `Costo V${par.a.n}`, `Costo V${par.b.n}`, "Dif. costo", "Estado"]);
+      hv.font = {bold:true, color:{argb:"FFFFFFFF"}}; hv.fill = {type:"pattern", pattern:"solid", fgColor:{argb:AZ}};
+      compararVersiones(par.a, par.b).forEach(x => wv.addRow([x.code, x.titulo, x.unidad, x.cantA, x.cantB, x.dCant, x.costoA, x.costoB, x.dCosto, x.estado]));
+      wv.addRow(["", "Costo directo", "", "", "", "", par.a.cd, par.b.cd, R2(par.b.cd - par.a.cd), ""]).font = {bold:true};
+      wv.addRow(["", "Total", "", "", "", "", par.a.total, par.b.total, R2(par.b.total - par.a.total), ""]).font = {bold:true};
+      ["G", "H", "I"].forEach(cl => wv.getColumn(cl).numFmt = MON); ["D", "E", "F"].forEach(cl => wv.getColumn(cl).numFmt = NUMF); }
+  }
   if(o.materiales){
     const wm = wb.addWorksheet("Materiales", {pageSetup:{paperSize:1, fitToPage:true, fitToWidth:1, fitToHeight:0}});
     wm.columns = [{header:"Material", width:46}, {header:"Unidad", width:9}, {header:"Consumo", width:12}, {header:"Desperdicio %", width:13}, {header:"Con desperdicio", width:15}, {header:"A comprar", width:12}, {header:"Precio", width:11}, {header:"Costo consumo", width:14}, {header:"Costo compra", width:14}];
@@ -2137,6 +2409,7 @@ if(authHash){ history.replaceState(null, "", location.pathname + location.search
   const j = {access_token: authHash.get("access_token"), refresh_token: authHash.get("refresh_token"), expires_in: +authHash.get("expires_in") || 3600};
   sbAuth("user", undefined, j.access_token).then(u => { guardarSesion({...j, user: u}); cambiarAlmacen(); toast("Correo confirmado. Sesión iniciada"); return nubeSincronizar(); }).catch(e => toast("No se pudo iniciar sesión: " + e.message)); }
 else if(SES) nubeSincronizar();
+renderCatEstado(); sincronizarCatalogo();
 </script>
 </body>
 </html>
