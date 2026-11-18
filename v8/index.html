@@ -1114,9 +1114,14 @@ function renderPresupuesto(){
     <div class="bar" role="img" aria-label="Distribución por capítulo">${todos.filter(g=>g.sub>0).map(g => `<i style="width:${(g.sub/tot*100).toFixed(2)}%;background:${g.c}" title="${esc(g.nombre)}"></i>`).join("")}</div>
     <div class="legend">${todos.map(g => `<div><span class="dot" style="background:${g.c}"></span><span class="lname">${g.cc} ${esc(g.nombre)}</span><span class="n">${money(g.sub)}</span><span class="n">${c.cd ? num(g.sub/tot*100,1) : "0.0"}%</span></div>`).join("")}</div>`;
   const prob = ls.filter(l => l.problema), rev = ls.filter(l => l.pendiente && !l.problema), val = ls.filter(l => l.validada && l.revisar);
-  $("#avisos").innerHTML = (prob.length ? `<div class="note"><b>${prob.length} partida(s) fuera del total:</b> ${prob.map(l => esc(l.titulo) + " (" + l.problema.toLowerCase() + ")").join("; ")}.</div>` : "") +
-    (rev.length ? `<div class="note" style="margin-top:8px"><b>${rev.length} cantidad(es) por revisar</b> (incluidas en el total con la cantidad del modelo): ${rev.map(l => `${esc(l.titulo)}`).join("; ")}. Valídalas en Partidas. Mientras haya pendientes, la exportación sale como borrador.</div>` : "") +
-    (val.length ? `<div class="note info" style="margin-top:8px"><b>${val.length} cantidad(es) validada(s)</b> con observación: ${val.map(l => `${esc(l.titulo)}${l.obs ? " (" + esc(l.obs) + ")" : ""}`).join("; ")}.</div>` : "");
+  // Avisos cortos: el resumen arriba y la lista completa plegada (con pocas partidas se muestran directo)
+  const listaAviso = (arr, txt) => arr.length <= 4 ? ` ${arr.map(txt).join("; ")}.` :
+    `<details style="margin-top:6px"><summary class="small" style="cursor:pointer">Ver las ${arr.length}</summary><ul class="small" style="margin:6px 0 0;padding-left:18px">${arr.map(l => `<li>${txt(l)}</li>`).join("")}</ul></details>`;
+  const irPartidas = `<button class="btn ghost" style="margin-left:6px;padding:2px 10px" data-irvista="partidas">Ir a Partidas</button>`;
+  const motivos = {}; prob.forEach(l => { const m = l.problema.toLowerCase(); motivos[m] = (motivos[m] || 0) + 1; });
+  $("#avisos").innerHTML = (prob.length ? `<div class="note"><b>${prob.length} partida(s) fuera del total</b> (${Object.entries(motivos).map(([m, n]) => `${n} ${esc(m)}`).join(", ")}). Revísalas en Partidas para que entren al total.${irPartidas}${listaAviso(prob, l => esc(l.titulo) + ' <span class="muted">(' + esc(l.problema.toLowerCase()) + ")</span>")}</div>` : "") +
+    (rev.length ? `<div class="note" style="margin-top:8px"><b>${rev.length} cantidad(es) por revisar</b> (incluidas en el total con la cantidad del modelo). Valídalas en Partidas. Mientras haya pendientes, la exportación sale como borrador.${irPartidas}${listaAviso(rev, l => esc(l.titulo))}</div>` : "") +
+    (val.length ? `<div class="note info" style="margin-top:8px"><b>${val.length} cantidad(es) validada(s)</b> con observación.${listaAviso(val, l => `${esc(l.titulo)}${l.obs ? " (" + esc(l.obs) + ")" : ""}`)}</div>` : "");
   const chips = l => (l.problema ? ` <span class="chip bad">${esc(l.problema)}</span>` : "") + (l.pu && l.pu.editado ? ' <span class="chip info">Editado</span>' : "") + (l.pendiente ? ' <span class="chip warn">Cantidad por revisar</span>' : (l.validada && l.revisar ? ' <span class="chip ok">Cantidad validada</span>' : ""));
   $("#tblPres").innerHTML = `<thead><tr><th>Código</th><th>Partida</th><th class="u">Unidad</th><th class="n">Cantidad</th><th class="n">P.U. (C.D.)</th><th class="n">Parcial</th><th class="n">P.U. venta</th><th class="n">Total</th></tr></thead><tbody>` +
     grupos.map(g => `<tr class="cap"><td class="code">${g.cc}</td><td colspan="4"><span class="capcell">${ico(g.cc,true)}${esc(g.nombre)}</span></td><td class="n">${money(g.sub)}</td><td></td><td class="n">${money(g.venta)}</td></tr>` +
@@ -2345,6 +2350,7 @@ document.addEventListener("click", e => {
   if((x = T("[data-nuevoproy]"))){ const p = x.dataset.nuevoproy === "ejemplo" ? proyectoEjemplo() : proyectoVacio(); DB.proyectos[p.id] = p; DB.actual = p.id; OPEN = null; guardar(); render(); ir(x.dataset.nuevoproy === "ejemplo" ? "presupuesto" : "proyecto"); toast("Proyecto creado"); return; }
   if(T("[data-duplicar]")){ const c = JSON.parse(JSON.stringify(P())); c.id = uid(); c.nombre += " (copia)"; c.numero = nuevoNumero(); c.creado = c.mod = Date.now(); DB.proyectos[c.id] = c; DB.actual = c.id; OPEN = null; guardar(); render(); toast("Proyecto duplicado"); return; }
   if((x = T("[data-abrir]"))){ DB.actual = x.dataset.abrir; OPEN = null; QUERY = ""; guardar(); render(); toast("Proyecto abierto"); return; }
+  if((x = T("[data-irvista]"))){ ir(x.dataset.irvista); window.scrollTo(0, 0); return; }
   if((x = T("[data-borrarapu]"))){ OPEN = "borrarapu:" + x.dataset.borrarapu; renderSheet(); return; }
   if((x = T("[data-borrarrec]"))){ OPEN = "borrarrec:" + x.dataset.borrarrec; renderSheet(); return; }
   if((x = T("[data-confirmborrarcat]"))){ borrarCatalogo(x.dataset.confirmborrarcat); return; }
