@@ -294,6 +294,12 @@ textarea{font:inherit;color:var(--ink);background:var(--group2);border:0;border-
 .opt small{display:block;color:var(--muted);font-size:12px}
 .expbtns{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .expbtns .btn{padding:14px;font-size:16px}
+.drop[hidden],.ifcprog[hidden]{display:none!important}
+.ifcprog{display:flex;align-items:center;gap:10px;width:100%;flex-wrap:wrap}
+.barra{flex:1 1 220px;height:8px;border-radius:4px;background:var(--sep);overflow:hidden}
+.barra i{display:block;height:100%;width:0;background:var(--accent);transition:width .2s}
+.ifcnums{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px}
+.ifcnums div{background:var(--group2);border-radius:10px;padding:8px 10px}.ifcnums b{display:block;font-size:20px}.ifcnums b.warn{color:var(--warn)}
 details.dn{border-top:1px solid var(--sep, rgba(128,128,128,.25));padding:8px 0}
 details.dn>summary{display:flex;justify-content:space-between;gap:12px;cursor:pointer;list-style:none;align-items:baseline}
 details.dn>summary::-webkit-details-marker{display:none}
@@ -406,6 +412,14 @@ details.dn .tbl{margin-top:8px}
     <h1 class="ltitle">Partidas</h1>
     <div class="card">
       <div class="row spread"><h2>Tablas de Revit</h2><button class="btn sm" id="btnEjemplo">Usar ejemplo</button></div>
+      <div class="seg" role="group" aria-label="Qué vas a importar" id="impModo"><button data-impmodo="revit" aria-pressed="true">Tablas de Revit</button><button data-impmodo="ifc" aria-pressed="false">Archivo IFC</button></div>
+      <div class="drop" id="dropIfc" hidden>
+        <strong>Arrastra el modelo IFC (.ifc, IFC2x3 o IFC4)</strong>
+        <label class="btn primary" for="fileIfc" style="cursor:pointer">Elegir archivo IFC</label>
+        <input type="file" id="fileIfc" accept=".ifc" hidden>
+        <span class="muted small tip">Expórtalo desde Revit con "Cantidades base" y "Conjuntos de propiedades de Revit". Se lee en este navegador; el archivo no se sube a ningún servidor.</span>
+        <div class="ifcprog" id="ifcProg" hidden><div class="barra"><i id="ifcBarra"></i></div><span class="small muted" id="ifcProgTxt"></span><button class="btn sm ghost" data-ifccancelar>Cancelar</button></div>
+      </div>
       <div class="drop" id="drop">
         <strong>Arrastra la tabla exportada de Revit (.txt, .csv o .xlsx)</strong>
         <label class="btn primary" for="file" style="cursor:pointer">Elegir archivo</label>
@@ -1296,11 +1310,13 @@ function renderSheet(){
       <div class="group">${list.map(p => { const cur = DB.actual; DB.actual = p.id; const t = calcular().c.total; DB.actual = cur;
         return `<div class="addrow"><span class="txt"><span class="t">${esc(p.nombre)}${p.id === DB.actual ? " ✓" : ""}</span><span class="s">${esc([p.cliente, p.numero, fechaTxt(p.fecha)].filter(Boolean).join(" · "))} · ${money(t)}</span></span>
           ${p.id === DB.actual ? "" : `<button class="btn sm" data-abrir="${p.id}">Abrir</button>`}<button class="del" data-borrarproy="${p.id}" aria-label="Borrar proyecto">×</button></div>`; }).join("")}</div>`;
+  } else if(OPEN === "ifc" && IFC_RES){
+    sh.innerHTML = htmlResumenIFC();
   } else if(OPEN === "vista" && VISTA){
     sh.innerHTML = htmlVista();
   } else if(OPEN.startsWith("elem:")){
     const t = getTipo(OPEN.slice(5)), det = t.det || [], has = k => det.some(d => d[k]);
-    const cs = [["f", "Fila", 0], ["id", "ID del elemento"], ["nivel", "Nivel"], ["disc", "Disciplina"], ["marca", "Marca"], ["a", "Área (m²)", 2], ["l", "Longitud (m)", 2], ["v", "Volumen (m³)", 2], ["c", "Recuento", 0], ["q", "Cantidad", 2], ["u", "Unidad"]].filter(([k]) => k === "f" || has(k));
+    const cs = [["f", "Fila", 0], ["id", "ID del elemento"], ["nivel", "Nivel"], ["disc", "Disciplina"], ["marca", "Marca"], ["a", "Área (m²)", 2], ["l", "Longitud (m)", 2], ["v", "Volumen (m³)", 2], ["c", "Recuento", 0], ["q", "Cantidad", 2], ["u", "Unidad"], ["kg", "Peso (kg)", 2]].filter(([k]) => k === "f" || has(k));
     sh.innerHTML = hojaTop("Elementos de Revit") + `<p class="small muted" style="margin:0"><b>${esc(t.nombre)}</b> · ${det.length} fila(s) del archivo. Cada fila es un elemento (o grupo) del modelo; la cantidad de la partida es la suma de estas filas.</p>
       <div class="tbl"><table><thead><tr>${cs.map(([, n, d]) => `<th${d != null ? ' class="n"' : ""}>${n}</th>`).join("")}</tr></thead><tbody>${det.map(d => `<tr>${cs.map(([k, , dec]) => dec != null ? `<td class="n">${num(d[k] || 0, dec)}</td>` : `<td>${esc(d[k] || "")}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
   } else if(OPEN.startsWith("cuenta:")){
@@ -1811,6 +1827,257 @@ async function leerXlsx(buf){
   ws.eachRow({includeEmpty: true}, row => { const r = []; for(let c = 1; c <= ws.columnCount; c++){ const cell = row.getCell(c); r.push(cell.text != null ? String(cell.text) : ""); } rows.push(r); });
   return rows;
 }
+/*IFC-INICIO*/
+// Lector de IFC (IFC2x3 e IFC4) con web-ifc. Función autónoma: se ejecuta dentro del Web Worker
+// (se inyecta con toString) y en las pruebas de Node. No usa nada de fuera de la función.
+function extraerIFC(api, W, id, progreso){
+  const prog = (p, etapa) => { try{ progreso && progreso(p, etapa); }catch(e){} };
+  const L = e => api.GetLine(id, e);
+  const clase = e => { try{ return api.GetNameFromTypeCode(api.GetLineType(id, e)) || ""; }catch(err){ return ""; } };
+  const val = x => x == null ? null : (x._representationValue !== undefined ? x._representationValue : x.value);
+  const txt = x => { const v = val(x); return v == null ? "" : String(v).trim(); };
+  const ids = tipo => { if(tipo == null) return []; const v = api.GetLineIDsWithType(id, tipo), out = []; for(let i = 0; i < v.size(); i++) out.push(v.get(i)); return out; };
+  const norm = s => String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toUpperCase();
+  const clave = s => norm(s).replace(/[^A-Z0-9]/g, "");
+  const esquema = api.GetModelSchema(id);
+
+  // ---------- Unidades (IfcUnitAssignment) ----------
+  const PREF = {EXA:1e18, PETA:1e15, TERA:1e12, GIGA:1e9, MEGA:1e6, KILO:1e3, HECTO:100, DECA:10, DECI:0.1, CENTI:0.01, MILLI:0.001, MICRO:1e-6, NANO:1e-9};
+  const factorDe = (ref, prof) => { if(!ref || (prof || 0) > 5) return 1; const u = L(ref.value !== undefined ? ref.value : ref), c = clase(u.expressID);
+    if(/IfcSIUnit/i.test(c)){ const p = u.Prefix ? (PREF[val(u.Prefix)] || 1) : 1, n = val(u.Name);
+      if(n === "GRAM") return p / 1000; if(n === "SQUARE_METRE") return p * p; if(n === "CUBIC_METRE") return p * p * p; return p; }
+    if(/IfcConversionBasedUnit/i.test(c)){ const m = L(u.ConversionFactor.value); return (+val(m.ValueComponent) || 1) * factorDe(m.UnitComponent, (prof || 0) + 1); }
+    return 1; };
+  const U = {LENGTHUNIT: 1, AREAUNIT: null, VOLUMEUNIT: null, MASSUNIT: 1}, unidadesTxt = {};
+  for(const ua of ids(W.IFCUNITASSIGNMENT)) for(const r of L(ua).Units || []){ try{ const u = L(r.value), t = val(u.UnitType);
+    if(t in U){ U[t] = factorDe(r); unidadesTxt[t] = [u.Prefix ? val(u.Prefix) : "", val(u.Name)].filter(Boolean).join(" "); } }catch(e){} }
+  if(U.AREAUNIT == null) U.AREAUNIT = U.LENGTHUNIT * U.LENGTHUNIT;
+  if(U.VOLUMEUNIT == null) U.VOLUMEUNIT = U.LENGTHUNIT * U.LENGTHUNIT * U.LENGTHUNIT;
+  const fMedida = n => { n = String(n || "").toUpperCase(); if(/AREA/.test(n)) return U.AREAUNIT; if(/VOLUME/.test(n)) return U.VOLUMEUNIT; if(/MASS/.test(n)) return U.MASSUNIT; if(/LENGTH/.test(n)) return U.LENGTHUNIT; return null; };
+  prog(0.05, "Unidades");
+
+  // ---------- Elementos constructivos ----------
+  const CLASES = ["IFCWALL", "IFCWALLSTANDARDCASE", "IFCWALLELEMENTEDCASE", "IFCSLAB", "IFCSLABSTANDARDCASE", "IFCSLABELEMENTEDCASE", "IFCCOLUMN", "IFCCOLUMNSTANDARDCASE",
+    "IFCBEAM", "IFCBEAMSTANDARDCASE", "IFCMEMBER", "IFCMEMBERSTANDARDCASE", "IFCPLATE", "IFCPLATESTANDARDCASE", "IFCFOOTING", "IFCPILE", "IFCDOOR", "IFCDOORSTANDARDCASE",
+    "IFCWINDOW", "IFCWINDOWSTANDARDCASE", "IFCROOF", "IFCCOVERING", "IFCSTAIR", "IFCSTAIRFLIGHT", "IFCRAMP", "IFCRAMPFLIGHT", "IFCRAILING", "IFCCURTAINWALL", "IFCCHIMNEY",
+    "IFCBUILDINGELEMENTPROXY", "IFCFURNISHINGELEMENT", "IFCFURNITURE", "IFCREINFORCINGBAR", "IFCREINFORCINGMESH", "IFCTENDON", "IFCDISCRETEACCESSORY",
+    "IFCFLOWTERMINAL", "IFCFLOWSEGMENT", "IFCFLOWFITTING", "IFCFLOWCONTROLLER", "IFCFLOWMOVINGDEVICE", "IFCFLOWSTORAGEDEVICE", "IFCFLOWTREATMENTDEVICE", "IFCENERGYCONVERSIONDEVICE",
+    "IFCDISTRIBUTIONCONTROLELEMENT", "IFCELECTRICALELEMENT", "IFCPIPESEGMENT", "IFCPIPEFITTING", "IFCSANITARYTERMINAL", "IFCVALVE", "IFCWASTETERMINAL", "IFCTANK", "IFCPUMP",
+    "IFCLIGHTFIXTURE", "IFCLAMP", "IFCOUTLET", "IFCSWITCHINGDEVICE", "IFCELECTRICDISTRIBUTIONBOARD", "IFCELECTRICAPPLIANCE", "IFCPROTECTIVEDEVICE", "IFCJUNCTIONBOX",
+    "IFCCABLESEGMENT", "IFCCABLEFITTING", "IFCCABLECARRIERSEGMENT", "IFCCABLECARRIERFITTING", "IFCCOMMUNICATIONSAPPLIANCE", "IFCAUDIOVISUALAPPLIANCE"];
+  const vistos = new Set(), lista = [];
+  for(const c of CLASES) for(const e of ids(W[c])) if(!vistos.has(e)){ vistos.add(e); lista.push(e); }
+
+  // ---------- Relaciones ----------
+  const nivelDe = new Map(), niveles = [], padre = new Map(), hijos = new Map();
+  for(const r of ids(W.IFCRELCONTAINEDINSPATIALSTRUCTURE)){ const R = L(r), s = R.RelatingStructure.value, cs = clase(s);
+    let nom = "", elev = null; try{ const S = L(s); nom = txt(S.Name) || txt(S.LongName); elev = val(S.Elevation); }catch(e){}
+    if(/Storey/i.test(cs) && !niveles.some(n => n.nombre === nom)) niveles.push({nombre: nom, elev: elev != null ? +elev * U.LENGTHUNIT : null});
+    for(const o of R.RelatedElements || []) nivelDe.set(o.value, /Storey/i.test(cs) ? nom : ""); }
+  for(const r of ids(W.IFCRELAGGREGATES)){ const R = L(r), p = R.RelatingObject.value; for(const o of R.RelatedObjects || []){ padre.set(o.value, p); (hijos.get(p) || hijos.set(p, []).get(p)).push(o.value); } }
+  const nivelHeredado = e => { for(let k = 0, x = e; k < 6 && x != null; k++, x = padre.get(x)) if(nivelDe.has(x)) return nivelDe.get(x); return ""; };
+  prog(0.12, "Niveles");
+  const tipoDe = new Map();
+  for(const r of ids(W.IFCRELDEFINESBYTYPE)){ const R = L(r), t = R.RelatingType.value; for(const o of R.RelatedObjects || []) tipoDe.set(o.value, t); }
+  const defsDe = new Map();
+  const relsP = ids(W.IFCRELDEFINESBYPROPERTIES);
+  relsP.forEach((r, i) => { const R = L(r), d = R.RelatingPropertyDefinition.value; for(const o of R.RelatedObjects || []) (defsDe.get(o.value) || defsDe.set(o.value, []).get(o.value)).push(d);
+    if(i % 500 === 0) prog(0.12 + 0.18 * i / relsP.length, "Propiedades"); });
+  const matDe = new Map();
+  const nombresMat = (m, prof) => { if(!m || prof > 4) return []; let M; try{ M = L(m); }catch(e){ return []; } const c = clase(m);
+    if(/IfcMaterial$/i.test(c)) return [txt(M.Name)];
+    if(/LayerSetUsage/i.test(c)) return nombresMat(M.ForLayerSet && M.ForLayerSet.value, prof + 1);
+    if(/LayerSet$/i.test(c)) return (M.MaterialLayers || []).flatMap(l => nombresMat(l.value, prof + 1));
+    if(/MaterialLayer$/i.test(c)) return nombresMat(M.Material && M.Material.value, prof + 1);
+    if(/MaterialList/i.test(c)) return (M.Materials || []).flatMap(x => nombresMat(x.value, prof + 1));
+    if(/ConstituentSet/i.test(c)) return (M.MaterialConstituents || []).flatMap(x => nombresMat(x.value, prof + 1));
+    if(/Constituent$/i.test(c)) return nombresMat(M.Material && M.Material.value, prof + 1);
+    if(/ProfileSetUsage/i.test(c)) return nombresMat(M.ForProfileSet && M.ForProfileSet.value, prof + 1);
+    if(/ProfileSet$/i.test(c)) return (M.MaterialProfiles || []).flatMap(x => nombresMat(x.value, prof + 1));
+    if(/MaterialProfile$/i.test(c)) return nombresMat(M.Material && M.Material.value, prof + 1);
+    return []; };
+  for(const r of ids(W.IFCRELASSOCIATESMATERIAL)){ const R = L(r); const ns = [...new Set(nombresMat(R.RelatingMaterial && R.RelatingMaterial.value, 0).filter(Boolean))].join(", ");
+    for(const o of R.RelatedObjects || []) matDe.set(o.value, ns); }
+  prog(0.32, "Materiales");
+
+  // ---------- Conjuntos de propiedades y cantidades (con caché) ----------
+  const cacheDef = new Map();
+  const leerDef = d => { if(cacheDef.has(d)) return cacheDef.get(d); let D, out = null; try{ D = L(d); }catch(e){ cacheDef.set(d, null); return null; }
+    const nombre = txt(D.Name), c = clase(d);
+    if(/ElementQuantity/i.test(c)){ const q = {};
+      for(const r of D.Quantities || []){ try{ const Q = L(r.value), n = txt(Q.Name), f = Q.Unit ? factorDe(Q.Unit) : null;
+        if(Q.AreaValue != null) q[n] = +val(Q.AreaValue) * (f || U.AREAUNIT); else if(Q.VolumeValue != null) q[n] = +val(Q.VolumeValue) * (f || U.VOLUMEUNIT);
+        else if(Q.LengthValue != null) q[n] = +val(Q.LengthValue) * (f || U.LENGTHUNIT); else if(Q.WeightValue != null) q[n] = +val(Q.WeightValue) * (f || U.MASSUNIT);
+        else if(Q.CountValue != null) q[n] = +val(Q.CountValue); }catch(e){} }
+      out = {nombre, qto: true, v: q}; }
+    else if(/PropertySet/i.test(c)){ const p = {};
+      for(const r of D.HasProperties || []){ try{ const P = L(r.value), n = txt(P.Name), nv = P.NominalValue; if(!n || !nv) continue;
+        const f = fMedida(nv.name), v = val(nv); p[n] = f != null && v != null && !isNaN(+v) ? +v * f : v; }catch(e){} }
+      out = {nombre, qto: false, v: p}; }
+    cacheDef.set(d, out); return out; };
+  const psetsTipo = t => { try{ const T = L(t); return (T.HasPropertySets || []).map(x => leerDef(x.value)).filter(Boolean); }catch(e){ return []; } };
+
+  // ---------- Disciplina ----------
+  const RX_HIDRO = /TUBERIA|PIPE|SANITARI|PLUMBING|FONTANER|INODORO|LAVAMANOS|LAVABO|LAVATORIO|DUCHA|GRIFO|WC\b|VALVULA|VALVE|TANQUE|CISTERNA|DRENAJE|AGUA/;
+  const RX_ELEC = /\bTUBOS?\b|CONDUIT|LUMINARIA|LAMPARA|ELECTRIC|ILUMINACION|LIGHT|BANDEJA|CABLE|\bDATOS\b|TELEFON|COMUNICACION|TOMA\b|TOMACORRIENTE|INTERRUPTOR|SWITCH|TABLERO|\bOUTLET|RECEPTACLE/;
+  const RX_ESTR = /ARMAZON ESTRUCTURAL|STRUCTURAL|PILARES ESTRUCTURALES|CIMENTACION|FOUNDATION|ARMADURA|REBAR|ZAPATA/;
+  const discClase = c => { const u = c.toUpperCase();
+    if(/COLUMN|BEAM|FOOTING|PILE|REINFORCING|TENDON|MEMBER/.test(u)) return "Estructural";
+    if(/PIPE|SANITARY|VALVE|WASTE|TANK|PUMP/.test(u)) return "Hidrosanitaria";
+    if(/LIGHT|LAMP|OUTLET|SWITCHING|ELECTRIC|PROTECTIVE|JUNCTION|CABLE|COMMUNICATION|AUDIOVISUAL/.test(u)) return "Eléctrica";
+    if(/WALL|SLAB|DOOR|WINDOW|ROOF|COVERING|STAIR|RAMP|RAILING|CURTAIN|PLATE|CHIMNEY|FURNISH|FURNITURE/.test(u)) return "Arquitectónica";
+    return ""; };
+
+  // ---------- Recorrido ----------
+  const elementos = [], total = lista.length;
+  const CODS = new Set(["CODPARTIDA", "CODIGOPARTIDA", "CODIGODEPARTIDA", "CODPART", "CODIGOPARTIDAS"]);
+  lista.forEach((e, i) => {
+    if(i % 50 === 0) prog(0.35 + 0.6 * i / Math.max(1, total), "Elementos");
+    let E; try{ E = L(e); }catch(err){ return; }
+    const c = clase(e), t = tipoDe.get(e), defs = (defsDe.get(e) || []).map(leerDef).filter(Boolean), tdefs = t ? psetsTipo(t) : [];
+    const props = {}, propsT = {}, Q = {}; let hayQto = false;
+    for(const d of defs){ if(d.qto){ if(/BaseQuantities/i.test(d.nombre) || /^Qto_/i.test(d.nombre)){ hayQto = true; for(const k in d.v) if(Q[k] == null) Q[k] = d.v[k]; } }
+      else for(const k in d.v) props[d.nombre + "|" + k] = d.v[k]; }
+    for(const d of tdefs) if(!d.qto) for(const k in d.v) propsT[d.nombre + "|" + k] = d.v[k];
+    const busca = (rxPset, nombres, fuente) => { const ns = nombres.map(clave); for(const k in fuente){ const [ps, n] = k.split("|"); if((!rxPset || rxPset.test(norm(ps))) && ns.includes(clave(n))) return fuente[k]; } return null; };
+    const prop = (rxPset, nombres) => { const v = busca(rxPset, nombres, props); return v != null ? v : busca(rxPset, nombres, propsT); };
+    const RX_COTAS = /^(COTAS|DIMENSIONS|DIMENSIONES)/;
+    const num = v => v == null || v === "" || isNaN(+v) ? null : +v;
+    // Nombre: "Familia y tipo" de Revit (como en las tablas de planificación) o el nombre sin el número de elemento
+    let nombre = txt(E.Name), ft = prop(/^(OTROS|OTHER)/, ["Familia y tipo", "Family and Type"]);
+    let tipoNom = ""; try{ tipoNom = t ? txt(L(t).Name) : ""; }catch(err){}
+    // Revit nombra "Familia:Tipo:Id"; otros programas ponen el tipo en ObjectType o en el objeto de tipo
+    let familiaTipo = ft ? String(ft) : /:\d+$/.test(nombre) ? nombre.replace(/:\d+$/, "") : (txt(E.ObjectType) || tipoNom || nombre || c);
+    if(/ReinforcingBar/i.test(c)) familiaTipo = familiaTipo.replace(/\s*:\s*Forma.*$/i, "").replace(/\s*:\s*Shape.*$/i, "");
+    // Código de partida desde los Property Sets (instancia y luego tipo)
+    let cod = ""; for(const src of [props, propsT]){ for(const k in src){ if(CODS.has(clave(k.split("|")[1])) && src[k] != null && String(src[k]).trim()){ cod = String(src[k]).trim(); break; } } if(cod) break; }
+    const marca = prop(null, ["Marca de tipo", "Type Mark"]) || "";
+    const categoria = String(prop(/^(OTROS|OTHER)/, ["Categoría", "Category"]) || "");
+    const portante = prop(/^PSET_.*COMMON$/, ["LoadBearing"]);
+    // Cantidades: 1) cantidades base, 2) medidas de Revit (Cotas), 3) propiedades comunes, 4) datos de la varilla
+    const C = c.toUpperCase(), fuente = {};
+    const usaArea = /WALL|SLAB|ROOF|COVERING|CURTAIN|PLATE/.test(C), usaLong = /WALL|BEAM|COLUMN|MEMBER|FOOTING|PILE|RAILING|CURTAIN|SEGMENT|REINFORCING|TENDON|STAIRFLIGHT|RAMPFLIGHT/.test(C) || /FLOWSEGMENT/.test(C),
+      usaVol = /WALL|SLAB|ROOF|COLUMN|BEAM|MEMBER|FOOTING|PILE|STAIR|RAMP|PLATE|CHIMNEY/.test(C);
+    const de = (lista_, etiqueta) => { for(const [v, f] of lista_){ const n = num(v); if(n != null && n > 0) return [n, f]; } return [null, ""]; };
+    let [a, fa] = usaArea ? de([[Q.NetSideArea, "base"], [Q.NetArea, "base"], [Q.NetSurfaceArea, "base"], [Q.GrossSideArea, "base"], [Q.GrossArea, "base"], [Q.GrossSurfaceArea, "base"],
+      [hayQto ? null : prop(RX_COTAS, ["Área", "Area"]), "revit"], [prop(/^PSET_.*COMMON$/, ["TotalArea"]), "comun"]]) : [null, ""];
+    let [l, fl] = [null, ""];
+    if(/ReinforcingBar/i.test(c)){ const tot = num(prop(RX_COTAS, ["Longitud total de barra", "Total Bar Length"])), bl = num(val(E.BarLength)) != null ? num(val(E.BarLength)) * U.LENGTHUNIT : null,
+        n = num(prop(/ARMADURA|REBAR SET|REBAR/, ["Cantidad", "Quantity"]));
+      if(tot) [l, fl] = [tot, "varilla"]; else if(bl) [l, fl] = [bl * (n || 1), "varilla"]; }
+    else if(usaLong) [l, fl] = de([[Q.Length, "base"], [Q.NominalLength, "base"], [hayQto && /WALL/.test(C) ? null : prop(RX_COTAS, ["Longitud", "Length"]), "revit"],
+      [prop(RX_COTAS, ["Longitud de corte", "Cut Length"]), "revit"], [prop(/^PSET_/, ["Length", "Span"]), "comun"]]);
+    let [v, fv] = usaVol ? de([[Q.NetVolume, "base"], [Q.GrossVolume, "base"], [hayQto && /WALL/.test(C) ? null : prop(RX_COTAS, ["Volumen", "Volume"]), "revit"]]) : [null, ""];
+    const [kg] = de([[Q.NetWeight, "base"], [Q.GrossWeight, "base"], [Q.Weight, "base"]]);
+    let n = num(Q.Count); if(/ReinforcingBar/i.test(c)) n = num(prop(/ARMADURA|REBAR/, ["Cantidad", "Quantity"])) || n;
+    let diam = "";
+    if(/ReinforcingBar/i.test(c)){ const d = num(val(E.NominalDiameter)); if(d) diam = ""; }
+    else if(/SEGMENT|FITTING|PIPE/.test(C)){ const ds = prop(RX_COTAS, ["Tamaño", "Size", "Diámetro", "Diameter"]); if(ds != null) diam = typeof ds === "number" ? Math.round(ds * 1000) + " mm" : String(ds); }
+    // Disciplina: categoría de Revit, clase IFC, clase del tipo y palabras del nombre
+    const nn = norm(categoria + " " + familiaTipo), ct = t ? clase(t) : "";
+    let disc = "";
+    if(RX_ESTR.test(norm(categoria))) disc = "Estructural";
+    else if(RX_HIDRO.test(norm(categoria))) disc = "Hidrosanitaria";
+    else if(RX_ELEC.test(norm(categoria))) disc = "Eléctrica";
+    if(!disc) disc = discClase(c) || discClase(ct);
+    if(!disc || /PROXY|FLOW|DISTRIBUTION|ENERGY/.test(C)){ if(RX_HIDRO.test(nn)) disc = "Hidrosanitaria"; else if(RX_ELEC.test(nn)) disc = "Eléctrica"; else if(!disc && Object.keys(props).some(k => /ELECTRIC/.test(norm(k)))) disc = "Eléctrica"; }
+    if(/WALL|SLAB|ROOF|COVERING/.test(C) && portante === true) disc = "Estructural";
+    if(!disc && /FURNISH|FURNITURE/.test(C)) disc = "Arquitectónica";
+    elementos.push({e, gid: txt(E.GlobalId), clase: c, nombre, tipo: familiaTipo, marca: String(marca || ""), nivel: nivelHeredado(e), material: matDe.get(e) || (t ? matDe.get(t) : "") || "",
+      disc, cod, a, l, v, kg, n: n && n > 0 ? n : 1, diam, fuente: {a: fa, l: fl, v: fv}, categoria, padre: padre.get(e) || null });
+  });
+  // Elementos agregados (cubierta → losa, escalera → tramos): se usa el padre o los hijos, nunca ambos
+  const porId = new Map(elementos.map(x => [x.e, x])), omitir = new Set();
+  for(const x of elementos){ const hs = (hijos.get(x.e) || []).map(h => porId.get(h)).filter(Boolean); if(!hs.length) continue;
+    const padreQ = x.a || x.l || x.v;
+    // Se prefiere el padre si trae cantidades (la cubierta de Revit trae su área completa); si no, los hijos
+    if(padreQ) hs.forEach(h => omitir.add(h.e)); else omitir.add(x.e); }
+  const final = elementos.filter(x => !omitir.has(x.e)).map(x => { delete x.e; delete x.padre; return x; });
+  prog(1, "Listo");
+  return {esquema, unidades: {longitud: unidadesTxt.LENGTHUNIT || "METRE", area: unidadesTxt.AREAUNIT || "", volumen: unidadesTxt.VOLUMEUNIT || "", masa: unidadesTxt.MASSUNIT || "",
+    fLongitud: U.LENGTHUNIT, fArea: U.AREAUNIT, fVolumen: U.VOLUMEUNIT, fMasa: U.MASSUNIT}, niveles: niveles.sort((p, q) => (p.elev ?? 0) - (q.elev ?? 0)), elementos: final, omitidos: omitir.size};
+}
+/*IFC-FIN*/
+// ===== Importación de IFC: web-ifc (WASM) en un Web Worker; el resultado entra como una tabla más =====
+const IFC_VER = "0.0.79", IFC_CDN = "https://cdn.jsdelivr.net/npm/web-ifc@" + IFC_VER + "/";
+let IMPORT_MODO = "revit", IFC_W = null, IFC_RES = null;
+function elegirModoImport(m){
+  IMPORT_MODO = m; $("#drop").hidden = m !== "revit"; $("#dropIfc").hidden = m !== "ifc";
+  document.querySelectorAll("[data-impmodo]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.impmodo === m)));
+}
+function codigoWorkerIFC(){
+  return `importScripts(${JSON.stringify(IFC_CDN + "web-ifc-api-iife.js")});\n${extraerIFC.toString()}\n` +
+    `self.onmessage = async e => { try{ const W = self.WebIFC, api = new W.IfcAPI(); api.SetWasmPath(${JSON.stringify(IFC_CDN)}, true);
+      self.postMessage({tipo: "progreso", p: 0.02, etapa: "Preparando el lector"}); await api.Init(undefined, true);
+      self.postMessage({tipo: "progreso", p: 0.04, etapa: "Abriendo el modelo"}); const id = api.OpenModel(new Uint8Array(e.data));
+      if(id < 0) throw new Error("El archivo no es un IFC válido"); let ult = 0;
+      const r = extraerIFC(api, W, id, (p, etapa) => { const ahora = Date.now(); if(ahora - ult > 120 || p >= 1){ ult = ahora; self.postMessage({tipo: "progreso", p: 0.05 + p * 0.95, etapa}); } });
+      api.CloseModel(id); self.postMessage({tipo: "listo", r}); }catch(err){ self.postMessage({tipo: "error", msg: String(err && err.message || err)}); } };`;
+}
+function ifcProgreso(p, etapa){ const pc = Math.max(0, Math.min(100, Math.round(p * 100))); $("#ifcProg").hidden = false; $("#ifcBarra").style.width = pc + "%"; $("#ifcProgTxt").textContent = `${etapa || "Leyendo"}… ${pc}%`; }
+function ifcFin(){ if(IFC_W){ try{ IFC_W.terminate(); }catch(e){} IFC_W = null; } $("#ifcProg").hidden = true; }
+function leerIFC(f){
+  if(!/\.ifc$/i.test(f.name)){ $("#revitStatus").innerHTML = '<span class="chip bad">No es un archivo IFC</span> Elige un archivo con extensión .ifc.'; return; }
+  if(!window.Worker || !window.Blob || !window.URL){ $("#revitStatus").innerHTML = '<span class="chip bad">Este navegador no puede leer IFC</span> Usa Chrome, Edge, Firefox o Safari actualizados.'; return; }
+  ifcFin(); elegirModoImport("ifc"); ifcProgreso(0, "Leyendo el archivo"); $("#revitStatus").innerHTML = `<span class="chip info">Leyendo ${esc(f.name)}…</span> ${num(f.size / 1048576, 1)} MB. La primera vez se descarga el lector de IFC (unos 8 MB).`;
+  const leerBuf = f.arrayBuffer ? f.arrayBuffer() : new Promise((ok, mal) => { const fr = new FileReader(); fr.onload = () => ok(fr.result); fr.onerror = () => mal(fr.error); fr.readAsArrayBuffer(f); });
+  leerBuf.then(buf => {
+    const url = URL.createObjectURL(new Blob([codigoWorkerIFC()], {type: "text/javascript"})), w = new Worker(url); IFC_W = w;
+    w.onmessage = e => { const m = e.data || {};
+      if(m.tipo === "progreso") ifcProgreso(m.p, m.etapa);
+      else if(m.tipo === "listo"){ ifcFin(); URL.revokeObjectURL(url); $("#revitStatus").innerHTML = `<span class="chip ok">Modelo leído</span> ${m.r.elementos.length} elementos. Revisa el resumen antes de cargar.`; abrirResumenIFC(m.r, f.name); }
+      else if(m.tipo === "error"){ ifcFin(); URL.revokeObjectURL(url); $("#revitStatus").innerHTML = `<span class="chip bad">No se pudo leer el IFC</span> ${esc(m.msg)}`; } };
+    w.onerror = e => { ifcFin(); URL.revokeObjectURL(url); $("#revitStatus").innerHTML = `<span class="chip bad">No se pudo cargar el lector de IFC</span> Revisa la conexión a internet. ${esc(e.message || "")}`; };
+    w.postMessage(buf, [buf]);
+  }).catch(e => { ifcFin(); $("#revitStatus").innerHTML = `<span class="chip bad">No se pudo abrir el archivo</span> ${esc(e.message || e)}`; });
+}
+// Convierte los elementos del IFC en una tabla con las mismas columnas que una tabla de planificación de Revit
+const CAB_IFC = ["COD_PARTIDA", "Familia y tipo", "Marca de tipo", "ID del elemento", "Área", "Longitud", "Volumen", "Recuento", "Nivel", "Disciplina", "Material", "Diámetro"];
+function filasIFC(R){
+  const n6 = v => v == null || !(+v > 0) ? "" : String(+(+v).toFixed(6)), rows = [CAB_IFC.slice()], kg = {};
+  R.elementos.forEach((x, i) => { rows.push([x.cod || "", x.tipo, x.marca || "", x.gid, n6(x.a), n6(x.l), n6(x.v), String(x.n || 1), x.nivel || "", x.disc || "", x.material || "", x.diam || ""]);
+    if(x.kg > 0) kg[i + 2] = x.kg; });
+  return {rows, kg};
+}
+const CLASE_IFC_TXT = {IfcWall:"Muros", IfcWallStandardCase:"Muros", IfcWallElementedCase:"Muros", IfcSlab:"Losas y pisos", IfcSlabStandardCase:"Losas y pisos", IfcColumn:"Columnas", IfcColumnStandardCase:"Columnas",
+  IfcBeam:"Vigas", IfcBeamStandardCase:"Vigas", IfcMember:"Miembros", IfcPlate:"Placas", IfcFooting:"Zapatas", IfcPile:"Pilotes", IfcDoor:"Puertas", IfcWindow:"Ventanas", IfcRoof:"Cubiertas",
+  IfcCovering:"Cielos y recubrimientos", IfcStair:"Escaleras", IfcStairFlight:"Tramos de escalera", IfcRailing:"Barandas", IfcCurtainWall:"Muros cortina", IfcBuildingElementProxy:"Elementos genéricos",
+  IfcFurnishingElement:"Mobiliario", IfcFurniture:"Mobiliario", IfcReinforcingBar:"Varillas de refuerzo", IfcReinforcingMesh:"Mallas de refuerzo", IfcFlowTerminal:"Aparatos (sanitarios, eléctricos)",
+  IfcFlowSegment:"Tuberías y canalizaciones", IfcFlowFitting:"Accesorios de tubería", IfcFlowController:"Válvulas y controles", IfcPipeSegment:"Tuberías", IfcPipeFitting:"Accesorios de tubería",
+  IfcSanitaryTerminal:"Aparatos sanitarios", IfcLightFixture:"Luminarias", IfcOutlet:"Tomacorrientes", IfcSwitchingDevice:"Interruptores", IfcElectricDistributionBoard:"Tableros",
+  IfcCableSegment:"Cables", IfcCableCarrierSegment:"Canalizaciones eléctricas", IfcElectricAppliance:"Aparatos eléctricos"};
+const MEDIBLE_IFC = /WALL|SLAB|ROOF|COVERING|CURTAIN|PLATE|BEAM|COLUMN|MEMBER|FOOTING|PILE|RAILING|SEGMENT|REINFORCING|STAIR|RAMP/i;
+const FUENTE_IFC = {base: "Cantidades base del IFC", revit: "Medidas de Revit (Cotas)", comun: "Propiedades comunes IFC", varilla: "Datos de la varilla", conteo: "Solo conteo (por unidad)"};
+function resumenIFC(R){
+  const els = R.elementos, conQ = x => x.a > 0 || x.l > 0 || x.v > 0;
+  const sinQ = els.filter(x => !conQ(x)), sinQesp = sinQ.filter(x => MEDIBLE_IFC.test(x.clase)), fuentes = {};
+  els.forEach(x => { const f = x.fuente.a || x.fuente.l || x.fuente.v || "conteo"; fuentes[f] = (fuentes[f] || 0) + 1; });
+  const clases = new Map(); els.forEach(x => { const k = CLASE_IFC_TXT[x.clase] || x.clase, g = clases.get(k) || {nombre: k, n: 0, conQ: 0, disc: new Set()}; g.n++; if(conQ(x)) g.conQ++; if(x.disc) g.disc.add(x.disc); clases.set(k, g); });
+  return {total: els.length, conQ: els.length - sinQ.length, porUnidad: sinQ.length - sinQesp.length, sinQesp, sinCod: els.filter(x => !x.cod).length, fuentes, clases: [...clases.values()].sort((a, b) => b.n - a.n)};
+}
+function abrirResumenIFC(R, nombre){ IFC_RES = {R, nombre}; OPEN = "ifc"; renderSheet(); }
+function htmlResumenIFC(){
+  const {R, nombre} = IFC_RES, S = resumenIFC(R), F = filasIFC(R), p = parseRevit(F.rows), u = R.unidades || {};
+  const uTxt = [u.fLongitud === 1 ? "m" : `longitud × ${num(u.fLongitud, 4)} → m`, "m²", "m³", "kg"].join(", ");
+  return hojaTop("Resumen del modelo IFC") + `<p class="small muted" style="margin:0"><b>${esc(nombre)}</b> · ${esc(R.esquema)} · unidades del archivo: ${esc([u.longitud, u.area, u.volumen, u.masa].filter(Boolean).join(", ").toLowerCase() || "metros")} (se convierten a ${uTxt}) · ${R.niveles.length} nivel(es): ${esc(R.niveles.map(n => n.nombre).join(", "))}</p>
+    <div class="ifcnums"><div><b>${S.total}</b><span class="small muted">elementos leídos</span></div><div><b>${S.conQ}</b><span class="small muted">con cantidades</span></div>
+      <div><b>${S.porUnidad}</b><span class="small muted">por unidad (puertas, ventanas, aparatos…)</span></div><div><b class="${S.sinQesp.length ? "warn" : ""}">${S.sinQesp.length}</b><span class="small muted">sin cantidades</span></div>
+      <div><b>${S.sinCod}</b><span class="small muted">sin código de partida</span></div><div><b>${p.tipos.length}</b><span class="small muted">partidas a crear</span></div></div>
+    ${S.sinQesp.length ? `<p class="small" style="margin:0"><span class="chip warn">Atención</span> ${S.sinQesp.length} elemento(s) medibles vienen sin área, longitud ni volumen; se cargan por unidad. Revisa que el IFC se haya exportado con "Cantidades base".</p>` : ""}
+    ${S.sinCod ? `<p class="small muted" style="margin:0">${S.sinCod === S.total ? "Ningún elemento trae" : S.sinCod + " elemento(s) no traen"} código de partida (COD_PARTIDA): se asocian por lo aprendido, reglas o IA, y nada entra al total sin confirmar.</p>` : ""}
+    <div class="tbl"><table><thead><tr><th>Elementos</th><th class="n">Cantidad</th><th class="n">Con cantidades</th><th>Disciplina</th></tr></thead><tbody>${S.clases.map(g => `<tr><td>${esc(g.nombre)}</td><td class="n">${g.n}</td><td class="n">${g.conQ}</td><td>${esc([...g.disc].join(", "))}</td></tr>`).join("")}</tbody></table></div>
+    <details class="dn"><summary><span><b>Origen de las cantidades</b></span><span></span></summary><div class="tbl"><table><tbody>${Object.entries(S.fuentes).map(([k, n]) => `<tr><td>${esc(FUENTE_IFC[k] || k)}</td><td class="n">${n}</td></tr>`).join("")}</tbody></table></div></details>
+    ${S.sinQesp.length ? `<details class="dn"><summary><span><b>Elementos sin cantidades</b> <span class="muted small">${S.sinQesp.length}</span></span><span></span></summary><div class="tbl"><table><thead><tr><th>Tipo</th><th>Nivel</th><th>GlobalId</th></tr></thead><tbody>${S.sinQesp.slice(0, 200).map(x => `<tr><td>${esc(x.tipo)}</td><td>${esc(x.nivel)}</td><td>${esc(x.gid)}</td></tr>`).join("")}</tbody></table></div></details>` : ""}
+    <div class="row"><button class="btn primary" data-ifccargar ${p.tipos.length ? "" : "disabled"}>Cargar al presupuesto (${p.tipos.length} partidas)</button><button class="btn" data-close>Cancelar</button></div>`;
+}
+function cargarIFC(){
+  if(!IFC_RES) return; const {R, nombre} = IFC_RES, S = resumenIFC(R), F = filasIFC(R); IFC_RES = null; OPEN = null; renderSheet();
+  cargarTexto(F.rows, nombre);
+  const imp = P().revit.find(x => x.archivo === nombre); if(!imp) return;
+  imp.origen = "ifc"; imp.ifc = {esquema: R.esquema, elementos: S.total, conCantidades: S.conQ, porUnidad: S.porUnidad, sinCantidades: S.sinQesp.length, sinCodigo: S.sinCod, niveles: R.niveles.map(n => n.nombre), fuentes: S.fuentes};
+  imp.tipos.forEach(t => (t.det || []).forEach(d => { if(F.kg[d.f]) d.kg = F.kg[d.f]; }));
+  guardar(); render();
+}
 // Vista previa con el mapeo de columnas antes de cargar la tabla
 let VISTA = null;
 function abrirVista(entrada, nombre){
@@ -1910,6 +2177,7 @@ function renderDN(C){
       + `<div class="row spread small"><span class="muted">${aj ? `Ajuste por redondeo ${money(aj)} · ` : ""}Costo directo</span><b>${money(R.cd)}</b></div>` : '<p class="muted small">Todavía no hay partidas en el total.</p>'}`;
 }
 function leerArchivo(f){
+  if(/\.ifc$/i.test(f.name)){ leerIFC(f); return; }
   if(/\.xlsx$/i.test(f.name)){ $("#revitStatus").innerHTML = '<span class="chip info">Leyendo Excel…</span>';
     f.arrayBuffer().then(leerXlsx).then(rows => abrirVista(rows, f.name)).catch(e => { $("#revitStatus").innerHTML = `<span class="chip bad">No se pudo leer el Excel</span> ${esc(e.message || e)}`; }); return; }
   const fr = new FileReader(); fr.onload = () => abrirVista(decodificar(fr.result), f.name); fr.readAsArrayBuffer(f);
@@ -1932,6 +2200,11 @@ const drop = $("#drop");
 ["dragenter","dragover"].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add("over"); }));
 ["dragleave","drop"].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove("over"); }));
 drop.addEventListener("drop", e => { const f = e.dataTransfer.files[0]; if(f) leerArchivo(f); });
+$("#fileIfc").addEventListener("change", e => { const f = e.target.files[0]; if(f) leerIFC(f); e.target.value = ""; });
+const dropIfc = $("#dropIfc");
+["dragenter","dragover"].forEach(ev => dropIfc.addEventListener(ev, e => { e.preventDefault(); dropIfc.classList.add("over"); }));
+["dragleave","drop"].forEach(ev => dropIfc.addEventListener(ev, e => { e.preventDefault(); dropIfc.classList.remove("over"); }));
+dropIfc.addEventListener("drop", e => { const f = e.dataTransfer.files[0]; if(f) leerIFC(f); });
 
 /* ================= Eventos ================= */
 const esFormula = s => /[*/+\-()x×]/i.test(String(s || "").trim().replace(/^-/, ""));
@@ -2010,6 +2283,9 @@ document.addEventListener("click", e => {
     OPEN = "proyectos"; guardar(); render(); toast("Proyecto borrado"); return; }
   if((x = T("[data-cuenta]"))){ OPEN = "cuenta:" + x.dataset.cuenta; AUTH_MSG = ""; renderSheet(); setTimeout(() => { const f = $("#auCorreo") || $("#auNombre"); if(f) f.focus(); }, 50); return; }
   if(T("[data-salir]")){ salir(); return; }
+  if((x = T("[data-impmodo]"))){ elegirModoImport(x.dataset.impmodo); return; }
+  if(T("[data-ifccargar]")){ cargarIFC(); return; }
+  if(T("[data-ifccancelar]")){ ifcFin(); $("#revitStatus").innerHTML = '<span class="chip">Lectura del IFC cancelada</span>'; return; }
   if(T("[data-vistacargar]") && VISTA){ const V = VISTA; OPEN = null; VISTA = null; renderSheet(); cargarTexto(V.entrada, V.nombre, V.mapeo, V.disc); return; }
   if((x = T("[data-elementos]"))){ OPEN = "elem:" + x.dataset.elementos; renderSheet(); return; }
   if((x = T("[data-dn]"))){ DN_MODO = x.dataset.dn; renderDN(); return; }
