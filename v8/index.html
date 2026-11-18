@@ -19,32 +19,32 @@
 }
 *{box-sizing:border-box}
 html,body{margin:0;height:100%}
-body{background:var(--bg);color:var(--ink);font:400 15px/1.4 var(--ui);-webkit-font-smoothing:antialiased;letter-spacing:-.01em}
+body{background:var(--bg);color:var(--ink);font:400 calc(15px * var(--fz, 1))/1.4 var(--ui);-webkit-font-smoothing:antialiased;letter-spacing:-.01em}
 h1,h2,h3{margin:0;text-wrap:balance}
-h2{font-size:20px;font-weight:600;letter-spacing:-.02em}
-h3{font-size:13px;font-weight:400;color:var(--muted);text-transform:uppercase;letter-spacing:.02em}
+h2{font-size:calc(20px * var(--fz, 1));font-weight:600;letter-spacing:-.02em}
+h3{font-size:calc(13px * var(--fz, 1));font-weight:400;color:var(--muted);text-transform:uppercase;letter-spacing:.02em}
 .n,.num{font-variant-numeric:tabular-nums}
 .code{font-family:var(--code)}
 .wrap{max-width:1180px;margin:0 auto;padding:0 18px}
 .muted{color:var(--muted)}
-.small{font-size:13px}
-.ltitle{font-size:34px;font-weight:700;letter-spacing:-.03em;line-height:1.1;margin:8px 0 2px}
+.small{font-size:calc(13px * var(--fz, 1))}
+.ltitle{font-size:calc(34px * var(--fz, 1));font-weight:700;letter-spacing:-.03em;line-height:1.1;margin:8px 0 2px}
 
 /* Barra superior */
 header.top{position:sticky;top:0;z-index:20;background:var(--bar);backdrop-filter:saturate(180%) blur(20px);-webkit-backdrop-filter:saturate(180%) blur(20px);border-bottom:.5px solid var(--sep)}
 .top-inner{display:flex;flex-wrap:wrap;gap:10px 24px;align-items:center;justify-content:space-between;padding:12px 0 8px}
 .brand{display:flex;align-items:center;gap:10px}
-.logo{width:30px;height:30px;border-radius:7px;background:var(--logo);display:grid;place-items:center;color:#fff;font:700 11px var(--ui)}
-.brand b{font-size:17px;font-weight:600}
-.brand small{display:block;color:var(--muted);font-size:12px}
+.logo{width:30px;height:30px;border-radius:7px;background:var(--logo);display:grid;place-items:center;color:#fff;font:700 calc(11px * var(--fz, 1)) var(--ui)}
+.brand b{font-size:calc(17px * var(--fz, 1));font-weight:600}
+.brand small{display:block;color:var(--muted);font-size:calc(12px * var(--fz, 1))}
 .proj{display:flex;flex-wrap:wrap;gap:8px}
-.proj label{display:flex;flex-direction:column;font-size:11px;color:var(--muted);gap:2px}
+.proj label{display:flex;flex-direction:column;font-size:calc(11px * var(--fz, 1));color:var(--muted);gap:2px}
 input,select{font:inherit;color:var(--ink);background:var(--group2);border:0;border-radius:10px;padding:8px 10px;min-width:0}
 input[type=number]{font-variant-numeric:tabular-nums;text-align:right}
 input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .proj input{width:190px;background:var(--group)}
 nav.tabs{display:flex;gap:4px}
-.tab{font:500 15px var(--ui);background:none;border:0;border-bottom:2px solid transparent;color:var(--muted);padding:10px 12px;cursor:pointer;display:flex;align-items:center;gap:7px}
+.tab{font:500 calc(15px * var(--fz, 1)) var(--ui);background:none;border:0;border-bottom:2px solid transparent;color:var(--muted);padding:10px 12px;cursor:pointer;display:flex;align-items:center;gap:7px}
 .tab svg{width:20px;height:20px}
 .tab[aria-selected="true"]{color:var(--accent);border-bottom-color:var(--accent)}
 main{padding:12px 0 110px}
@@ -55,18 +55,18 @@ section.view.on{display:flex}
 .card{background:var(--group);border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:12px}
 .row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
 .spread{justify-content:space-between}
-.btn{font:500 15px var(--ui);border:0;background:var(--group2);color:var(--accent);border-radius:10px;padding:9px 14px;cursor:pointer}
+.btn{font:500 calc(15px * var(--fz, 1)) var(--ui);border:0;background:var(--group2);color:var(--accent);border-radius:10px;padding:9px 14px;cursor:pointer}
 .btn:hover{background:var(--hover)}
 .btn.primary{background:var(--accent);color:#fff}
 .btn.ghost{background:none;padding-left:4px;padding-right:4px}
-.btn.sm{padding:6px 11px;font-size:14px;border-radius:9px}
-.chip{display:inline-flex;align-items:center;gap:5px;font:500 12px var(--ui);padding:2px 8px;border-radius:6px;white-space:nowrap;background:var(--group2);color:var(--muted)}
+.btn.sm{padding:6px 11px;font-size:calc(14px * var(--fz, 1));border-radius:9px}
+.chip{display:inline-flex;align-items:center;gap:5px;font:500 calc(12px * var(--fz, 1)) var(--ui);padding:2px 8px;border-radius:6px;white-space:nowrap;background:var(--group2);color:var(--muted)}
 .chip.ok{color:var(--ok);background:rgba(48,209,88,.14)}
 .chip.warn{color:var(--warn);background:rgba(255,159,10,.15)}
 .chip.bad{color:var(--bad);background:rgba(255,69,58,.15)}
 .chip.info{color:var(--accent);background:var(--accent-soft)}
 .dot{width:8px;height:8px;border-radius:50%;display:inline-block;flex:none}
-.status{min-height:18px;font-size:13px}
+.status{min-height:18px;font-size:calc(13px * var(--fz, 1))}
 .ico{width:29px;height:29px;border-radius:7px;display:grid;place-items:center;flex:none;background:var(--c)}
 .ico svg{width:18px;height:18px;color:#fff}
 .ico.sm{width:22px;height:22px;border-radius:6px}
@@ -81,36 +81,36 @@ section.view.on{display:flex}
 .tbl{overflow-x:auto;border-radius:12px;background:var(--group)}
 table{border-collapse:collapse;width:100%}
 th,td{padding:9px 10px;border-bottom:.5px solid var(--sep);text-align:left;vertical-align:middle}
-th{font:500 12px var(--ui);color:var(--muted);background:var(--group);white-space:nowrap;position:sticky;top:0}
-td{font-size:14px;line-height:1.4}
-td.n,th.n{text-align:right;font-variant-numeric:tabular-nums;font-size:13px;white-space:nowrap}
-td.u,th.u{text-align:center;font-size:13px;white-space:nowrap}
-td.code{font-family:var(--code);font-size:12px;color:var(--muted);white-space:nowrap}
+th{font:500 calc(12px * var(--fz, 1)) var(--ui);color:var(--muted);background:var(--group);white-space:nowrap;position:sticky;top:0}
+td{font-size:calc(14px * var(--fz, 1));line-height:1.4}
+td.n,th.n{text-align:right;font-variant-numeric:tabular-nums;font-size:calc(13px * var(--fz, 1));white-space:nowrap}
+td.u,th.u{text-align:center;font-size:calc(13px * var(--fz, 1));white-space:nowrap}
+td.code{font-family:var(--code);font-size:calc(12px * var(--fz, 1));color:var(--muted);white-space:nowrap}
 tr:last-child td{border-bottom:0}
-tr.cap td{font:700 14px var(--ui);text-transform:uppercase;letter-spacing:.01em;background:var(--group2)}
+tr.cap td{font:700 calc(14px * var(--fz, 1)) var(--ui);text-transform:uppercase;letter-spacing:.01em;background:var(--group2)}
 tr.cap td.n{font-weight:600}
 .capcell{display:flex;align-items:center;gap:10px}
 tr.sub td{background:var(--group2);font-weight:600}
-tr.total td{font:700 15px var(--ui);background:var(--accent-soft)}
-tr.total td.n{font-size:15px;color:var(--ink)}
-td input[type=number]{width:96px;padding:5px 8px;font-size:13px}
-.ref{font:400 12px var(--ui);color:var(--muted)}
+tr.total td{font:700 calc(15px * var(--fz, 1)) var(--ui);background:var(--accent-soft)}
+tr.total td.n{font-size:calc(15px * var(--fz, 1));color:var(--ink)}
+td input[type=number]{width:96px;padding:5px 8px;font-size:calc(13px * var(--fz, 1))}
+.ref{font:400 calc(12px * var(--fz, 1)) var(--ui);color:var(--muted)}
 
 /* Resumen */
 .hero{display:grid;grid-template-columns:minmax(260px,1fr) 2fr;gap:18px}
 .total-card{background:var(--group);border-radius:14px;padding:18px;display:flex;flex-direction:column;gap:4px}
-.total-card .lbl{font-size:13px;color:var(--muted)}
-.total-card .big{font:700 40px/1.05 var(--ui);letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+.total-card .lbl{font-size:calc(13px * var(--fz, 1));color:var(--muted)}
+.total-card .big{font:700 calc(40px * var(--fz, 1))/1.05 var(--ui);letter-spacing:-.03em;font-variant-numeric:tabular-nums}
 .mini{display:grid;grid-template-columns:repeat(2,1fr);gap:0;margin-top:10px;border-top:.5px solid var(--sep)}
 .mini div{padding:10px 0;border-bottom:.5px solid var(--sep);display:flex;flex-direction:column}
 .mini div:nth-child(odd){padding-right:10px}
-.mini span{font-size:12px;color:var(--muted)}
-.mini b{font:600 16px var(--ui);font-variant-numeric:tabular-nums}
+.mini span{font-size:calc(12px * var(--fz, 1));color:var(--muted)}
+.mini b{font:600 calc(16px * var(--fz, 1)) var(--ui);font-variant-numeric:tabular-nums}
 .dist{display:flex;flex-direction:column;gap:12px}
 .bar{display:flex;height:10px;border-radius:5px;overflow:hidden;background:var(--group2);gap:2px}
 .bar i{display:block;height:100%}
 .legend{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:8px 16px}
-.legend div{display:flex;align-items:center;gap:10px;font-size:14px}
+.legend div{display:flex;align-items:center;gap:10px;font-size:calc(14px * var(--fz, 1))}
 .legend .lname{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .legend .n{color:var(--muted)}
 
@@ -119,24 +119,24 @@ td input[type=number]{width:96px;padding:5px 8px;font-size:13px}
 .pcard{background:var(--group);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:11px}
 .pcard .head{display:flex;align-items:center;gap:10px}
 .pcard .head .grow{flex:1;min-width:0}
-.pcard .t{font-weight:600;font-size:16px;line-height:1.3}
-.pcard .cat{font-size:12px;color:var(--muted)}
-.facts{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+.pcard .t{font-weight:600;font-size:calc(16px * var(--fz, 1));line-height:1.3}
+.pcard .cat{font-size:calc(12px * var(--fz, 1));color:var(--muted)}
+.facts{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:calc(13px * var(--fz, 1));color:var(--muted);font-variant-numeric:tabular-nums}
 .facts b{color:var(--ink);font-weight:500}
 .seg{display:flex;background:var(--group2);border-radius:9px;padding:2px;gap:2px}
-.seg button{flex:1;font:500 13px var(--ui);color:var(--ink);background:none;border:0;border-radius:7px;padding:6px 10px;cursor:pointer;position:relative}
+.seg button{flex:1;font:500 calc(13px * var(--fz, 1)) var(--ui);color:var(--ink);background:none;border:0;border-radius:7px;padding:6px 10px;cursor:pointer;position:relative}
 .seg button[aria-pressed="true"]{background:var(--segon);color:var(--segink,var(--ink))}
 .seg button.sug:not([aria-pressed="true"])::after{content:"";position:absolute;top:4px;right:5px;width:5px;height:5px;border-radius:50%;background:var(--warn)}
 .pcard select{width:100%}
 .price-row{display:flex;align-items:flex-end;justify-content:space-between;gap:10px;flex-wrap:wrap}
-.price-row .val{font:600 20px var(--ui);font-variant-numeric:tabular-nums}
-.price-row .lbl{font-size:12px;color:var(--muted)}
+.price-row .val{font:600 calc(20px * var(--fz, 1)) var(--ui);font-variant-numeric:tabular-nums}
+.price-row .lbl{font-size:calc(12px * var(--fz, 1));color:var(--muted)}
 .edit{display:flex;align-items:center;gap:6px}
-.edit input{width:110px;font-size:15px}
+.edit input{width:110px;font-size:calc(15px * var(--fz, 1))}
 
 /* Lista estilo iOS (teléfono) */
 .lines-m{display:none}
-.ghead{display:flex;justify-content:space-between;padding:18px 16px 6px;font-size:13px;color:var(--muted);text-transform:uppercase}
+.ghead{display:flex;justify-content:space-between;padding:18px 16px 6px;font-size:calc(13px * var(--fz, 1));color:var(--muted);text-transform:uppercase}
 .group{background:var(--group);border-radius:12px;overflow:hidden}
 .irow{all:unset;box-sizing:border-box;width:100%;display:flex;align-items:center;gap:12px;padding:0 0 0 14px;cursor:pointer;min-height:56px}
 .irow:active{background:var(--group2)}
@@ -144,14 +144,14 @@ td input[type=number]{width:96px;padding:5px 8px;font-size:13px}
 .irow .body{flex:1;min-width:0;display:flex;align-items:center;gap:8px;padding:10px 14px 10px 0;border-bottom:.5px solid var(--sep)}
 .group .irow:last-child .body{border-bottom:0}
 .irow .txt{flex:1;min-width:0;display:block}
-.irow .t{display:block;font-size:16px;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.irow .s{display:block;font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.irow .amt{font-size:16px;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+.irow .t{display:block;font-size:calc(16px * var(--fz, 1));line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.irow .s{display:block;font-size:calc(13px * var(--fz, 1));color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.irow .amt{font-size:calc(16px * var(--fz, 1));color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
 .irow .chev{width:8px;height:14px;color:var(--muted2);flex:none}
 .irow .flag{width:8px;height:8px;border-radius:50%;flex:none}
 .search{display:flex;align-items:center;gap:8px;background:var(--group);border-radius:12px;padding:0 12px}
 .search svg{width:18px;height:18px;color:var(--muted);flex:none}
-.search input{flex:1;background:none;padding:10px 0;font-size:16px}
+.search input{flex:1;background:none;padding:10px 0;font-size:calc(16px * var(--fz, 1))}
 
 /* Hoja de detalle */
 .sheet-bg{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:40;display:none}
@@ -167,10 +167,10 @@ td input[type=number]{width:96px;padding:5px 8px;font-size:13px}
 @media (min-width:761px){.sheet{left:50%;right:auto;bottom:auto;top:50%;transform:translate(-50%,-50%);width:440px;border-radius:14px}}
 
 /* Cierre */
-.cierre{display:grid;grid-template-columns:1fr auto;gap:10px 24px;font-size:15px}
+.cierre{display:grid;grid-template-columns:1fr auto;gap:10px 24px;font-size:calc(15px * var(--fz, 1))}
 .cierre .v{text-align:right;font-variant-numeric:tabular-nums}
-.cierre .big{font:700 20px var(--ui)}
-.cierre .v.big{font:700 22px var(--ui)}
+.cierre .big{font:700 calc(20px * var(--fz, 1)) var(--ui)}
+.cierre .v.big{font:700 calc(22px * var(--fz, 1)) var(--ui)}
 .switch{display:inline-flex;align-items:center;gap:10px;cursor:pointer;font-weight:500}
 .switch input{appearance:none;-webkit-appearance:none;width:51px;height:31px;border-radius:16px;background:var(--group2);position:relative;cursor:pointer;padding:0;border:0}
 .switch input::after{content:"";position:absolute;top:2px;left:2px;width:27px;height:27px;border-radius:50%;background:#fff;transition:left .2s;box-shadow:0 2px 6px rgba(0,0,0,.3)}
@@ -185,15 +185,17 @@ td input[type=number]{width:96px;padding:5px 8px;font-size:13px}
 .list button:hover{background:var(--group2)}
 .list button[aria-current="true"]{background:var(--accent-soft)}
 .list button:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
-.list .code{font:400 12px var(--code);color:var(--muted)}
-.list .p{font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+.list .code{font:400 calc(12px * var(--fz, 1)) var(--code);color:var(--muted)}
+.list .p{font-size:calc(13px * var(--fz, 1));color:var(--muted);font-variant-numeric:tabular-nums}
 .libsel{display:none}
-.note{border-radius:12px;background:rgba(255,159,10,.12);padding:12px 14px;font-size:14px}
+.note{border-radius:12px;background:rgba(255,159,10,.12);padding:12px 14px;font-size:calc(14px * var(--fz, 1))}
 .note.info{background:var(--accent-soft)}
-ul.clean{margin:0;padding-left:18px;font-size:14px;display:flex;flex-direction:column;gap:4px}
+ul.clean{margin:0;padding-left:18px;font-size:calc(14px * var(--fz, 1));display:flex;flex-direction:column;gap:4px}
 
 /* Teléfono */
 @media (max-width:760px){
+  /* El desenfoque de la barra superior hacía que la barra de pestañas (fija) se pegara arriba en Chrome; en celular se quita */
+  header.top{backdrop-filter:none;-webkit-backdrop-filter:none;background:var(--bg)}
   .wrap{padding:0 14px}
   .top-inner{padding:8px 0}
   .proj{width:100%}
@@ -201,7 +203,7 @@ ul.clean{margin:0;padding-left:18px;font-size:14px;display:flex;flex-direction:c
   .proj input{width:100%}
   .brand small{display:none}
   nav.tabs{position:fixed;bottom:0;left:0;right:0;z-index:30;background:var(--bar);backdrop-filter:saturate(180%) blur(20px);-webkit-backdrop-filter:saturate(180%) blur(20px);border-top:.5px solid var(--sep);justify-content:space-around;padding:4px 4px calc(2px + env(safe-area-inset-bottom))}
-  .tab{flex-direction:column;gap:2px;font-size:10px;padding:5px 4px;border-bottom:0;flex:1}
+  .tab{flex-direction:column;gap:2px;font-size:calc(10px * var(--fz, 1));padding:5px 4px;border-bottom:0;flex:1}
   .tab svg{width:24px;height:24px}
   .hero{grid-template-columns:1fr}
   .lines-d{display:none}
@@ -233,43 +235,43 @@ ul.clean{margin:0;padding-left:18px;font-size:14px;display:flex;flex-direction:c
 .filters{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
 .filters select{flex:1 1 220px}
 .filters .search{flex:2 1 260px}
-.count{font-size:13px;color:var(--muted)}
+.count{font-size:calc(13px * var(--fz, 1));color:var(--muted)}
 .pickbtn{all:unset;box-sizing:border-box;width:100%;display:flex;align-items:center;gap:10px;background:var(--group2);border-radius:10px;padding:9px 12px;cursor:pointer;min-height:48px}
 .pickbtn:focus-visible{outline:2px solid var(--accent)}
 .pickbtn .txt{flex:1;min-width:0}
-.pickbtn .t{display:block;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.pickbtn .s{display:block;font-size:12px;color:var(--muted)}
-.code{font-family:var(--code);font-size:12px;color:var(--muted)}
+.pickbtn .t{display:block;font-size:calc(14px * var(--fz, 1));white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pickbtn .s{display:block;font-size:calc(12px * var(--fz, 1));color:var(--muted)}
+.code{font-family:var(--code);font-size:calc(12px * var(--fz, 1));color:var(--muted)}
 .chips{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px;flex:none;min-height:36px}
-.chips button{flex:none;font:500 13px var(--ui);background:var(--group2);color:var(--ink);border:0;border-radius:16px;padding:7px 12px;cursor:pointer}
+.chips button{flex:none;font:500 calc(13px * var(--fz, 1)) var(--ui);background:var(--group2);color:var(--ink);border:0;border-radius:16px;padding:7px 12px;cursor:pointer}
 .chips button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
 .form{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.form label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted)}
+.form label{display:flex;flex-direction:column;gap:4px;font-size:calc(12px * var(--fz, 1));color:var(--muted)}
 .form .full{grid-column:1/-1}
 textarea{font:inherit;color:var(--ink);background:var(--group2);border:0;border-radius:10px;padding:10px;min-height:120px;resize:vertical;width:100%;box-sizing:border-box}
-.del{background:none;border:0;color:var(--bad);cursor:pointer;font-size:20px;line-height:1;padding:4px 8px}
+.del{background:none;border:0;color:var(--bad);cursor:pointer;font-size:calc(20px * var(--fz, 1));line-height:1;padding:4px 8px}
 .files{display:flex;flex-wrap:wrap;gap:8px}
-.files .chip{font-size:13px;padding:6px 10px;gap:8px}
-.files .chip button{background:none;border:0;color:var(--bad);cursor:pointer;font-size:16px;padding:0 2px}
+.files .chip{font-size:calc(13px * var(--fz, 1));padding:6px 10px;gap:8px}
+.files .chip button{background:none;border:0;color:var(--bad);cursor:pointer;font-size:calc(16px * var(--fz, 1));padding:0 2px}
 .imgbox{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
 .imgbox .prev{width:140px;height:70px;border-radius:10px;background:#fff;display:grid;place-items:center;overflow:hidden;border:1px solid var(--sep)}
 .imgbox .prev img{max-width:100%;max-height:100%}
-.imgbox .prev span{color:#8e8e93;font-size:12px}
+.imgbox .prev span{color:#8e8e93;font-size:calc(12px * var(--fz, 1))}
 .pad{width:100%;height:200px;background:#fff;border-radius:12px;touch-action:none;display:block}
 .addrow{display:flex;align-items:center;gap:10px;padding:8px 12px;border-bottom:.5px solid var(--sep)}
 .addrow:last-child{border-bottom:0}
 .addrow .txt{flex:1;min-width:0}
-.addrow .t{display:block;font-size:15px;line-height:1.3}
-.addrow .s{display:block;font-size:12px;color:var(--muted)}
+.addrow .t{display:block;font-size:calc(15px * var(--fz, 1));line-height:1.3}
+.addrow .s{display:block;font-size:calc(12px * var(--fz, 1));color:var(--muted)}
 .addrow input{width:84px}
-.addrow .plus{width:40px;height:40px;border-radius:20px;border:0;background:var(--accent);color:var(--accent-ink);font-size:22px;line-height:1;cursor:pointer;flex:none}
+.addrow .plus{width:40px;height:40px;border-radius:20px;border:0;background:var(--accent);color:var(--accent-ink);font-size:calc(22px * var(--fz, 1));line-height:1;cursor:pointer;flex:none}
 .addrow .plus.done{background:var(--ok)}
-.formula{font-family:var(--code);font-size:12px;color:var(--muted);word-break:break-all}
-.warnline{font-size:12px;color:var(--warn)}
-.toast{position:fixed;left:50%;bottom:calc(150px + env(safe-area-inset-bottom));transform:translateX(-50%);background:var(--group2);color:var(--ink);padding:10px 16px;border-radius:12px;font-size:14px;z-index:60;box-shadow:0 8px 24px rgba(0,0,0,.35);opacity:0;pointer-events:none;transition:opacity .2s}
+.formula{font-family:var(--code);font-size:calc(12px * var(--fz, 1));color:var(--muted);word-break:break-all}
+.warnline{font-size:calc(12px * var(--fz, 1));color:var(--warn)}
+.toast{position:fixed;left:50%;bottom:calc(150px + env(safe-area-inset-bottom));transform:translateX(-50%);background:var(--group2);color:var(--ink);padding:10px 16px;border-radius:12px;font-size:calc(14px * var(--fz, 1));z-index:60;box-shadow:0 8px 24px rgba(0,0,0,.35);opacity:0;pointer-events:none;transition:opacity .2s}
 .toast.on{opacity:1}
 .projbtn{all:unset;cursor:pointer;display:flex;align-items:center;gap:6px;background:var(--group);border-radius:10px;padding:7px 12px;max-width:260px}
-.projbtn b{font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.projbtn b{font-size:calc(14px * var(--fz, 1));white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .projbtn svg{width:12px;height:12px;color:var(--muted);flex:none}
 [hidden]{display:none !important}
 .lib > *{min-width:0}
@@ -279,27 +281,27 @@ textarea{font:inherit;color:var(--ink);background:var(--group2);border:0;border-
 .pcard .head .grow{min-width:0}
 .pcard .note,.note{overflow-wrap:anywhere}
 .show-m{display:none}
-.masbtn{all:unset;box-sizing:border-box;cursor:pointer;padding:12px;text-align:center;color:var(--accent);font-weight:600;font-size:14px}
+.masbtn{all:unset;box-sizing:border-box;cursor:pointer;padding:12px;text-align:center;color:var(--accent);font-weight:600;font-size:calc(14px * var(--fz, 1))}
 .masbtn:focus-visible{outline:2px solid var(--accent)}
 .totbar{display:none}
 .chev{width:8px;height:14px;color:var(--muted2);flex:none}
 .dupnote{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
 .tile{background:var(--group);border-radius:14px;padding:14px 16px;display:flex;flex-direction:column;gap:4px}
-.tile span{font-size:12px;color:var(--muted)}
-.tile b{font:600 20px var(--ui);font-variant-numeric:tabular-nums}
+.tile span{font-size:calc(12px * var(--fz, 1));color:var(--muted)}
+.tile b{font:600 calc(20px * var(--fz, 1)) var(--ui);font-variant-numeric:tabular-nums}
 .brand{min-width:0}
 .opts{display:flex;flex-direction:column;gap:2px}
 .opt{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:.5px solid var(--sep)}
 .opt:last-child{border-bottom:0}
-.opt small{display:block;color:var(--muted);font-size:12px}
+.opt small{display:block;color:var(--muted);font-size:calc(12px * var(--fz, 1))}
 .expbtns{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.expbtns .btn{padding:14px;font-size:16px}
+.expbtns .btn{padding:14px;font-size:calc(16px * var(--fz, 1))}
 .drop[hidden],.ifcprog[hidden]{display:none!important}
 .ifcprog{display:flex;align-items:center;gap:10px;width:100%;flex-wrap:wrap}
 .barra{flex:1 1 220px;height:8px;border-radius:4px;background:var(--sep);overflow:hidden}
 .barra i{display:block;height:100%;width:0;background:var(--accent);transition:width .2s}
 .ifcnums{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px}
-.ifcnums div{background:var(--group2);border-radius:10px;padding:8px 10px}.ifcnums b{display:block;font-size:20px}.ifcnums b.warn{color:var(--warn)}
+.ifcnums div{background:var(--group2);border-radius:10px;padding:8px 10px}.ifcnums b{display:block;font-size:calc(20px * var(--fz, 1))}.ifcnums b.warn{color:var(--warn)}
 details.dn{border-top:1px solid var(--sep, rgba(128,128,128,.25));padding:8px 0}
 details.dn>summary{display:flex;justify-content:space-between;gap:12px;cursor:pointer;list-style:none;align-items:baseline}
 details.dn>summary::-webkit-details-marker{display:none}
@@ -319,8 +321,8 @@ details.dn .tbl{margin-top:8px}
   .proj{display:none}
   .totbar{display:flex;position:fixed;left:10px;right:10px;bottom:calc(66px + env(safe-area-inset-bottom));z-index:25;align-items:center;justify-content:space-between;gap:10px;background:var(--bar2);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-radius:16px;padding:8px 8px 8px 16px;box-shadow:0 6px 24px rgba(0,0,0,.45)}
   .totbar.hide{display:none}
-  .totbar span{font-size:12px;color:var(--muted);display:block}
-  .totbar b{font-size:19px;font-variant-numeric:tabular-nums}
+  .totbar span{font-size:calc(12px * var(--fz, 1));color:var(--muted);display:block}
+  .totbar b{font-size:calc(19px * var(--fz, 1));font-variant-numeric:tabular-nums}
   main{padding-bottom:170px}
   .search.floating{bottom:calc(130px + env(safe-area-inset-bottom))}
   .form{grid-template-columns:1fr}
@@ -1076,11 +1078,11 @@ function renderPartidas(){
       <div class="head">${ico(cc)}<div class="grow"><div class="t">${esc(t.nombre)}</div><div class="cat">${esc(capDe(cc).nombre)}</div></div><div>${estadoChip(p, a, pu, pendiente, p.unidad && !(R2(cant) > 0))}</div></div>
       <div class="facts">${t.cod ? `<span>COD_PARTIDA <b>${esc(t.cod)}</b></span>` : ""}${t.diam ? `<span>Diámetro <b>${esc(t.diam)}</b></span>` : ""}<span>Área <b>${num(t.area)}</b> m²</span><span>Long. <b>${num(t.longitud,3)}</b> m</span>${t.volumen ? `<span>Vol. <b>${num(t.volumen)}</b> m³</span>` : ""}<span>Cuenta <b>${num(t.cuenta, 0)}</b></span>${t.disciplina || imp.disciplina ? `<span>Disciplina <b>${esc(imp.disciplina || t.disciplina)}</b></span>` : ""}${(t.det || []).some(d => d.nivel) ? `<span>Nivel <b>${esc([...new Set(t.det.map(d => d.nivel || SIN_NIVEL))].join(", "))}</b></span>` : ""}${t.unidadModelo ? `<span>Modelo <b>${num(t.cantidad)} ${esc(t.unidadModelo)}</b></span>` : ""}${(t.det || []).length ? `<button class="btn sm ghost" data-elementos="${ref}">${t.det.length} fila(s) de Revit${t.det.some(d => d.id) ? " con ID" : ""}</button>` : ""}${t.varilla ? (() => { const cv = convAcero(t.varilla, t.longitud, "ml"); return `<span>Varilla <b>#${t.varilla} (${esc(varilla(t.varilla).d)})</b></span><span>Peso <b>${num(cv.kg)}</b> kg = <b>${num(cv.qq)}</b> qq</span><span>≈ <b>${num(cv.varillas, 1)}</b> varillas de ${cv.L} m</span>`; })() : ""}</div>
       <div class="small muted">${origenTxt(p)}</div>
-      ${p.codNoCat && !p.apu ? `<div class="note" style="font-size:13px"><b>Código no está en el catálogo:</b> ${esc(t.cod)}. Puedes crear el APU con ese mismo código o elegir uno del catálogo.<div style="margin-top:6px"><button class="btn sm" data-crearcod="${ref}">Crear APU ${esc(t.cod)}</button></div></div>` : ""}
-      ${p.ia ? `<div class="note info" style="font-size:13px"><b>IA:</b> ${p.ia.codigo === "SIN COINCIDENCIA" ? "sin coincidencia en el catálogo" : `${esc(p.ia.codigo)} en ${esc(p.ia.unidad)}, confianza ${num((p.ia.confianza || 0) * 100, 0)}%`}. ${esc(p.ia.razon || "")}</div>` : ""}
-      ${p.sgPend ? `<div class="note" style="font-size:13px">Esta partida solo se puede cobrar como <b>suma global (SG)</b>. La aplicación no la asigna sin tu confirmación.<div style="margin-top:6px"><button class="btn sm" data-aceptarsg="${ref}">Aceptar como SG</button></div></div>` : ""}
+      ${p.codNoCat && !p.apu ? `<div class="note" style="font-size:calc(13px * var(--fz, 1))"><b>Código no está en el catálogo:</b> ${esc(t.cod)}. Puedes crear el APU con ese mismo código o elegir uno del catálogo.<div style="margin-top:6px"><button class="btn sm" data-crearcod="${ref}">Crear APU ${esc(t.cod)}</button></div></div>` : ""}
+      ${p.ia ? `<div class="note info" style="font-size:calc(13px * var(--fz, 1))"><b>IA:</b> ${p.ia.codigo === "SIN COINCIDENCIA" ? "sin coincidencia en el catálogo" : `${esc(p.ia.codigo)} en ${esc(p.ia.unidad)}, confianza ${num((p.ia.confianza || 0) * 100, 0)}%`}. ${esc(p.ia.razon || "")}</div>` : ""}
+      ${p.sgPend ? `<div class="note" style="font-size:calc(13px * var(--fz, 1))">Esta partida solo se puede cobrar como <b>suma global (SG)</b>. La aplicación no la asigna sin tu confirmación.<div style="margin-top:6px"><button class="btn sm" data-aceptarsg="${ref}">Aceptar como SG</button></div></div>` : ""}
       ${p.apu && p.unidad && !p.conf ? `<button class="btn sm primary" data-confirmar="${ref}">Confirmar asociación</button>` : ""}
-      ${rv ? `<div class="note" style="font-size:13px">${esc(rv)}${validada ? `<div style="margin-top:6px"><b>Cantidad validada</b> el ${fechaTxt(p.val.fecha)}${p.val.obs ? `: ${esc(p.val.obs)}` : ""}</div><button class="btn sm ghost" data-desvalidar="${ref}">Quitar validación</button>` : `<div style="margin-top:6px">La cantidad se usa tal como viene del modelo, pero queda pendiente de revisión.</div><button class="btn sm" data-validar="${ref}">Validar cantidad</button>`}</div>` : ""}
+      ${rv ? `<div class="note" style="font-size:calc(13px * var(--fz, 1))">${esc(rv)}${validada ? `<div style="margin-top:6px"><b>Cantidad validada</b> el ${fechaTxt(p.val.fecha)}${p.val.obs ? `: ${esc(p.val.obs)}` : ""}</div><button class="btn sm ghost" data-desvalidar="${ref}">Quitar validación</button>` : `<div style="margin-top:6px">La cantidad se usa tal como viene del modelo, pero queda pendiente de revisión.</div><button class="btn sm" data-validar="${ref}">Validar cantidad</button>`}</div>` : ""}
       <div class="seg" role="group" aria-label="Unidad">${unidadesTipo(t).map(u => `<button data-unit="${u}" data-ref="${ref}" aria-pressed="${u===p.unidad}" class="${u===sug?"sug":""}">${u}</button>`).join("")}</div>
       ${pickBtn(ref, p.apu)}
       <div class="price-row"><div><div class="lbl">Cantidad</div><div class="val">${cant != null ? num(cant) : "-"} <span class="small muted">${p.unidad || ""}</span></div></div>
@@ -1246,7 +1248,7 @@ function renderLibDetalle(){
   const mats = sec("MAT"), mos = sec("MO"), scs = sec("SC");
   const dudosos = a.lineas.map(l => rec(l[0])).filter(r => r && r.val && r.val.estado === "pendiente");
   let h = `<div class="row spread"><div class="row" style="flex:1;min-width:0">${ico(a.cc)}<div style="flex:1;min-width:0"><span class="code">${a.id} · ${esc(capDe(a.cc).nombre)}${esRef(a) ? " · referencia" : ""}</span>
-      <textarea data-apuname="${esc(a.id)}" aria-label="Descripción de la partida" style="min-height:60px;font-size:17px;font-weight:600;margin-top:4px">${esc(a.nombre)}</textarea></div></div><span class="chip info">Unidad: ${esc(a.unidad)}</span></div>
+      <textarea data-apuname="${esc(a.id)}" aria-label="Descripción de la partida" style="min-height:60px;font-size:calc(17px * var(--fz, 1));font-weight:600;margin-top:4px">${esc(a.nombre)}</textarea></div></div><span class="chip info">Unidad: ${esc(a.unidad)}</span></div>
     ${dudosos.length ? `<div class="note"><b>Este APU usa ${dudosos.length} recurso(s) pendiente(s) de validación:</b> ${dudosos.map(r => `${esc(r.nombre)} (${esc(r.val.nota)})`).join(" ")} Verifica su precio y unidad antes de usarlo.</div>` : ""}
     ${esRef(a) ? `<div class="note">Partida de referencia tomada de presupuestos anteriores. Para usarla como estándar, cópiala al catálogo estándar y ajusta su descripción.</div>` : ""}
     <div class="row"><button class="btn sm ghost show-m" data-alista>↑ Volver a la lista</button><button class="btn primary" data-addapu="${esc(a.id)}">Agregar al presupuesto</button>${esRef(a) ? `<button class="btn" data-promover="${esc(a.id)}">Copiar al catálogo estándar</button>` : ""}</div>`;
@@ -1281,8 +1283,11 @@ const TEMAS = [
   {id:"obra", nombre:"Obra", desc:"Arena claro con naranja de obra", sw:["#f3efe7","#fffcf6","#e8590c"], meta:"#f3efe7"},
   {id:"agua", nombre:"Verde agua", desc:"Azul petróleo con verde agua", sw:["#0b1114","#121a1e","#2dd4bf"], meta:"#0b1114"},
   {id:"vino", nombre:"Vino", desc:"Vino oscuro con rosa", sw:["#140b10","#1f1218","#ff6b9d"], meta:"#140b10"}];
+// Tamaño de letra: multiplica todos los tamaños de texto de la app (no cambia el PDF ni el Excel)
+const LETRAS = [{v: 0.9, n: "Pequeña"}, {v: 1, n: "Normal"}, {v: 1.15, n: "Grande"}, {v: 1.3, n: "Muy grande"}];
 function aplicarTema(){
   const tm = TEMAS.find(x => x.id === DB.tema) || TEMAS[0];
+  document.documentElement.style.setProperty("--fz", String(LETRAS.some(l => l.v === DB.letra) ? DB.letra : 1));
   if(tm.id === "noche") delete document.documentElement.dataset.skin; else document.documentElement.dataset.skin = tm.id;
   const m = document.querySelector('meta[name="theme-color"]'); if(m) m.setAttribute("content", tm.meta);
 }
@@ -1306,7 +1311,7 @@ function renderPickList(){
       return `<div class="addrow">${ico(a.cc, true)}<span class="txt"><span class="t">${esc(a.nombre)}</span><span class="s">${a.id}${esRef(a) ? " (ref.)" : ""} · ${money(costoAPU(a).total)} / ${esc(a.unidad)}${ya ? ` · <b style="color:var(--ok)">ya tienes ${num(ya.cant)}</b>` : ""}</span></span><input type="text" inputmode="decimal" data-qadd="${esc(a.id)}" placeholder="${esc(a.unidad)}" aria-label="Cantidad"><button class="plus${ya ? " done" : ""}" data-plus="${esc(a.id)}" aria-label="${ya ? "Sumar a la partida" : "Agregar"}">+</button></div>`; }
     return `<button class="irow" data-choose="${esc(a.id)}">${ico(a.cc)}<span class="body"><span class="txt"><span class="t">${esc(a.nombre)}</span><span class="s">${a.id}${esRef(a) ? " (ref.)" : ""} · ${esc(a.unidad)}</span></span><span class="amt">${money(costoAPU(a).total)}</span>${CHEV}</span></button>`; };
   const capSel = DATA.caps.find(c => c.cc === PICKCAP);
-  let h = manualRow + (capSel ? `<button class="btn ghost" data-pcap="" style="padding-left:0">‹ Todos los capítulos</button><div style="display:flex;align-items:center;gap:10px;padding:4px 2px">${ico(capSel.cc)}<b style="font-size:17px">${capSel.cc} ${esc(capSel.nombre)}</b></div>` : "") + `<div class="count" style="padding:6px 2px">${total.toLocaleString("en-US")} resultados${total > out.length ? `, mostrando ${out.length}. Escribe para afinar.` : ""}</div>`, key = "";
+  let h = manualRow + (capSel ? `<button class="btn ghost" data-pcap="" style="padding-left:0">‹ Todos los capítulos</button><div style="display:flex;align-items:center;gap:10px;padding:4px 2px">${ico(capSel.cc)}<b style="font-size:calc(17px * var(--fz, 1))">${capSel.cc} ${esc(capSel.nombre)}</b></div>` : "") + `<div class="count" style="padding:6px 2px">${total.toLocaleString("en-US")} resultados${total > out.length ? `, mostrando ${out.length}. Escribe para afinar.` : ""}</div>`, key = "";
   for(const a of out){
     const k = a.cc + "." + a.ss;
     if(k !== key){ if(key) h += "</div>"; const cap = DATA.caps.find(c => c.cc === a.cc); const sub = cap && cap.subs[a.ss];
@@ -1320,12 +1325,13 @@ function renderLineList(){
   const nq = norm(LINEQ), tipoTxt = {MAT:"Material", MO:"Mano de obra", SC:"Subcontrato"};
   el.innerHTML = `<div class="group">${allRec().filter(r => !nq || norm(r.nombre).includes(nq)).slice(0, 50).map(r => `<button class="irow" data-addrec="${esc(r.id)}"><span class="body"><span class="txt"><span class="t">${esc(r.nombre)}</span><span class="s">${tipoTxt[r.tipo]} · ${esc(r.unidad)}</span></span><span class="amt">${money(r.precio)}</span>${CHEV}</span></button>`).join("") || '<div class="ghead"><span>Sin resultados</span></div>'}</div>`;
 }
-const hojaTop = titulo => `<div class="grab"></div><div class="bar-top"><div style="font-size:22px;font-weight:700;letter-spacing:-.02em">${titulo}</div><button class="btn ghost" data-close>Listo</button></div>`;
+const hojaTop = titulo => `<div class="grab"></div><div class="bar-top"><div style="font-size:calc(22px * var(--fz, 1));font-weight:700;letter-spacing:-.02em">${titulo}</div><button class="btn ghost" data-close>Listo</button></div>`;
 function renderSheet(){
   const sh = $("#sheet"), bg = $("#sheetBg");
   if(!OPEN){ sh.classList.remove("on"); bg.classList.remove("on"); sh.innerHTML = ""; return; }
   if(OPEN === "temas"){
-    sh.innerHTML = hojaTop("Tema") + `<div class="group">${TEMAS.map(tm => `<button class="irow" data-tema-id="${tm.id}"><span class="swatches">${tm.sw.map(c => `<i style="background:${c}"></i>`).join("")}</span><span class="body"><span class="txt"><span class="t">${tm.nombre}</span><span class="s">${tm.desc}</span></span><span class="check">${tm.id === DB.tema ? "✓" : ""}</span></span></button>`).join("")}</div>`;
+    const fzAct = LETRAS.some(l => l.v === DB.letra) ? DB.letra : 1;
+    sh.innerHTML = hojaTop("Tema") + `<p class="small muted" style="margin:0 0 6px">Tamaño de letra</p><div class="seg" role="group" aria-label="Tamaño de letra" style="margin-bottom:14px">${LETRAS.map(l => `<button data-letra="${l.v}" aria-pressed="${l.v === fzAct}" style="font-size:calc(${Math.round(13 * l.v)}px * var(--fz, 1) / ${fzAct})">${l.n}</button>`).join("")}</div><p class="small muted" style="margin:0 0 6px">Colores</p><div class="group">${TEMAS.map(tm => `<button class="irow" data-tema-id="${tm.id}"><span class="swatches">${tm.sw.map(c => `<i style="background:${c}"></i>`).join("")}</span><span class="body"><span class="txt"><span class="t">${tm.nombre}</span><span class="s">${tm.desc}</span></span><span class="check">${tm.id === DB.tema ? "✓" : ""}</span></span></button>`).join("")}</div>`;
   } else if(OPEN === "proyectos"){
     const list = Object.values(DB.proyectos).sort((a, b) => b.mod - a.mod);
     sh.innerHTML = hojaTop("Mis proyectos") + `<div class="row"><button class="btn primary" data-nuevoproy="blanco">Nuevo en blanco</button><button class="btn" data-nuevoproy="ejemplo">Nuevo con ejemplo</button><button class="btn" data-duplicar>Duplicar el actual</button></div>
@@ -1358,7 +1364,7 @@ function renderSheet(){
     sh.innerHTML = hojaTop("Borrar proyecto") + `<p>¿Borrar <b>${esc(p.nombre)}</b>? Esta acción no se puede deshacer. Si quieres conservarlo, exporta antes un respaldo.</p><div class="row"><button class="btn" data-proyectos>Cancelar</button><button class="btn primary" style="background:var(--bad);color:#fff" data-confirmborrar="${p.id}">Borrar</button></div>`;
   } else if(OPEN.startsWith("validar:")){
     const ref = OPEN.slice(8), t = getTipo(ref), it = getItem(ref), cant = R2(cantidadPorUnidad(t, it.unidad));
-    sh.innerHTML = hojaTop("Validar cantidad") + `<p style="margin:0"><b>${esc(t.nombre)}</b></p><div class="note" style="font-size:13px">${esc(revisarTipo(t, it.unidad))}</div>
+    sh.innerHTML = hojaTop("Validar cantidad") + `<p style="margin:0"><b>${esc(t.nombre)}</b></p><div class="note" style="font-size:calc(13px * var(--fz, 1))">${esc(revisarTipo(t, it.unidad))}</div>
       <div class="group"><div class="fld"><span>Área del modelo</span><span class="v">${num(t.area)} m²</span></div><div class="fld"><span>Longitud del modelo</span><span class="v">${num(t.longitud, 3)} m</span></div><div class="fld"><span>Cantidad usada</span><span class="v">${num(cant)} ${esc(it.unidad)}</span></div></div>
       <p class="muted small" style="margin:0">Validar no cambia la cantidad de Revit; solo registra que la revisaste. Si la cantidad está mal, corrige el modelo y vuelve a cargar la tabla.</p>
       <label class="small muted" style="display:flex;flex-direction:column;gap:4px">Observación<textarea id="valObs" style="min-height:80px" placeholder="Ej. Revisado en el modelo: el cordón tiene 0.40 m de alto; se cobra por longitud, que es correcta."></textarea></label>
@@ -1417,8 +1423,8 @@ function renderSheet(){
     else if(it.apu === "__manual") unidadUI = `<div class="seg" role="group" aria-label="Unidad">${UNIDADES.map(u => `<button data-unit="${u}" data-ref="${OPEN}" aria-pressed="${u===it.unidad}">${u}</button>`).join("")}</div>`;
     const cantUI = t ? `<span class="v">${num(l.cant)} ${esc(l.unidad)}</span>` : cantInput(OPEN, it);
     sh.innerHTML = `<div class="grab"></div><div class="bar-top">${ico(l.cc)}<button class="btn ghost" data-close>Listo</button></div>
-      <div><div style="font-size:22px;font-weight:700;letter-spacing:-.02em">${esc(l.titulo)}</div><div class="muted small">${esc(l.code)} · ${esc(capDe(l.cc).nombre)} · ${l.origen}</div></div>
-      ${l.revisar ? `<div class="note" style="font-size:13px">${esc(l.revisar)}${l.validada ? `<div style="margin-top:6px"><b>Cantidad validada</b>${l.obs ? `: ${esc(l.obs)}` : ""}</div>` : `<div style="margin-top:6px"><button class="btn sm" data-validar="${OPEN}">Validar cantidad</button></div>`}</div>` : ""}${unidadUI}${pickBtn(OPEN, it.apu)}
+      <div><div style="font-size:calc(22px * var(--fz, 1));font-weight:700;letter-spacing:-.02em">${esc(l.titulo)}</div><div class="muted small">${esc(l.code)} · ${esc(capDe(l.cc).nombre)} · ${l.origen}</div></div>
+      ${l.revisar ? `<div class="note" style="font-size:calc(13px * var(--fz, 1))">${esc(l.revisar)}${l.validada ? `<div style="margin-top:6px"><b>Cantidad validada</b>${l.obs ? `: ${esc(l.obs)}` : ""}</div>` : `<div style="margin-top:6px"><button class="btn sm" data-validar="${OPEN}">Validar cantidad</button></div>`}</div>` : ""}${unidadUI}${pickBtn(OPEN, it.apu)}
       <div class="group"><div class="fld"><span>Cantidad</span>${cantUI}</div>${!t && it.formula ? `<div class="fld"><span>Resultado</span><span class="v">${num(l.cant, 3)}</span></div>` : ""}<div class="fld"><span>P.U. costo directo</span>${editorPU(l)}</div>
         <div class="fld"><span>Parcial</span><span class="v">${l.ok ? money(l.sub) : "-"}</span></div><div class="fld"><span>Total de venta (sin IVA)</span><span class="v" style="font-weight:600">${l.ok ? money(l.tv) : "-"}</span></div></div>
       ${l.problema ? `<div class="note">${esc(l.problema)}: complétalo para que entre al total.</div>` : ""}
@@ -2345,6 +2351,7 @@ document.addEventListener("input", e => {
 document.addEventListener("click", e => {
   const T = s => e.target.closest(s); let x;
   if(T("[data-temas]")){ OPEN = "temas"; renderSheet(); return; }
+  if((x = T("button[data-letra]"))){ DB.letra = Number(x.dataset.letra); aplicarTema(); guardar(); renderSheet(); return; }
   if((x = T("button[data-tema-id]"))){ DB.tema = x.dataset.temaId; aplicarTema(); guardar(); renderSheet(); return; }
   if(T("[data-proyectos]")){ OPEN = "proyectos"; renderSheet(); return; }
   if((x = T("[data-nuevoproy]"))){ const p = x.dataset.nuevoproy === "ejemplo" ? proyectoEjemplo() : proyectoVacio(); DB.proyectos[p.id] = p; DB.actual = p.id; OPEN = null; guardar(); render(); ir(x.dataset.nuevoproy === "ejemplo" ? "presupuesto" : "proyecto"); toast("Proyecto creado"); return; }
