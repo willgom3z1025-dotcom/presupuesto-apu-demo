@@ -88,7 +88,7 @@ with sync_playwright() as p:
     chk("Catálogo versión 4", d["ver"] == "4", d["ver"])
     chk("14 partidas en el catálogo", d["caps"] == 14, d["caps"])
     chk("3,221 subpartidas (153 estándar y 3,068 de referencia)", d["apus"] == 3221, d["apus"])
-    chk("226 recursos (215 + 2 nuevos + 9 varillas de 6 m)", d["recs"] == 226, d["recs"])
+    chk("205 recursos (215 + 2 nuevos + 9 varillas de 6 m − 17 repetidos unidos − 4 sin uso)", d["recs"] == 205, d["recs"])
     chk("DB.cat = 3 (códigos nuevos)", d["cat"] == 3, d["cat"])
     chk("Pestañas: Proyecto, Subpartidas, Presupuesto, Materiales, PU", d["tabs"] == ["Proyecto", "Subpartidas", "Presupuesto", "Materiales", "PU"], d["tabs"])
     comp = pg.evaluate("(()=>{const C=calcular(); return [C.mat, C.mo, C.sc, C.otro, C.ajEd||0, C.ajRed||0, C.c.cd]})()")
@@ -118,6 +118,12 @@ with sync_playwright() as p:
     chk("Varillas #5 a #10 por validar", all(app_rec[f"varilla{n}_6m"][1] == "pendiente" for n in range(5, 11)))
     chk("Acero #5 a #10 por quintal sin cambio (60.00)", all(app_rec[f"acero{n}"][0] == 60.0 for n in range(5, 11)))
     chk("Cable THHN #12 (12.15) a $0.74/ml", pg.evaluate("BASE_APU.get('12.15').pdir") == 0.74)
+    unidos = pg.evaluate("REC_UNIDOS")
+    chk("17 recursos repetidos unidos en uno solo", len(unidos) == 17, len(unidos))
+    chk("Ninguna subpartida usa un recurso repetido", pg.evaluate("DATA.apus.every(a=>a.lineas.every(l=>!REC_UNIDOS[l[0]] && BASE_REC.has(l[0])))"))
+    chk("Los repetidos ya no aparecen en el catálogo", pg.evaluate("Object.keys(REC_UNIDOS).every(k=>!BASE_REC.has(k))"))
+    chk("Agua por litro = agua por m³ ÷ 1000", pg.evaluate("BASE_REC.get('agua_litro').precio") == round(app_rec["agua"][0] / 1000, 5))
+    chk("Sin precios distintos para el mismo nombre de material", pg.evaluate("(()=>{const m={}; for(const r of DATA.recursos){const k=r.nombre.toLowerCase().replace(/\\(por [^)]*\\)/,'').trim()+'|'+r.unidad; (m[k]=m[k]||new Set()).add(r.precio)} return Object.values(m).every(s=>s.size===1)})()"))
     chk("Cable #14 y #10 sin cambio", pg.evaluate("[BASE_APU.get('12.14').pdir, BASE_APU.get('12.16').pdir]") == [0.40, 0.85])
 
     # ---------- 3. Mano de obra ----------
@@ -214,6 +220,7 @@ with sync_playwright() as p:
     chk("Proyecto viejo: PU propio 05.01.12 → 05.12 con su código anterior", m[1] == ["05.12"] and m[2] == "05.01.12" and m[0][1][0] == "05.12", m)
     chk("Proyecto viejo: acero 04.06.03 en qq → 04.23 en ml", m[0][2][0] == "04.23" and m[0][2][1] == "ml" and abs(m[0][2][2] - 45.63) < 0.01, m[0][2])
     chk("Proyecto viejo: lo aprendido → 05.07", m[3] == "05.07", m)
+    chk("PU propio con un material repetido pasa al material único", pg2.evaluate("(()=>{DB.apuOv['05.95']={id:'05.95',cc:'05',nombre:'x',unidad:'m²',lineas:[['acero3_false',1],['arena_arena',2]],nuevo:1}; convertirCodigos(); return DB.apuOv['05.95'].lineas.map(l=>l[0])})()") == ["acero3", "arena"])
     chk("Proyecto viejo: queda en DB.cat 3 sin errores", m[4] == 3 and not errs2, errs2)
     ctx2.close()
 
@@ -239,6 +246,7 @@ with sync_playwright() as p:
     chk("Tabla de mano de obra con 'Días/hombre'", "Días/hombre" in pg.inner_text("#tblMO"))
     chk("Tabla de acero con precio por varilla y por ml", "Precio por varilla de 6 m" in pg.inner_text("#cardAcero") and "Precio por ml" in pg.inner_text("#cardAcero"))
     abrir(pg, "biblioteca")
+    chk("Precios de recursos: 'Precio actualizado' sin fecha", "Precio actualizado" in pg.inner_text("#tblRecursos") and "noviembre 2026" not in pg.inner_text("#tblRecursos") and "18 nov" not in pg.inner_text("#tblRecursos"))
     pg.evaluate("SEL='05.07'; render()")
     chk("Editor de PU: rendimiento en día/hombre", "día/hombre por m²" in pg.inner_text("#libDetalle"), pg.inner_text("#libDetalle")[:200])
     abrir(pg, "presupuesto")
