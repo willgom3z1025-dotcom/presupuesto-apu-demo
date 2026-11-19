@@ -104,7 +104,7 @@ with sync_playwright() as p:
         "bloque15": (0.75, "actualizado"), "bloque10": (0.71, "actualizado"), "cemento": (8.05, "actualizado"),
         "arena": (29.26, "actualizado"), "alambre": (0.62, "actualizado"), "m_tubo_pvc_1_2_u": (2.39, "actualizado"),
         "m_tubo_pvc_4_64psi_ml": (2.02, "actualizado"), "m_lamina_zinc_alum_m": (8.67, "actualizado"),
-        "m_panel_thermotecho_2_m": (25.66, "pendiente"), "m_porcelanato_m": (13.42, "pendiente"),
+        "m_panel_thermotecho_2_m": (25.66, "actualizado"), "m_porcelanato_m": (13.42, "actualizado"),
         "albanil": (30.0, "actualizado"), "armador": (30.0, "actualizado"), "carpintero": (30.0, "actualizado"),
         "soldador": (30.0, "actualizado"), "electricista": (30.0, "actualizado"), "fontanero": (30.0, "actualizado"),
         "mo_tablaroquero": (30.0, "actualizado"), "mo_mecanico_de_banco": (30.0, "actualizado"),
@@ -258,6 +258,8 @@ with sync_playwright() as p:
     chk("Fosa con pozo: $1,755.00 estimado, sin fuente, R11.0258 por SG", fz[0] == 1755.0 and fz[1] == {"estado": "provisional", "nota": "Precio estimado."} and fz[2] == "SG", fz)
     cz = pg.evaluate("R2(['cemento','arena','grava','agua'].reduce((s,k,i)=>s+BASE_REC.get(k).precio*[9.5,0.52,0.52,0.21][i],0))")
     chk(f"Concreto f'c 210 = ${cz:.2f}/m³ con la dosificación de la app (antes $5.93)", pg.evaluate("BASE_REC.get('m_concreto_f_c_210kg_cm2_m').precio") == cz == 116.05, cz)
+    chk("Cemento: mismo precio en todas las tiendas", "todas las tiendas" in pg.evaluate("BASE_REC.get('cemento').val.nota"))
+    chk("Cable #12: IVA confirmado", "con IVA" in pg.evaluate("BASE_APU.get('12.15').est") and "por confirmar" not in pg.evaluate("BASE_APU.get('12.15').est"))
     chk("Ninguna receta usa acero por quintal", pg.evaluate("DATA.apus.every(a=>a.lineas.every(l=>!/^acero\\d+$/.test(l[0])))"))
     tabla = ("Familia y tipo\tÁrea\tLongitud\tVolumen\tRecuento\nPuerta metálica 0.95x2.10\t\t\t\t3\nPuerta de madera cedro\t\t\t\t1\nPuerta corrediza PVC vidrio 2 hojas\t\t\t\t1\nBañera 1.50\t\t\t\t1\n"
              "Suelo grava\t20\t\t3\t1\nImposta\t5\t10\t\t1\nFosa séptica + pozo\t\t\t\t1\nCama matrimonial\t\t\t\t2\nCodo PVC 4\t\t\t\t6\nTee PVC 4\t\t\t\t2\nMueble de cocina\t\t3\t\t1\n")
