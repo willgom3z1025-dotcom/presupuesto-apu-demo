@@ -91,8 +91,8 @@ with sync_playwright() as p:
     chk("Costo directo del ejemplo = $25,365.37", d["cd"] == 25365.37, d["cd"])
     chk("Catálogo versión 5", d["ver"] == "5", d["ver"])
     chk("14 partidas en el catálogo", d["caps"] == 14, d["caps"])
-    chk("3,233 subpartidas (165 estándar y 3,068 de referencia)", d["apus"] == 3233, d["apus"])
-    chk("195 recursos (205 − 2 de agua − 9 de acero por qq − Autocad − base de concreto + 2 puertas + bañera)", d["recs"] == 195, d["recs"])
+    chk("3,234 subpartidas (166 estándar y 3,068 de referencia)", d["apus"] == 3234, d["apus"])
+    chk("196 recursos (205 − 2 de agua − 9 de acero por qq − Autocad − base de concreto + 2 puertas + bañera + tubo 6x2)", d["recs"] == 196, d["recs"])
     chk("DB.cat = 3 (códigos nuevos)", d["cat"] == 3, d["cat"])
     chk("Pestañas: Proyecto, Subpartidas, Presupuesto, Materiales, PU", d["tabs"] == ["Proyecto", "Subpartidas", "Presupuesto", "Materiales", "PU"], d["tabs"])
     comp = pg.evaluate("(()=>{const C=calcular(); return [C.mat, C.mo, C.sc, C.otro, C.ajEd||0, C.ajRed||0, C.c.cd]})()")
@@ -110,7 +110,7 @@ with sync_playwright() as p:
         "mo_tablaroquero": (30.0, "actualizado"), "mo_mecanico_de_banco": (30.0, "actualizado"),
         "auxiliar": (20.0, "actualizado"), "obrero": (20.0, "actualizado"), "maestro": (40.0, "actualizado"),
         "mo_topografo": (40.0, "actualizado"), "mo_jardinero": (30.0, "actualizado"),
-        "m_puerta_metalica_gladiador_u": (123.01, "actualizado"), "m_banera_fibra_vidrio_u": (308.85, "actualizado"), "m_puerta_corrediza_pvc_vidrio_u": (637.17, "actualizado"),
+        "m_puerta_metalica_gladiador_u": (123.01, "actualizado"), "m_banera_fibra_vidrio_u": (308.85, "actualizado"), "m_puerta_corrediza_pvc_vidrio_u": (637.17, "actualizado"), "m_tubo_estructural_6x2_ch16_ml": (7.37, "actualizado"),
         "varilla2_6m": (1.24, "actualizado"), "varilla3_6m": (3.19, "actualizado"), "varilla4_6m": (5.66, "actualizado"),
     }
     app_rec = pg.evaluate("Object.fromEntries(DATA.recursos.map(r=>[r.id,[r.precio,(r.val||{}).estado||'',(r.val||{}).fecha||'',r.unidad,r.prest]]))")
@@ -281,7 +281,7 @@ with sync_playwright() as p:
         chk(f"Regla del modelo ARGOS: '{nom}' → {esp or 'sin regla'}", g == esp, g)
     chk("El tablero eléctrico no se toma como accesorio de tubería", pg.evaluate("excluirTipo('M_Cuadro de control de accesorios e iluminación - 208V MCB')") == "")
     chk("Área de puertas y ventanas = alto × ancho del IFC", "OverallHeight" in HTML.read_text(encoding="utf-8") and pg.evaluate("FUENTE_IFC.dimensiones") == "Alto × ancho de puertas y ventanas")
-    for cod, pu in [("03.13", 51.98), ("04.31", 43.58), ("04.32", 36.49), ("04.33", 26.91), ("07.09", 45.76), ("11.21", 17.0), ("13.09", 27.02)]:
+    for cod, pu in [("03.13", 51.98), ("04.31", 43.58), ("04.32", 36.49), ("04.33", 26.91), ("07.09", 45.76), ("11.21", 17.0), ("13.09", 27.02), ("06.13", 10.59)]:
         chk(f"Subpartida del modelo ARGOS {cod} = {pu:.2f}", pg.evaluate("c=>costoAPU(BASE_APU.get(c)).total", cod) == pu)
     t2 = pg.evaluate("""t=>{const r=nuevaTabla(t,'argos.txt'); return r.imp.partidas.map((p,i)=>[r.imp.tipos[i].nombre,p.apu,p.origen,!!p.codNoCat,p.excluido||''])}""",
         "COD_PARTIDA\tFamilia y tipo\tLongitud\tÁrea\tRecuento\n04.34\tHormigón-Viga rectangular: VIGA V-1\t10\t\t1\n09.13\tVentana corredera de 2 hojas 1: V-2\t\t4.48\t2\n04.99\tElemento sin regla\t5\t\t1\n07.88\tMesa-Café\t\t\t6\n")
