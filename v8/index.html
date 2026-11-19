@@ -79,6 +79,7 @@ section.view.on{display:flex}
 
 /* Tablas de presupuesto (escritorio) */
 .tbl{overflow-x:auto;border-radius:12px;background:var(--group)}
+.sheet>*{flex-shrink:0}
 table{border-collapse:collapse;width:100%}
 th,td{padding:9px 10px;border-bottom:.5px solid var(--sep);text-align:left;vertical-align:middle}
 th{font:500 calc(12px * var(--fz, 1)) var(--ui);color:var(--muted);background:var(--group);white-space:nowrap;position:sticky;top:0}
@@ -1653,10 +1654,11 @@ function cargarTexto(entrada, nombre, mapeo, disciplina){
 }
 // Registro del procesamiento (por tabla cargada)
 function statsTabla(imp){
-  const s = {cod:0, regla:0, aprendido:0, ia:0, manual:0, sinAsociar:0, excluidos:0, codNoCat:0, confirmadas:0, iaProp:0, iaAcept:0, iaCorr:0, iaSin:0, iaPend:0};
+  const s = {cod:0, regla:0, aprendido:0, ia:0, manual:0, sinAsociar:0, excluidos:0, quitadas:0, fuera:0, enPresupuesto:0, codNoCat:0, confirmadas:0, iaProp:0, iaAcept:0, iaCorr:0, iaSin:0, iaPend:0};
   imp.partidas.forEach(p => {
     if(p.origen === "cod") s.cod++; else if(p.origen === "regla") s.regla++; else if(p.origen === "aprendido") s.aprendido++; else if(p.origen === "ia") s.ia++; else if(p.origen === "manual") s.manual++; else if(p.excluido && !p.apu) s.excluidos++; else s.sinAsociar++;
     if(p.codNoCat && !p.apu) s.codNoCat++;
+    if(p.excluido === "usuario" && !p.apu) s.quitadas++; else if(p.excluido && !p.apu) s.fuera++; else s.enPresupuesto++;
     if(estaConfirmada(p)) s.confirmadas++;
     if(p.ia){ s.iaProp++;
       if(p.ia.codigo === "SIN COINCIDENCIA") s.iaSin++;
@@ -1670,7 +1672,7 @@ function actualizarRegistro(){
   for(const p of Object.values(DB.proyectos)){
     (p.registro || []).forEach(reg => { const imp = (p.revit || []).find(x => x.id === reg.imp); if(!imp) return;
       Object.assign(reg, statsTabla(imp));
-      if(reg.tConfirm == null && reg.confirmadas === imp.partidas.length) reg.tConfirm = Date.now() - reg.inicio; });
+      if(reg.tConfirm == null && reg.enPresupuesto > 0 && reg.confirmadas >= reg.enPresupuesto) reg.tConfirm = Date.now() - reg.inicio; });
   }
 }
 /* ================= IA: propone partida y unidad (RF-02) =================
@@ -2001,11 +2003,11 @@ async function proponerIA(k){
   }
 }
 // Registro del procesamiento: filas para pantalla y exportación
-const REG_COLS = ["Fecha y hora", "Tabla", "Filas leídas", "Tipos distintos", "Subpartidas", "Por COD_PARTIDA", "Por reglas", "Por IA", "A mano", "Sin asociar", "Propuestas IA", "IA aceptadas sin cambio", "IA corregidas", "IA sin coincidencia", "Aciertos IA (%)", "Lectura (ms)", "Asociación (ms)", "Consulta IA (s)", "Carga a todas confirmadas (min)", "Confirmadas", "Por lo aprendido"];
+const REG_COLS = ["Fecha y hora", "Tabla", "Filas leídas", "Tipos distintos", "Subpartidas", "Por COD_PARTIDA", "Por reglas", "Por IA", "A mano", "Sin asociar", "Propuestas IA", "IA aceptadas sin cambio", "IA corregidas", "IA sin coincidencia", "Aciertos IA (%)", "Lectura (ms)", "Asociación (ms)", "Consulta IA (s)", "Carga a todas confirmadas (min)", "Confirmadas", "Por lo aprendido", "Quitadas a mano", "Fuera del presupuesto (mobiliario y accesorios)", "Lectura del IFC (s)"];
 function filasRegistro(){
   actualizarRegistro();
   return (P().registro || []).map(r => [new Date(r.fecha).toLocaleString("es-SV"), r.tabla, r.filas, r.tipos, r.partidas ?? r.tipos, r.cod || 0, r.regla || 0, r.ia || 0, r.manual || 0, r.sinAsociar || 0,
-    r.iaProp || 0, r.iaAcept || 0, r.iaCorr || 0, r.iaSin || 0, r.iaProp ? R2(r.iaAcept / r.iaProp * 100) : "", r.tLectura, r.tAsoc, r.tIA || 0, r.tConfirm != null ? R2(r.tConfirm / 60000) : "pendiente", `${r.confirmadas || 0} de ${r.partidas ?? r.tipos}`, r.aprendido || 0]);
+    r.iaProp || 0, r.iaAcept || 0, r.iaCorr || 0, r.iaSin || 0, r.iaProp ? R2(r.iaAcept / r.iaProp * 100) : "", r.tLectura, r.tAsoc, r.tIA || 0, r.tConfirm != null ? R2(r.tConfirm / 60000) : "pendiente", `${r.confirmadas || 0} de ${r.enPresupuesto ?? r.partidas ?? r.tipos}`, r.aprendido || 0, r.quitadas || 0, r.fuera || 0, r.tIfc ?? ""]);
 }
 async function exportarRegistro(tipo){
   const filas = filasRegistro(), nombre = `Registro de procesamiento ${(P().nombre || "obra").replace(/[\\/:*?"<>|]/g, "")}`;
@@ -2225,13 +2227,13 @@ function ifcFin(){ if(IFC_W){ try{ IFC_W.terminate(); }catch(e){} IFC_W = null; 
 function leerIFC(f){
   if(!/\.ifc$/i.test(f.name)){ $("#revitStatus").innerHTML = '<span class="chip bad">No es un archivo IFC</span> Elige un archivo con extensión .ifc.'; return; }
   if(!window.Worker || !window.Blob || !window.URL){ $("#revitStatus").innerHTML = '<span class="chip bad">Este navegador no puede leer IFC</span> Usa Chrome, Edge, Firefox o Safari actualizados.'; return; }
-  ifcFin(); elegirModoImport("ifc"); ifcProgreso(0, "Leyendo el archivo"); $("#revitStatus").innerHTML = `<span class="chip info">Leyendo ${esc(f.name)}…</span> ${num(f.size / 1048576, 1)} MB. La primera vez se descarga el lector de IFC (unos 8 MB).`;
+  ifcFin(); elegirModoImport("ifc"); ifcProgreso(0, "Leyendo el archivo"); const tIniIfc = performance.now(); $("#revitStatus").innerHTML = `<span class="chip info">Leyendo ${esc(f.name)}…</span> ${num(f.size / 1048576, 1)} MB. La primera vez se descarga el lector de IFC (unos 8 MB).`;
   const leerBuf = f.arrayBuffer ? f.arrayBuffer() : new Promise((ok, mal) => { const fr = new FileReader(); fr.onload = () => ok(fr.result); fr.onerror = () => mal(fr.error); fr.readAsArrayBuffer(f); });
   leerBuf.then(buf => {
     const url = URL.createObjectURL(new Blob([codigoWorkerIFC()], {type: "text/javascript"})), w = new Worker(url); IFC_W = w;
     w.onmessage = e => { const m = e.data || {};
       if(m.tipo === "progreso") ifcProgreso(m.p, m.etapa);
-      else if(m.tipo === "listo"){ ifcFin(); URL.revokeObjectURL(url); $("#revitStatus").innerHTML = `<span class="chip ok">Modelo leído</span> ${m.r.elementos.length} elementos. Revisa el resumen antes de cargar.`; abrirResumenIFC(m.r, f.name); }
+      else if(m.tipo === "listo"){ ifcFin(); URL.revokeObjectURL(url); $("#revitStatus").innerHTML = `<span class="chip ok">Modelo leído</span> ${m.r.elementos.length} elementos. Revisa el resumen antes de cargar.`; abrirResumenIFC(m.r, f.name, performance.now() - tIniIfc); }
       else if(m.tipo === "error"){ ifcFin(); URL.revokeObjectURL(url); $("#revitStatus").innerHTML = `<span class="chip bad">No se pudo leer el IFC</span> ${esc(m.msg)}`; } };
     w.onerror = e => { ifcFin(); URL.revokeObjectURL(url); $("#revitStatus").innerHTML = `<span class="chip bad">No se pudo cargar el lector de IFC</span> Revisa la conexión a internet. ${esc(e.message || "")}`; };
     w.postMessage(buf, [buf]);
@@ -2261,7 +2263,7 @@ function resumenIFC(R){
   const clases = new Map(); els.forEach(x => { const k = CLASE_IFC_TXT[x.clase] || x.clase, g = clases.get(k) || {nombre: k, n: 0, conQ: 0, disc: new Set()}; g.n++; if(conQ(x)) g.conQ++; if(x.disc) g.disc.add(x.disc); clases.set(k, g); });
   return {total: els.length, conQ: els.length - sinQ.length, porUnidad: sinQ.length - sinQesp.length, sinQesp, sinCod: els.filter(x => !x.cod).length, fuentes, clases: [...clases.values()].sort((a, b) => b.n - a.n)};
 }
-function abrirResumenIFC(R, nombre){ IFC_RES = {R, nombre}; OPEN = "ifc"; renderSheet(); }
+function abrirResumenIFC(R, nombre, ms){ IFC_RES = {R, nombre, ms}; OPEN = "ifc"; renderSheet(); }
 function htmlResumenIFC(){
   const {R, nombre} = IFC_RES, S = resumenIFC(R), F = filasIFC(R), p = parseRevit(F.rows), u = R.unidades || {};
   const UN = {"METRE":"metros", "MILLI METRE":"milímetros", "CENTI METRE":"centímetros", "DECI METRE":"decímetros", "SQUARE_METRE":"m²", "MILLI SQUARE_METRE":"mm²", "CUBIC_METRE":"m³", "MILLI CUBIC_METRE":"mm³",
@@ -2280,9 +2282,10 @@ function htmlResumenIFC(){
     <div class="row"><button class="btn primary" data-ifccargar ${p.tipos.length ? "" : "disabled"}>Cargar al presupuesto (${p.tipos.length} subpartidas)</button><button class="btn" data-close>Cancelar</button></div>`;
 }
 function cargarIFC(){
-  if(!IFC_RES) return; const {R, nombre} = IFC_RES, S = resumenIFC(R), F = filasIFC(R); IFC_RES = null; OPEN = null; renderSheet();
+  if(!IFC_RES) return; const {R, nombre, ms} = IFC_RES, S = resumenIFC(R), F = filasIFC(R); IFC_RES = null; OPEN = null; renderSheet();
   cargarTexto(F.rows, nombre);
   const imp = P().revit.find(x => x.archivo === nombre); if(!imp) return;
+  const regI = (P().registro || []).find(x => x.imp === imp.id); if(regI && ms != null) regI.tIfc = R2(ms / 1000);
   imp.origen = "ifc"; imp.ifc = {esquema: R.esquema, elementos: S.total, conCantidades: S.conQ, porUnidad: S.porUnidad, sinCantidades: S.sinQesp.length, sinCodigo: S.sinCod, niveles: R.niveles.map(n => n.nombre), fuentes: S.fuentes};
   imp.tipos.forEach(t => (t.det || []).forEach(d => { if(F.kg[d.f]) d.kg = F.kg[d.f]; }));
   guardar(); render();
