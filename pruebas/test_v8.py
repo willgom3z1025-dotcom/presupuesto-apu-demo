@@ -268,6 +268,19 @@ with sync_playwright() as p:
                      ("Suelo grava", ["13.08", "m³", "", False]), ("Imposta", ["05.09", "m²", "", False]), ("Fosa séptica + pozo", ["11.19", None, "", True]),
                      ("Cama matrimonial", ["", None, "mobiliario", False]), ("Codo PVC 4", ["", None, "accesorio", False]), ("Tee PVC 4", ["", None, "accesorio", False])]:
         chk(f"Regla: '{nom}' → {esp[0] or 'fuera del presupuesto (' + esp[2] + ')'}", t[nom] == esp, t[nom])
+    reglas = [("Ventana corredera de 2 hojas 1:V-2", "09.06"), ("Fijo:V-1", "09.07"), ("Puerta corredera, 2 hojas:P-5", "09.10"), ("Portão_metalico:Portão_metalico", "09.04"),
+              ("Asiento de WC con cisterna:INODORO", "11.10"), ("Lavabo moderno:LAVABO EMPOTRADO", "11.11"), ("Shower-column:DUCHA", "11.12"),
+              ("Lámpara empotrada - LED:LUMINARIA EMPOTRADA 24W", "12.04"), ("M_Toma - 220V:Estándar", "12.06"), ("M_Interruptores de iluminación:Tridireccional", "12.07"),
+              ("M_Cuadro de control de accesorios e iluminación - 208V MCB:TABLERO DISTRIBUCION 100A", "12.03"), ("Tipos de tubería:PVC SANITARIO", "11.07"),
+              ("Tipos de tubería:PVC SANITARIO 2''", "11.08"), ("Tipos de tubería:PVC AGUA POTABLE", "11.02"), ("Tipos de tubería:PVC A.L.L", "11.16"), ("Canalón:Canalón", "06.09"),
+              ("Cubierta básica:THERMO TECHO GFX", "06.08"), ("Cubierta básica:LAMINA ZINCALUM CAL24", "06.04"), ("Techo compuesto:CIELO FALSO PVC", "10.02"), ("Suelo:GRAMA", "13.04"),
+              ("Suelo:PORCELANATO 60X60", "07.05"), ("Suelo:PISO ANTIDESLIZANTE", "07.06"), ("Suelo:LOSA DE ENTREPISO VT1-20", "04.19"), ("Hormigón-Viga rectangular:S-F 1", "03.06"),
+              ("Hormigón-Viga rectangular:VIGA V-2", "04.08"), ("RHS-Sección hueca rectangular:TUBO ESTRUCTURAL 6*2", "")]
+    got = pg.evaluate("ns=>ns.map(n=>sugerirAPU(n))", [n for n, _ in reglas])
+    for (nom, esp), g in zip(reglas, got):
+        chk(f"Regla del modelo ARGOS: '{nom}' → {esp or 'sin regla'}", g == esp, g)
+    chk("El tablero eléctrico no se toma como accesorio de tubería", pg.evaluate("excluirTipo('M_Cuadro de control de accesorios e iluminación - 208V MCB')") == "")
+    chk("Área de puertas y ventanas = alto × ancho del IFC", "OverallHeight" in HTML.read_text(encoding="utf-8") and pg.evaluate("FUENTE_IFC.dimensiones") == "Alto × ancho de puertas y ventanas")
     chk("Mueble de cocina no se trata como mobiliario", t["Mueble de cocina"][2] == "", t["Mueble de cocina"])
     pg.evaluate("t=>{cargarTexto(t,'casa.txt')}", tabla)
     pg.wait_for_timeout(300)

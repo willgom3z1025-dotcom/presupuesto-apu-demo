@@ -20,10 +20,10 @@ Cierre, conjunto y fórmulas: 14 correctas
 Acero por metro lineal: 18 correctas
 Códigos de Partida y Subpartida: 18 correctas
 Catálogo de la base de datos: 3 correctas
-PU nuevos, reglas y acero por varilla (19 nov): 37 correctas
+PU nuevos, reglas y acero por varilla (19 nov): 65 correctas
 Pantallas y nombres: 12 correctas
 Tamaño de letra: 5 correctas
 Borrar PU y materiales: 4 correctas
 PDF y Excel: 10 correctas
 Celular y vista previa: 3 correctas
-TOTAL: 349 correctas, 0 fallidas, 349 pruebas
+TOTAL: 377 correctas, 0 fallidas, 377 pruebas
