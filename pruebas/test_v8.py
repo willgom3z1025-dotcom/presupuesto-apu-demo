@@ -91,8 +91,8 @@ with sync_playwright() as p:
     chk("Costo directo del ejemplo = $25,365.37", d["cd"] == 25365.37, d["cd"])
     chk("Catálogo versión 5", d["ver"] == "5", d["ver"])
     chk("14 partidas en el catálogo", d["caps"] == 14, d["caps"])
-    chk("3,225 subpartidas (157 estándar y 3,068 de referencia)", d["apus"] == 3225, d["apus"])
-    chk("194 recursos (205 − 2 de agua − 9 de acero por qq − Autocad − base de concreto + puerta + bañera)", d["recs"] == 194, d["recs"])
+    chk("3,226 subpartidas (158 estándar y 3,068 de referencia)", d["apus"] == 3226, d["apus"])
+    chk("195 recursos (205 − 2 de agua − 9 de acero por qq − Autocad − base de concreto + 2 puertas + bañera)", d["recs"] == 195, d["recs"])
     chk("DB.cat = 3 (códigos nuevos)", d["cat"] == 3, d["cat"])
     chk("Pestañas: Proyecto, Subpartidas, Presupuesto, Materiales, PU", d["tabs"] == ["Proyecto", "Subpartidas", "Presupuesto", "Materiales", "PU"], d["tabs"])
     comp = pg.evaluate("(()=>{const C=calcular(); return [C.mat, C.mo, C.sc, C.otro, C.ajEd||0, C.ajRed||0, C.c.cd]})()")
@@ -110,7 +110,7 @@ with sync_playwright() as p:
         "mo_tablaroquero": (30.0, "actualizado"), "mo_mecanico_de_banco": (30.0, "actualizado"),
         "auxiliar": (20.0, "actualizado"), "obrero": (20.0, "actualizado"), "maestro": (40.0, "actualizado"),
         "mo_topografo": (40.0, "actualizado"), "mo_jardinero": (30.0, "actualizado"),
-        "m_puerta_metalica_gladiador_u": (123.01, "actualizado"), "m_banera_fibra_vidrio_u": (308.85, "actualizado"),
+        "m_puerta_metalica_gladiador_u": (123.01, "actualizado"), "m_banera_fibra_vidrio_u": (308.85, "actualizado"), "m_puerta_corrediza_pvc_vidrio_u": (637.17, "actualizado"),
         "varilla2_6m": (1.24, "actualizado"), "varilla3_6m": (3.19, "actualizado"), "varilla4_6m": (5.66, "actualizado"),
     }
     app_rec = pg.evaluate("Object.fromEntries(DATA.recursos.map(r=>[r.id,[r.precio,(r.val||{}).estado||'',(r.val||{}).fecha||'',r.unidad,r.prest]]))")
@@ -243,11 +243,11 @@ with sync_playwright() as p:
     # ---------- 8b. Datos del 19 nov: PU nuevos, reglas, fuera del presupuesto y acero por varilla ----------
     grupo("PU nuevos, reglas y acero por varilla (19 nov)")
     abrir(pg)
-    for cod, pu, u in [("09.09", 164.22, "u"), ("11.18", 391.28, "u"), ("13.08", 61.49, "m³"), ("11.19", 1755.0, "SG")]:
+    for cod, pu, u in [("09.09", 164.22, "u"), ("09.10", 719.60, "u"), ("11.18", 391.28, "u"), ("13.08", 61.49, "m³"), ("11.19", 1755.0, "SG")]:
         x = pg.evaluate("c=>[costoAPU(BASE_APU.get(c)).total, BASE_APU.get(c).unidad]", cod)
         chk(f"{cod} P.U. = {pu:.2f} por {u}", x == [pu, u], x)
-    eq = pg.evaluate("['09.09','11.18','13.08'].map(c=>{const a=BASE_APU.get(c), mo=a.lineas.reduce((s,l)=>{const r=BASE_REC.get(l[0]); return s+(r.tipo==='MO'?l[1]*r.precio*(1+(r.prest||0)/100):0)},0); return Math.abs(a.eq-R2(mo*0.05))<0.006})")
-    chk("Herramienta menor = 5% de la mano de obra en 09.09, 11.18 y 13.08", all(eq), eq)
+    eq = pg.evaluate("['09.09','09.10','11.18','13.08'].map(c=>{const a=BASE_APU.get(c), mo=a.lineas.reduce((s,l)=>{const r=BASE_REC.get(l[0]); return s+(r.tipo==='MO'?l[1]*r.precio*(1+(r.prest||0)/100):0)},0); return Math.abs(a.eq-R2(mo*0.05))<0.006})")
+    chk("Herramienta menor = 5% de la mano de obra en 09.09, 09.10, 11.18 y 13.08", all(eq), eq)
     chk("Arena puesta en obra: cantera + flete de $40 por camión de 3 m³", "flete $13.33" in pg.evaluate("BASE_REC.get('arena').val.nota"))
     chk("Lámina Zinc Alum de Galvanissa", pg.evaluate("BASE_REC.get('m_lamina_zinc_alum_m').val.fuente") == "Galvanissa")
     chk("Bloque 15 con precio de tienda San Miguel (Freund 806183)", pg.evaluate("BASE_REC.get('bloque15').val.codigo") == "806183")
@@ -259,10 +259,10 @@ with sync_playwright() as p:
     cz = pg.evaluate("R2(['cemento','arena','grava','agua'].reduce((s,k,i)=>s+BASE_REC.get(k).precio*[9.5,0.52,0.52,0.21][i],0))")
     chk(f"Concreto f'c 210 = ${cz:.2f}/m³ con la dosificación de la app (antes $5.93)", pg.evaluate("BASE_REC.get('m_concreto_f_c_210kg_cm2_m').precio") == cz == 116.05, cz)
     chk("Ninguna receta usa acero por quintal", pg.evaluate("DATA.apus.every(a=>a.lineas.every(l=>!/^acero\\d+$/.test(l[0])))"))
-    tabla = ("Familia y tipo\tÁrea\tLongitud\tVolumen\tRecuento\nPuerta metálica 0.95x2.10\t\t\t\t3\nPuerta de madera cedro\t\t\t\t1\nBañera 1.50\t\t\t\t1\n"
+    tabla = ("Familia y tipo\tÁrea\tLongitud\tVolumen\tRecuento\nPuerta metálica 0.95x2.10\t\t\t\t3\nPuerta de madera cedro\t\t\t\t1\nPuerta corrediza PVC vidrio 2 hojas\t\t\t\t1\nBañera 1.50\t\t\t\t1\n"
              "Suelo grava\t20\t\t3\t1\nImposta\t5\t10\t\t1\nFosa séptica + pozo\t\t\t\t1\nCama matrimonial\t\t\t\t2\nCodo PVC 4\t\t\t\t6\nTee PVC 4\t\t\t\t2\nMueble de cocina\t\t3\t\t1\n")
     t = pg.evaluate("t=>{const r=nuevaTabla(t,'casa.txt'); return Object.fromEntries(r.imp.partidas.map((p,i)=>[r.imp.tipos[i].nombre,[p.apu,p.unidad,p.excluido||'',!!p.sgPend]]))}", tabla)
-    for nom, esp in [("Puerta metálica 0.95x2.10", ["09.09", "u", "", False]), ("Puerta de madera cedro", ["09.01", "u", "", False]), ("Bañera 1.50", ["11.18", "u", "", False]),
+    for nom, esp in [("Puerta metálica 0.95x2.10", ["09.09", "u", "", False]), ("Puerta de madera cedro", ["09.01", "u", "", False]), ("Puerta corrediza PVC vidrio 2 hojas", ["09.10", "u", "", False]), ("Bañera 1.50", ["11.18", "u", "", False]),
                      ("Suelo grava", ["13.08", "m³", "", False]), ("Imposta", ["05.09", "m²", "", False]), ("Fosa séptica + pozo", ["11.19", None, "", True]),
                      ("Cama matrimonial", ["", None, "mobiliario", False]), ("Codo PVC 4", ["", None, "accesorio", False]), ("Tee PVC 4", ["", None, "accesorio", False])]:
         chk(f"Regla: '{nom}' → {esp[0] or 'fuera del presupuesto (' + esp[2] + ')'}", t[nom] == esp, t[nom])
