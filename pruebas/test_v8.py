@@ -253,6 +253,11 @@ with sync_playwright() as p:
     chk("Bloque 15 con precio de tienda San Miguel (Freund 806183)", pg.evaluate("BASE_REC.get('bloque15').val.codigo") == "806183")
     chk("Sin Autocad ni base de concreto SG en el catálogo", pg.evaluate("!BASE_REC.has('m_autocad_m') && !BASE_REC.has('m_base_de_concreto_sg') && DATA.apus.every(a=>a.lineas.every(l=>l[0]!=='m_autocad_m' && l[0]!=='m_base_de_concreto_sg'))"))
     chk("R06.0115 (cubierta zinc alum) usa la lámina en lugar de 'Autocad'", pg.evaluate("BASE_APU.get('R06.0115').lineas[0][0]") == "m_lamina_zinc_alum_m")
+    chk("Grava y selecto: precio puesto en obra", all("puesto en obra" in pg.evaluate("k=>BASE_REC.get(k).val.nota", k) for k in ["grava", "selecto"]))
+    fz = pg.evaluate("[BASE_REC.get('sc_fosa_septica_y_tuberia_pozo_de_absorcion_sg').precio, BASE_REC.get('sc_fosa_septica_y_tuberia_pozo_de_absorcion_sg').val, BASE_APU.get('R11.0258').unidad]")
+    chk("Fosa con pozo: $1,755.00 estimado, sin fuente, R11.0258 por SG", fz[0] == 1755.0 and fz[1] == {"estado": "provisional", "nota": "Precio estimado."} and fz[2] == "SG", fz)
+    cz = pg.evaluate("R2(['cemento','arena','grava','agua'].reduce((s,k,i)=>s+BASE_REC.get(k).precio*[9.5,0.52,0.52,0.21][i],0))")
+    chk(f"Concreto f'c 210 = ${cz:.2f}/m³ con la dosificación de la app (antes $5.93)", pg.evaluate("BASE_REC.get('m_concreto_f_c_210kg_cm2_m').precio") == cz == 116.05, cz)
     chk("Ninguna receta usa acero por quintal", pg.evaluate("DATA.apus.every(a=>a.lineas.every(l=>!/^acero\\d+$/.test(l[0])))"))
     tabla = ("Familia y tipo\tÁrea\tLongitud\tVolumen\tRecuento\nPuerta metálica 0.95x2.10\t\t\t\t3\nPuerta de madera cedro\t\t\t\t1\nBañera 1.50\t\t\t\t1\n"
              "Suelo grava\t20\t\t3\t1\nImposta\t5\t10\t\t1\nFosa séptica + pozo\t\t\t\t1\nCama matrimonial\t\t\t\t2\nCodo PVC 4\t\t\t\t6\nTee PVC 4\t\t\t\t2\nMueble de cocina\t\t3\t\t1\n")
