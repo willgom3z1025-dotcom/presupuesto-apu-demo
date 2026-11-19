@@ -91,7 +91,7 @@ with sync_playwright() as p:
     chk("Costo directo del ejemplo = $25,365.37", d["cd"] == 25365.37, d["cd"])
     chk("Catálogo versión 5", d["ver"] == "5", d["ver"])
     chk("14 partidas en el catálogo", d["caps"] == 14, d["caps"])
-    chk("3,226 subpartidas (158 estándar y 3,068 de referencia)", d["apus"] == 3226, d["apus"])
+    chk("3,233 subpartidas (165 estándar y 3,068 de referencia)", d["apus"] == 3233, d["apus"])
     chk("195 recursos (205 − 2 de agua − 9 de acero por qq − Autocad − base de concreto + 2 puertas + bañera)", d["recs"] == 195, d["recs"])
     chk("DB.cat = 3 (códigos nuevos)", d["cat"] == 3, d["cat"])
     chk("Pestañas: Proyecto, Subpartidas, Presupuesto, Materiales, PU", d["tabs"] == ["Proyecto", "Subpartidas", "Presupuesto", "Materiales", "PU"], d["tabs"])
@@ -205,7 +205,7 @@ with sync_playwright() as p:
     chk("COD_PARTIDA viejo se lee como nuevo", lc[0]["cod"] == "05.07" and lc[0]["valido"] and lc[0]["ant"] == "05.01.07", lc[0])
     chk("COD_PARTIDA nuevo se lee igual", lc[1]["cod"] == "05.07" and lc[1]["valido"], lc[1])
     chk("COD_PARTIDA sin ceros no es válido", not lc[2]["valido"], lc[2])
-    chk("Siguiente código libre: 05.12, R11.0918, 04.30", pg.evaluate("[nextCode('05'), nextCode('11',true), nextCode('04')]") == ["05.12", "R11.0918", "04.30"])
+    chk("Siguiente código libre: 05.12, R11.0918, 04.34", pg.evaluate("[nextCode('05'), nextCode('11',true), nextCode('04')]") == ["05.12", "R11.0918", "04.34"])
     viejo = {"v": 4, "cat": 2, "actual": "p1", "rec": {}, "recNew": {}, "tema": "noche", "elab": {}, "desp": {},
              "apuOv": {"05.01.12": {"id": "05.01.12", "cc": "05", "nombre": "Propia", "unidad": "m²", "lineas": [["cemento", 1]], "eq": 0, "pdir": 0, "nuevo": 1}},
              "aprendido": {"MURO X": {"nombre": "Muro X", "apu": "05.01.07", "unidad": "m²", "veces": 2, "fecha": 1}},
@@ -281,6 +281,13 @@ with sync_playwright() as p:
         chk(f"Regla del modelo ARGOS: '{nom}' → {esp or 'sin regla'}", g == esp, g)
     chk("El tablero eléctrico no se toma como accesorio de tubería", pg.evaluate("excluirTipo('M_Cuadro de control de accesorios e iluminación - 208V MCB')") == "")
     chk("Área de puertas y ventanas = alto × ancho del IFC", "OverallHeight" in HTML.read_text(encoding="utf-8") and pg.evaluate("FUENTE_IFC.dimensiones") == "Alto × ancho de puertas y ventanas")
+    for cod, pu in [("03.13", 51.98), ("04.31", 43.58), ("04.32", 36.49), ("04.33", 26.91), ("07.09", 45.76), ("11.21", 17.0), ("13.09", 27.02)]:
+        chk(f"Subpartida del modelo ARGOS {cod} = {pu:.2f}", pg.evaluate("c=>costoAPU(BASE_APU.get(c)).total", cod) == pu)
+    t2 = pg.evaluate("""t=>{const r=nuevaTabla(t,'argos.txt'); return r.imp.partidas.map((p,i)=>[r.imp.tipos[i].nombre,p.apu,p.origen,!!p.codNoCat,p.excluido||''])}""",
+        "COD_PARTIDA\tFamilia y tipo\tLongitud\tÁrea\tRecuento\n04.34\tHormigón-Viga rectangular: VIGA V-1\t10\t\t1\n09.13\tVentana corredera de 2 hojas 1: V-2\t\t4.48\t2\n04.99\tElemento sin regla\t5\t\t1\n07.88\tMesa-Café\t\t\t6\n")
+    chk("Código del modelo fuera del catálogo: se propone el APU por el nombre (por confirmar)", t2[0][1:4] == ["04.07", "regla", True] and t2[1][1:4] == ["09.06", "regla", True], t2)
+    chk("Código fuera del catálogo y sin regla: queda para crear el APU", t2[2][1:4] == ["", None, True], t2[2])
+    chk("Código fuera del catálogo en mobiliario: fuera del presupuesto", t2[3][4] == "mobiliario", t2[3])
     chk("Mueble de cocina no se trata como mobiliario", t["Mueble de cocina"][2] == "", t["Mueble de cocina"])
     pg.evaluate("t=>{cargarTexto(t,'casa.txt')}", tabla)
     pg.wait_for_timeout(300)
@@ -290,6 +297,13 @@ with sync_playwright() as p:
     pg.wait_for_timeout(300)
     txt = pg.inner_text("#revitGroups")
     chk("Subpartidas: aviso 'Fuera del presupuesto' y conteo", "Fuera del presupuesto" in txt and "3 fuera del presupuesto" in txt, txt[:300])
+    ref = pg.evaluate("(()=>{const R=P().revit; for(let i=0;i<R.length;i++){const j=R[i].tipos.findIndex(t=>t.nombre==='Puerta metálica 0.95x2.10'); if(j>=0) return 'r:'+i+':'+j;} return ''})()")
+    pg.click(f'[data-quitarpres="{ref}"]'); pg.wait_for_timeout(200)
+    q = pg.evaluate("r=>{const p=getItem(r); return [p.excluido, p.apu, lineas().some(l=>l.titulo==='Puerta metálica 0.95x2.10')]}", ref)
+    chk("Quitar del presupuesto: la subpartida sale del total", q == ["usuario", "", False], q)
+    pg.click(f'[data-incluir="{ref}"]'); pg.wait_for_timeout(200)
+    q = pg.evaluate("r=>{const p=getItem(r); return [p.excluido||'', p.apu, lineas().some(l=>l.titulo==='Puerta metálica 0.95x2.10')]}", ref)
+    chk("Volver a incluir: recupera su APU", q == ["", "09.09", True], q)
     mig = pg.evaluate("""(()=>{ const p={revit:[{partidas:[{apu:'',unidad:'u'}],tipos:[{nombre:'Silla plástica'}]}], manual:[]}; migrarProyecto(p); return p.revit[0].partidas[0] })()""")
     chk("Migración: lo ya importado sin APU se marca fuera del presupuesto", mig.get("excluido") == "mobiliario" and mig.get("unidad") is None, mig)
     abrir(pg)
