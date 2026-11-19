@@ -52,6 +52,10 @@ def pu_py(a):
     return R2(t)
 
 
+def money_ok(txt, v):
+    return f"{v:,.2f}" in txt
+
+
 def nueva_pagina(b, **kw):
     ctx = b.new_context(accept_downloads=True, **kw)
     for nombre, ruta in CDN.items():
@@ -83,12 +87,12 @@ with sync_playwright() as p:
     abrir(pg)
     d = pg.evaluate("(()=>{const C=calcular(); return {total:C.c.total, cd:C.c.cd, mat:C.mat, mo:C.mo, sc:C.sc, otro:C.otro, aj:C.ajPU, ajR:C.ajRed, ver:String(DATA.version), caps:DATA.caps.length, apus:DATA.apus.length, recs:DATA.recursos.length, cat:DB.cat, tabs:[...document.querySelectorAll('nav.tabs .tab')].map(t=>t.textContent.trim())}})()")
     chk("Sin errores de página al abrir", not errs, errs)
-    chk("Total del ejemplo = $50,645.30", d["total"] == 50645.30, d["total"])
-    chk("Costo directo del ejemplo = $25,322.65", d["cd"] == 25322.65, d["cd"])
-    chk("Catálogo versión 4", d["ver"] == "4", d["ver"])
+    chk("Total del ejemplo = $50,730.74", d["total"] == 50730.74, d["total"])
+    chk("Costo directo del ejemplo = $25,365.37", d["cd"] == 25365.37, d["cd"])
+    chk("Catálogo versión 5", d["ver"] == "5", d["ver"])
     chk("14 partidas en el catálogo", d["caps"] == 14, d["caps"])
-    chk("3,221 subpartidas (153 estándar y 3,068 de referencia)", d["apus"] == 3221, d["apus"])
-    chk("205 recursos (215 + 2 nuevos + 9 varillas de 6 m − 17 repetidos unidos − 4 sin uso)", d["recs"] == 205, d["recs"])
+    chk("3,225 subpartidas (157 estándar y 3,068 de referencia)", d["apus"] == 3225, d["apus"])
+    chk("194 recursos (205 − 2 de agua − 9 de acero por qq − Autocad − base de concreto + puerta + bañera)", d["recs"] == 194, d["recs"])
     chk("DB.cat = 3 (códigos nuevos)", d["cat"] == 3, d["cat"])
     chk("Pestañas: Proyecto, Subpartidas, Presupuesto, Materiales, PU", d["tabs"] == ["Proyecto", "Subpartidas", "Presupuesto", "Materiales", "PU"], d["tabs"])
     comp = pg.evaluate("(()=>{const C=calcular(); return [C.mat, C.mo, C.sc, C.otro, C.ajEd||0, C.ajRed||0, C.c.cd]})()")
@@ -97,32 +101,32 @@ with sync_playwright() as p:
     # ---------- 2. Precios de recursos ----------
     grupo("Precios de recursos (18 nov 2026)")
     esperado = {
-        "bloque15": (0.80, "actualizado"), "bloque10": (0.71, "actualizado"), "cemento": (8.05, "actualizado"),
-        "arena": (15.93, "provisional"), "acero2": (42.19, "actualizado"), "acero3": (43.01, "actualizado"),
-        "acero4": (43.08, "actualizado"), "alambre": (0.62, "actualizado"), "m_tubo_pvc_1_2_u": (2.39, "actualizado"),
-        "m_tubo_pvc_4_64psi_ml": (2.02, "pendiente"), "m_lamina_zinc_alum_m": (8.67, "pendiente"),
+        "bloque15": (0.75, "actualizado"), "bloque10": (0.71, "actualizado"), "cemento": (8.05, "actualizado"),
+        "arena": (29.26, "actualizado"), "alambre": (0.62, "actualizado"), "m_tubo_pvc_1_2_u": (2.39, "actualizado"),
+        "m_tubo_pvc_4_64psi_ml": (2.02, "actualizado"), "m_lamina_zinc_alum_m": (8.67, "actualizado"),
         "m_panel_thermotecho_2_m": (25.66, "pendiente"), "m_porcelanato_m": (13.42, "pendiente"),
         "albanil": (30.0, "actualizado"), "armador": (30.0, "actualizado"), "carpintero": (30.0, "actualizado"),
         "soldador": (30.0, "actualizado"), "electricista": (30.0, "actualizado"), "fontanero": (30.0, "actualizado"),
         "mo_tablaroquero": (30.0, "actualizado"), "mo_mecanico_de_banco": (30.0, "actualizado"),
         "auxiliar": (20.0, "actualizado"), "obrero": (20.0, "actualizado"), "maestro": (40.0, "actualizado"),
         "mo_topografo": (40.0, "actualizado"), "mo_jardinero": (30.0, "actualizado"),
+        "m_puerta_metalica_gladiador_u": (123.01, "actualizado"), "m_banera_fibra_vidrio_u": (308.85, "actualizado"),
         "varilla2_6m": (1.24, "actualizado"), "varilla3_6m": (3.19, "actualizado"), "varilla4_6m": (5.66, "actualizado"),
     }
     app_rec = pg.evaluate("Object.fromEntries(DATA.recursos.map(r=>[r.id,[r.precio,(r.val||{}).estado||'',(r.val||{}).fecha||'',r.unidad,r.prest]]))")
     for rid, (pr, est) in esperado.items():
         x = app_rec.get(rid)
         chk(f"{rid}: ${pr:.2f}, {est}", x and x[0] == pr and x[1] == est, x)
-    con_fuente = [rid for rid in esperado if app_rec[rid][2] == "18 de noviembre de 2026"]
+    con_fuente = [rid for rid in esperado if app_rec[rid][2] in ("18 de noviembre de 2026", "19 de noviembre de 2026")]
     chk("Todos los recursos actualizados guardan la fecha de consulta", len(con_fuente) == len(esperado), set(esperado) - set(con_fuente))
     chk("Varillas #5 a #10 por validar", all(app_rec[f"varilla{n}_6m"][1] == "pendiente" for n in range(5, 11)))
-    chk("Acero #5 a #10 por quintal sin cambio (60.00)", all(app_rec[f"acero{n}"][0] == 60.0 for n in range(5, 11)))
+    chk("Ningún material por quintal: el acero va por varilla de 6 m", not [k for k, v in app_rec.items() if v[3] == "qq"], [k for k, v in app_rec.items() if v[3] == "qq"])
     chk("Cable THHN #12 (12.15) a $0.74/ml", pg.evaluate("BASE_APU.get('12.15').pdir") == 0.74)
     unidos = pg.evaluate("REC_UNIDOS")
-    chk("17 recursos repetidos unidos en uno solo", len(unidos) == 17, len(unidos))
-    chk("Ninguna subpartida usa un recurso repetido", pg.evaluate("DATA.apus.every(a=>a.lineas.every(l=>!REC_UNIDOS[l[0]] && BASE_REC.has(l[0])))"))
+    chk("30 recursos anteriores con su reemplazo (17 repetidos, agua, acero por qq, Autocad y base de concreto)", len(unidos) == 30, len(unidos))
+    chk("Ninguna subpartida usa un recurso reemplazado", pg.evaluate("DATA.apus.every(a=>a.lineas.every(l=>!(l[0] in REC_UNIDOS) && BASE_REC.has(l[0])))"))
     chk("Los repetidos ya no aparecen en el catálogo", pg.evaluate("Object.keys(REC_UNIDOS).every(k=>!BASE_REC.has(k))"))
-    chk("Agua por litro = agua por m³ ÷ 1000", pg.evaluate("BASE_REC.get('agua_litro').precio") == round(app_rec["agua"][0] / 1000, 5))
+    chk("Agua solo por m³", not [k for k, v in app_rec.items() if k.startswith("agua") and k != "agua"] and app_rec["agua"][3] == "m³", [k for k in app_rec if k.startswith("agua")])
     chk("Sin precios distintos para el mismo nombre de material", pg.evaluate("(()=>{const m={}; for(const r of DATA.recursos){const k=r.nombre.toLowerCase().replace(/\\(por [^)]*\\)/,'').trim()+'|'+r.unidad; (m[k]=m[k]||new Set()).add(r.precio)} return Object.values(m).every(s=>s.size===1)})()"))
     chk("Cable #14 y #10 sin cambio", pg.evaluate("[BASE_APU.get('12.14').pdir, BASE_APU.get('12.16').pdir]") == [0.40, 0.85])
 
@@ -220,7 +224,7 @@ with sync_playwright() as p:
     chk("Proyecto viejo: PU propio 05.01.12 → 05.12 con su código anterior", m[1] == ["05.12"] and m[2] == "05.01.12" and m[0][1][0] == "05.12", m)
     chk("Proyecto viejo: acero 04.06.03 en qq → 04.23 en ml", m[0][2][0] == "04.23" and m[0][2][1] == "ml" and abs(m[0][2][2] - 45.63) < 0.01, m[0][2])
     chk("Proyecto viejo: lo aprendido → 05.07", m[3] == "05.07", m)
-    chk("PU propio con un material repetido pasa al material único", pg2.evaluate("(()=>{DB.apuOv['05.95']={id:'05.95',cc:'05',nombre:'x',unidad:'m²',lineas:[['acero3_false',1],['arena_arena',2]],nuevo:1}; convertirCodigos(); return DB.apuOv['05.95'].lineas.map(l=>l[0])})()") == ["acero3", "arena"])
+    chk("PU propio con un material repetido pasa al material único", pg2.evaluate("(()=>{DB.apuOv['05.95']={id:'05.95',cc:'05',nombre:'x',unidad:'m²',lineas:[['acero3_false',1],['arena_arena',2]],nuevo:1}; convertirCodigos(); return DB.apuOv['05.95'].lineas})()") == [["varilla3_6m", 13.5], ["arena", 2]])
     chk("Proyecto viejo: queda en DB.cat 3 sin errores", m[4] == 3 and not errs2, errs2)
     ctx2.close()
 
@@ -233,8 +237,58 @@ with sync_playwright() as p:
     cat2 = {"version": 2, "caps": CAT["caps"], "recursos": [dict(r, precio=99) for r in CAT["recursos"]], "apus": CAT["apus"]}
     ctx3.add_init_script("localStorage.setItem('apu-catalogo', " + json.dumps(json.dumps(cat2)) + ");")
     abrir(pg3)
-    chk("Caché del navegador con versión 2 se ignora", pg3.evaluate("[CAT.version, BASE_REC.get('cemento').precio]") == ["4", 8.05])
+    chk("Caché del navegador con versión 2 se ignora", pg3.evaluate("[CAT.version, BASE_REC.get('cemento').precio]") == ["5", 8.05])
     ctx3.close()
+
+    # ---------- 8b. Datos del 19 nov: PU nuevos, reglas, fuera del presupuesto y acero por varilla ----------
+    grupo("PU nuevos, reglas y acero por varilla (19 nov)")
+    abrir(pg)
+    for cod, pu, u in [("09.09", 164.22, "u"), ("11.18", 391.28, "u"), ("13.08", 61.49, "m³"), ("11.19", 1755.0, "SG")]:
+        x = pg.evaluate("c=>[costoAPU(BASE_APU.get(c)).total, BASE_APU.get(c).unidad]", cod)
+        chk(f"{cod} P.U. = {pu:.2f} por {u}", x == [pu, u], x)
+    eq = pg.evaluate("['09.09','11.18','13.08'].map(c=>{const a=BASE_APU.get(c), mo=a.lineas.reduce((s,l)=>{const r=BASE_REC.get(l[0]); return s+(r.tipo==='MO'?l[1]*r.precio*(1+(r.prest||0)/100):0)},0); return Math.abs(a.eq-R2(mo*0.05))<0.006})")
+    chk("Herramienta menor = 5% de la mano de obra en 09.09, 11.18 y 13.08", all(eq), eq)
+    chk("Arena puesta en obra: cantera + flete de $40 por camión de 3 m³", "flete $13.33" in pg.evaluate("BASE_REC.get('arena').val.nota"))
+    chk("Lámina Zinc Alum de Galvanissa", pg.evaluate("BASE_REC.get('m_lamina_zinc_alum_m').val.fuente") == "Galvanissa")
+    chk("Bloque 15 con precio de tienda San Miguel (Freund 806183)", pg.evaluate("BASE_REC.get('bloque15').val.codigo") == "806183")
+    chk("Sin Autocad ni base de concreto SG en el catálogo", pg.evaluate("!BASE_REC.has('m_autocad_m') && !BASE_REC.has('m_base_de_concreto_sg') && DATA.apus.every(a=>a.lineas.every(l=>l[0]!=='m_autocad_m' && l[0]!=='m_base_de_concreto_sg'))"))
+    chk("R06.0115 (cubierta zinc alum) usa la lámina en lugar de 'Autocad'", pg.evaluate("BASE_APU.get('R06.0115').lineas[0][0]") == "m_lamina_zinc_alum_m")
+    chk("Ninguna receta usa acero por quintal", pg.evaluate("DATA.apus.every(a=>a.lineas.every(l=>!/^acero\\d+$/.test(l[0])))"))
+    tabla = ("Familia y tipo\tÁrea\tLongitud\tVolumen\tRecuento\nPuerta metálica 0.95x2.10\t\t\t\t3\nPuerta de madera cedro\t\t\t\t1\nBañera 1.50\t\t\t\t1\n"
+             "Suelo grava\t20\t\t3\t1\nImposta\t5\t10\t\t1\nFosa séptica + pozo\t\t\t\t1\nCama matrimonial\t\t\t\t2\nCodo PVC 4\t\t\t\t6\nTee PVC 4\t\t\t\t2\nMueble de cocina\t\t3\t\t1\n")
+    t = pg.evaluate("t=>{const r=nuevaTabla(t,'casa.txt'); return Object.fromEntries(r.imp.partidas.map((p,i)=>[r.imp.tipos[i].nombre,[p.apu,p.unidad,p.excluido||'',!!p.sgPend]]))}", tabla)
+    for nom, esp in [("Puerta metálica 0.95x2.10", ["09.09", "u", "", False]), ("Puerta de madera cedro", ["09.01", "u", "", False]), ("Bañera 1.50", ["11.18", "u", "", False]),
+                     ("Suelo grava", ["13.08", "m³", "", False]), ("Imposta", ["05.09", "m²", "", False]), ("Fosa séptica + pozo", ["11.19", None, "", True]),
+                     ("Cama matrimonial", ["", None, "mobiliario", False]), ("Codo PVC 4", ["", None, "accesorio", False]), ("Tee PVC 4", ["", None, "accesorio", False])]:
+        chk(f"Regla: '{nom}' → {esp[0] or 'fuera del presupuesto (' + esp[2] + ')'}", t[nom] == esp, t[nom])
+    chk("Mueble de cocina no se trata como mobiliario", t["Mueble de cocina"][2] == "", t["Mueble de cocina"])
+    pg.evaluate("t=>{cargarTexto(t,'casa.txt')}", tabla)
+    pg.wait_for_timeout(300)
+    ls = pg.evaluate("lineas().map(l=>l.titulo)")
+    chk("Cama, codos y tees no entran al presupuesto ni a los avisos", not any(x in ls for x in ["Cama matrimonial", "Codo PVC 4", "Tee PVC 4"]), ls)
+    pg.evaluate("ir('partidas'); render()")
+    pg.wait_for_timeout(300)
+    txt = pg.inner_text("#revitGroups")
+    chk("Subpartidas: aviso 'Fuera del presupuesto' y conteo", "Fuera del presupuesto" in txt and "3 fuera del presupuesto" in txt, txt[:300])
+    mig = pg.evaluate("""(()=>{ const p={revit:[{partidas:[{apu:'',unidad:'u'}],tipos:[{nombre:'Silla plástica'}]}], manual:[]}; migrarProyecto(p); return p.revit[0].partidas[0] })()""")
+    chk("Migración: lo ya importado sin APU se marca fuera del presupuesto", mig.get("excluido") == "mobiliario" and mig.get("unidad") is None, mig)
+    abrir(pg)
+    ex = pg.evaluate("explosion().mat.filter(x=>x.varCompra).map(x=>[x.r.id, x.r.unidad, x.conDesp, x.varCompra, x.qqCompra, x.comercial])")
+    chk("Explosión: acero en varillas de 6 m (#2, #3 y #4)", sorted(x[0] for x in ex) == ["varilla2_6m", "varilla3_6m", "varilla4_6m"] and all(x[1] == "varilla" for x in ex), ex)
+    kgv = {2: 0.249, 3: 0.560, 4: 0.994}
+    ok = all(x[3] == math.ceil(x[2] - 1e-9) and abs(x[4] - x[3] * 6 * kgv[int(x[0][7:-3])] / 45.36) < 1e-9 for x in ex)
+    chk("Explosión: varillas enteras y su equivalente en quintales", ok, ex)
+    pg.evaluate("ir('materiales'); render()")
+    pg.wait_for_timeout(300)
+    chk("Materiales a comprar muestra los quintales del acero", re.search(r"\d+ varillas de 6 m = [\d.,]+ qq", pg.inner_text("#v-materiales")) is not None)
+    qq = pg.evaluate("R2(BASE_REC.get('varilla4_6m').precio/6/0.994*45.36)")
+    chk(f"Tabla de acero: #4 a ${qq:.2f}/qq calculado del precio de la varilla", money_ok(pg.inner_text("#cardAcero"), qq), qq)
+    pg.evaluate("SEL='05.07'; ir('biblioteca'); render()")
+    pg.wait_for_timeout(300)
+    chk("Editor de PU: la varilla muestra ml, kg y qq", re.search(r"ml ≈ [\d.,]+ kg ≈ [\d.,]+ qq por m²", pg.inner_text("#libDetalle")) is not None)
+    ov = pg.evaluate("(()=>{DB.apuOv['05.96']={id:'05.96',cc:'05',nombre:'x',unidad:'m²',lineas:[['acero4',0.1],['m_autocad_m',1],['agua_litros',20],['agua_bolsa',1]],nuevo:1}; convertirCodigos(); const r=DB.apuOv['05.96'].lineas; delete DB.apuOv['05.96']; return r})()")
+    chk("PU propio: acero en qq pasa a varillas (× 7.6056), agua en litros a m³ y se quitan Autocad y agua en bolsa", ov == [["varilla4_6m", 0.760563], ["agua", 0.02]], ov)
+    abrir(pg)
 
     # ---------- 9. Pantallas ----------
     grupo("Pantallas y nombres")

@@ -1,14 +1,29 @@
+… Arranque y ejemplo
+… Precios de recursos (18 nov 2026)
+… Mano de obra
+… P.U. de las subpartidas estándar
+… Cierre, conjunto y fórmulas
+… Acero por metro lineal
+… Códigos de Partida y Subpartida
+… Catálogo de la base de datos
+… PU nuevos, reglas y acero por varilla (19 nov)
+… Pantallas y nombres
+… Tamaño de letra
+… Borrar PU y materiales
+… PDF y Excel
+… Celular y vista previa
 Arranque y ejemplo: 10 correctas
-Precios de recursos (18 nov 2026): 39 correctas
+Precios de recursos (18 nov 2026): 38 correctas
 Mano de obra: 16 correctas
-P.U. de las subpartidas estándar: 155 correctas
+P.U. de las subpartidas estándar: 159 correctas
 Cierre, conjunto y fórmulas: 14 correctas
 Acero por metro lineal: 18 correctas
 Códigos de Partida y Subpartida: 18 correctas
 Catálogo de la base de datos: 3 correctas
+PU nuevos, reglas y acero por varilla (19 nov): 30 correctas
 Pantallas y nombres: 12 correctas
 Tamaño de letra: 5 correctas
 Borrar PU y materiales: 4 correctas
 PDF y Excel: 10 correctas
 Celular y vista previa: 3 correctas
-TOTAL: 307 correctas, 0 fallidas, 307 pruebas
+TOTAL: 340 correctas, 0 fallidas, 340 pruebas
